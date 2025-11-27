@@ -8,7 +8,10 @@ class SplashPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(child: TextWidget(text: "center")),
+      body: Container(child: TextWidget(text: "center  ")),
     );
   }
 }
+
+
+
