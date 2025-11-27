@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Màu cơ bản -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+
+    <!-- Màu brand -->
+    <color name="primaryColor">#0066FF</color>
+    <color name="primaryDarkColor">#004FCC</color>
+    <color name="secondaryColor">#FF9900</color>
+
+    <!-- Màu nền -->
+    <color name="backgroundLight">#F5F5F5</color>
+    <color name="backgroundDark">#1A1A1A</color>
+
+    <!-- Màu text -->
+    <color name="textPrimary">#212121</color>
+    <color name="textSecondary">#757575</color>
+
+</resources>
