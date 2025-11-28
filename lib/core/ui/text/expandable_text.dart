@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/const/app_colors.dart';
+import 'package:keep_link/core/config/app_colors.dart';
 
 class ExpandableText extends StatelessWidget {
   ExpandableText({

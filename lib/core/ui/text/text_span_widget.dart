@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/const/app_colors.dart';
+import 'package:keep_link/core/config/app_colors.dart';
 
 class TextSpanWidget extends StatelessWidget {
   final String text1;

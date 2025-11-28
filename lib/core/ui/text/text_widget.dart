@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/const/app_colors.dart';
-import 'package:keep_link/core/const/app_enum.dart';
-import 'package:keep_link/core/const/app_text_styles.dart';
+import 'package:keep_link/core/config/app_colors.dart';
+import 'package:keep_link/core/config/app_enum.dart';
+import 'package:keep_link/core/config/app_text_styles.dart';
 
 class TextWidget extends StatelessWidget {
   final String text;
@@ -71,8 +71,8 @@ class TextWidget extends StatelessWidget {
         maxLines: maxLines,
         textAlign: textAlign,
         style: TextStyle(
-          fontFamily: fontFamily ?? "Itim",
-          color: AppColors.t700,
+          fontFamily: fontFamily,
+          color: AppColors.t200,
           fontSize: textStyle?.fontSize ?? size,
           fontStyle: fontStyle,
           shadows: listShadow,

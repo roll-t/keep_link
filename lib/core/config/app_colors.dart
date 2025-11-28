@@ -4,7 +4,7 @@ class AppColors {
   static const Color black = Color(0xFF000000);
   static const Color white = Color(0xFFffffff);
   static const Color grey = Color(0xFF8890A6);
-  static const Color accent = Color(0xFFeb2f06);
+  static const Color accent = Color(0xFFe67e22);
 
   static const Color green = Color(0xFF00AC67);
   static const Color blue = Color.fromARGB(255, 0, 39, 214);
@@ -16,15 +16,17 @@ class AppColors {
   static const Color error = Color(0xFFeb2f06);
   static const Color success = Color(0xFF2ed573);
 
-  static const Color d700 = Color(0xFF181818);
+  static const Color d700 = Color(0xFF121212);
   static const Color d500 = Color(0xff1f1f1f);
   static const Color d300 = Color(0xff2c2c2c);
+  static const Color d200 = Color(0xff3f3f3f);
+  static const Color d100 = Color(0xff575757);
 
   static const l300 = Color.fromARGB(255, 218, 216, 216);
   static const l200 = Color.fromARGB(255, 238, 238, 238);
   static const l100 = Color.fromARGB(255, 255, 255, 255);
 
-  static const Color primary = Color(0xFFeb2f06);
+  static const Color primary = Color(0xFFc0392b);
 
   static const t800 = Color(0xFF000000);
   static const t700 = Color(0xFF333333);

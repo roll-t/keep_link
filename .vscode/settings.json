@@ -1,0 +1,62 @@
+{
+  // 🐦 Flutter SDK (qua FVM)
+  "dart.flutterSdkPath": ".fvm/versions/3.32.0",
+  // ✨ Format & tổ chức code
+  "editor.formatOnSave": true,
+  "editor.formatOnType": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  // 🧩 Dành riêng cho Dart & Flutter
+  "[dart]": {
+    "editor.defaultFormatter": null,
+    "editor.formatOnSave": true
+  },
+  // 🚫 Bỏ qua folder không cần phân tích
+  "dart.analysisExcludedFolders": [
+    "build/",
+    ".dart_tool/",
+    ".fvm/",
+    "ios/Flutter",
+    "android/app/build"
+  ],
+  // 📏 Quy định style cho code Dart
+  "dart.lineLength": 100,
+  "dart.allowTestsOutsideTestFolder": true,
+  // ⚙️ Terminal mặc định
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  // 🧠 Gợi ý thông minh hơn cho import
+  "dart.imports.sortMembers": true,
+  "dart.showTodos": true,
+  // 💡 Tăng tốc khi debug
+  "dart.flutterHotReloadOnSave": true,
+  "dart.previewFlutterUiGuides": true,
+  "dart.previewFlutterUiGuidesCustomTracking": true,
+  // ✅ Kiểm tra chính tả (tuỳ chọn)
+  "cSpell.words": [
+    "Getx",
+    "Rxn",
+    "usecase",
+    "widget",
+    "viewmodel"
+  ],
+  // 🧹 Tự động ẩn thư mục rác trong VS Code Explorer
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.dart_tool": true,
+    "**/.fvm": true,
+    "**/build": true,
+    "**/ios/Flutter": true,
+    "**/android/app/build": true
+  },
+  // 🔍 Dành cho VS Code Workspace
+  "search.exclude": {
+    "**/.dart_tool": true,
+    "**/.fvm": true,
+    "**/build": true
+  }
+}

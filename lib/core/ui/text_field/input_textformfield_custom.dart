@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:keep_link/core/const/app_colors.dart';
+import 'package:keep_link/core/config/app_colors.dart';
 
 class InputTextFormFieldCustom extends StatefulWidget {
   final double height;
