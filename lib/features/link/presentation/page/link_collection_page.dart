@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/extension/colors.dart';
+import 'package:keep_link/features/link/presentation/widget/action_add_link.dart';
 import 'package:keep_link/features/link/presentation/widget/header_link_collection.dart';
 import 'package:keep_link/features/link/presentation/widget/list_link_collection.dart';
 
@@ -12,16 +12,7 @@ class LinkCollectionPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: const _BodyBuilder(),
-      floatingActionButton: Transform.rotate(
-        angle: 3.1415926535 / 2,
-        child: AppVectors.icAddLink.show(
-          backgroundColor: AppColors.d200,
-          padding: const EdgeInsets.all(12),
-        ),
-      ),
-    );
+    return Scaffold(body: const _BodyBuilder(), floatingActionButton: ActionAddLink());
   }
 }
 

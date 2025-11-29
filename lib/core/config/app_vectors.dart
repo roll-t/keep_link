@@ -8,6 +8,9 @@ class AppVectors {
   static const icSetting = _SvgIcon("${_root}ic_setting$_ext");
   static const icAddLink = _SvgIcon("${_root}ic_add_link$_ext");
   static const icAdd = _SvgIcon("${_root}ic_add$_ext");
+  static const icArrowDown = _SvgIcon("${_root}ic_arrow_down$_ext");
+  static const icEdit = _SvgIcon("${_root}ic_edit$_ext");
+  static const icClose = _SvgIcon("${_root}ic_close$_ext");
 }
 
 class _SvgIcon {
