@@ -13,6 +13,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeController = Get.put(ThemeController());
     return GetMaterialApp(
+      defaultTransition: Transition.noTransition,
       debugShowCheckedModeBanner: false,
 
       ///---> [Localization service]

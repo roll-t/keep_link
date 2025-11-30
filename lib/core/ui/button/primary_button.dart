@@ -5,17 +5,19 @@ import 'package:keep_link/core/ui/text/text_widget.dart';
 class PrimaryButton extends StatelessWidget {
   final String text;
   final double textSize;
+  final Color color;
   final VoidCallback onPressed;
   final bool isMaxParent;
-  final Color? backgroundColor;
+  final Color backgroundColor;
 
   const PrimaryButton({
+    super.key,
     required this.text,
     this.textSize = 14,
     required this.onPressed,
-    this.backgroundColor,
     this.isMaxParent = false,
-    super.key,
+    this.backgroundColor = AppColors.primary,
+    this.color = AppColors.t200,
   });
 
   @override
@@ -23,23 +25,14 @@ class PrimaryButton extends StatelessWidget {
     final button = ElevatedButton(
       style: ElevatedButton.styleFrom(
         backgroundColor: backgroundColor,
+        foregroundColor: color,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       onPressed: onPressed,
-      child: TextWidget(
-        text: text,
-        fontWeight: FontWeight.bold,
-        size: textSize,
-        color: AppColors.white,
-      ),
+      child: TextWidget(text: text, fontWeight: FontWeight.bold, size: textSize, color: color),
     );
 
-    return isMaxParent
-        ? ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: double.infinity),
-            child: button,
-          )
-        : button;
+    return isMaxParent ? SizedBox(width: double.infinity, child: button) : button;
   }
 }

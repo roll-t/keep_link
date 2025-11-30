@@ -26,7 +26,7 @@ class AppColors {
   static const l200 = Color.fromARGB(255, 238, 238, 238);
   static const l100 = Color.fromARGB(255, 255, 255, 255);
 
-  static const Color primary = Color(0xFFc0392b);
+  static const Color primary = Color(0xFF0652DD);
 
   static const t800 = Color(0xFF000000);
   static const t700 = Color(0xFF333333);

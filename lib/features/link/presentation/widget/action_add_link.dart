@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
+import 'package:keep_link/features/link/presentation/page/add_link_page.dart';
 
 class ActionAddLink extends StatelessWidget {
   const ActionAddLink({super.key});
@@ -12,6 +14,9 @@ class ActionAddLink extends StatelessWidget {
       child: AppVectors.icAddLink.show(
         backgroundColor: AppColors.d200,
         padding: const EdgeInsets.all(12),
+        onTap: () {
+          Get.toNamed(AddLinkPage.routeName);
+        },
       ),
     );
   }

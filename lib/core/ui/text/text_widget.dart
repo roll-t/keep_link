@@ -26,7 +26,7 @@ class TextWidget extends StatelessWidget {
     this.listShadow,
     this.maxLines = 1000,
     required this.text,
-    this.color,
+    this.color = AppColors.t200,
     this.colorFixed = false,
     this.size = 14,
     this.fontWeight = FontWeight.normal,
@@ -72,7 +72,7 @@ class TextWidget extends StatelessWidget {
         textAlign: textAlign,
         style: TextStyle(
           fontFamily: fontFamily,
-          color: AppColors.t200,
+          color: color,
           fontSize: textStyle?.fontSize ?? size,
           fontStyle: fontStyle,
           shadows: listShadow,
