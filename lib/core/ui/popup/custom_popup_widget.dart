@@ -41,7 +41,11 @@ class CustomPopupWidget extends StatelessWidget {
           // ------ POPUP LIST ------
           content: Container(
             width: Get.width * .7,
-            constraints: BoxConstraints(maxHeight: Get.width * .8),
+            constraints: BoxConstraints(
+              maxHeight: controller.items.length > controller.maxItemDisplay
+                  ? controller.itemHeight * controller.maxItemDisplay
+                  : ((controller.items.length) * controller.itemHeight),
+            ),
             child: ListView.builder(
               controller: controller.scrollController,
               padding: EdgeInsets.zero,
@@ -49,7 +53,6 @@ class CustomPopupWidget extends StatelessWidget {
               itemBuilder: (context, i) {
                 final item = controller.items[i];
                 final isSelected = controller.selectedItem.value?.id == item.id;
-
                 return GestureDetector(
                   onTap: () {
                     controller.selectItem(item);

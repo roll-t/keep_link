@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/app_binding.dart';
 import 'package:keep_link/core/config/app_theme.dart';
 import 'package:keep_link/core/lang/translation_service.dart';
 import 'package:keep_link/core/routes/app_pages.dart';
@@ -26,7 +27,7 @@ class App extends StatelessWidget {
       ///---> [Page config]
       getPages: appPage,
       initialRoute: SplashPage.routeName,
-      // initialBinding: AppBinding(),
+      initialBinding: AppBinding(),
       home: const SplashPage(),
       unknownRoute: notFoundPage,
 

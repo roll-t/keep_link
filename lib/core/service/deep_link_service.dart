@@ -27,6 +27,7 @@ class DeepLinkService {
 
   static void _processIntent(Intent intent, {required bool fromColdStart}) {
     final text = intent.extra?["android.intent.extra.TEXT"];
+    print("CHECK LINK 2 $text ");
     if (text == null) return;
     isOpenedFromShare = true;
     sharedText = text;

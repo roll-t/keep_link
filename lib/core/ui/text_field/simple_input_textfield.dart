@@ -117,6 +117,7 @@ class SimpleInputTextField extends StatelessWidget {
   /// Số dòng tối thiểu
   final int? minLines;
   final String? label;
+  final String errorText;
 
   /// Action khi nhấn enter
   final TextInputAction? textInputAction;
@@ -164,6 +165,7 @@ class SimpleInputTextField extends StatelessWidget {
     this.minLines,
     this.textInputAction,
     this.label,
+    this.errorText = "",
     this.scrollPhysics,
     this.scrollController,
   });
@@ -172,11 +174,10 @@ class SimpleInputTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 6,
       children: [
         if (label != null)
           Padding(
-            padding: const EdgeInsets.only(left: 4.0),
+            padding: const EdgeInsets.only(left: 4.0, bottom: 6),
             child: TextWidget(text: label!, textStyle: AppTextStyle.bold16),
           ),
         Container(
@@ -263,6 +264,17 @@ class SimpleInputTextField extends StatelessWidget {
             ),
           ),
         ),
+
+        if (errorText.trim().isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: TextWidget(
+              text: " $errorText",
+              textStyle: AppTextStyle.regular12,
+              color: AppColors.red,
+            ),
+          ),
+        ],
       ],
     );
   }

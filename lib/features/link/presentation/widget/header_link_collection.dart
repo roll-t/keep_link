@@ -3,10 +3,10 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/ui/popup/custom_popup_widget.dart';
-import 'package:keep_link/features/link/application/controller/header_link_collection_controller.dart';
+import 'package:keep_link/features/link/application/controller/category_controller.dart';
 import 'package:keep_link/features/link/presentation/widget/category_dialog.dart';
 
-class HeaderLinkCollection extends GetView<HeaderLinkCollectionController> {
+class HeaderLinkCollection extends GetView<CategoryController> {
   const HeaderLinkCollection({super.key});
 
   @override
@@ -27,14 +27,18 @@ class HeaderLinkCollection extends GetView<HeaderLinkCollectionController> {
             Row(
               spacing: 12,
               children: [
-                AppVectors.icEdit.show(
-                  size: 28,
-                  backgroundColor: AppColors.d200,
-                  padding: const EdgeInsets.all(8),
-                  onTap: () {
-                    // edit
-                    Get.dialog(CategoryDialog(isEditMode: true));
-                  },
+                Obx(
+                  () => controller.popupController.selectedItem.value?.id == "all"
+                      ? SizedBox.shrink()
+                      : AppVectors.icEdit.show(
+                          size: 28,
+                          backgroundColor: AppColors.d200,
+                          padding: const EdgeInsets.all(8),
+                          onTap: () {
+                            // edit
+                            Get.dialog(CategoryDialog(isEditMode: true));
+                          },
+                        ),
                 ),
                 AppVectors.icAdd.show(
                   size: 28,

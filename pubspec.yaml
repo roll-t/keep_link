@@ -23,6 +23,7 @@ dependencies:
   loading_animation_widget: ^1.3.0
   receive_intent: ^0.2.7
   fluttertoast: ^9.0.0
+  tiktok_scraper: ^0.0.8
 dev_dependencies:
   flutter_test:
     sdk: flutter

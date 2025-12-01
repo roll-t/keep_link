@@ -29,15 +29,31 @@ class DbHelper {
   static final List<String> _tableCreators = [];
 
   static void registerModel(DbModel model) {
+    final exists = _tableCreators.any((sql) => sql.contains(model.tableName));
+    if (exists) return;
+
+    // 1. Tạo cột
     final columnsSql = model.columns.entries.map((e) => '${e.key} ${e.value}').join(', ');
-    final sql = 'CREATE TABLE IF NOT EXISTS ${model.tableName} ($columnsSql)';
+
+    // 2. Thêm foreign keys nếu có
+    final fkSql = model.foreignKeys.isNotEmpty ? ', ${model.foreignKeys.join(', ')}' : '';
+
+    // 3. Gộp lại thành CREATE TABLE
+    final sql =
+        '''
+    CREATE TABLE IF NOT EXISTS ${model.tableName} (
+      $columnsSql
+      $fkSql
+    )
+  ''';
+
     _tableCreators.add(sql);
   }
 
   // Insert or Update
   static Future<void> upsert(DbModel model) async {
     final db = await database;
-    await db.insert(model.tableName, model.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(model.tableName, model.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   // Get all

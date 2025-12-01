@@ -1,33 +1,9 @@
-enum CustomTextFieldType {
-  text,
-  yearPicker,
-  datePicker,
-  dropdown,
-  money,
-  textArea,
-}
+enum CustomTextFieldType { text, yearPicker, datePicker, dropdown, money, textArea }
 
-enum AlertType {
-  success,
-  error,
-  warning,
-}
+enum AlertType { success, error, warning }
 
-enum SortType {
-  newest,
-  oldest,
-}
+enum SortType { newest, oldest }
 
-enum TextTransformType {
-  normal,
-  uppercase,
-  lowercase,
-  capitalize,
-  capitalizeWords,
-}
+enum TextTransformType { normal, uppercase, lowercase, capitalize, capitalizeWords }
 
-enum Results {
-  success,
-  error,
-  wraning,
-}
+enum Results { success, error, wraning }

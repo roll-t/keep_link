@@ -6,13 +6,48 @@ import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/ui/button/primary_button.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/ui/text_field/simple_input_textfield.dart';
+import 'package:keep_link/features/link/application/controller/category_controller.dart';
 
-class CategoryDialog extends StatelessWidget {
+class CategoryDialog extends GetView<CategoryController> {
   final bool isEditMode;
+
   const CategoryDialog({super.key, this.isEditMode = false});
+
+  void _initController() {
+    final selectedName = controller.popupController.selectedItem.value?.name ?? "";
+    controller.errorMess.value = "";
+    if (isEditMode) {
+      controller.categoryNameController.text = selectedName;
+    } else {
+      controller.categoryNameController.clear();
+    }
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PrimaryButton(
+          isMaxParent: true,
+          text: isEditMode ? "Lưu" : "Thêm",
+          onPressed: isEditMode ? controller.updateCategory : controller.addCategory,
+        ),
+        if (isEditMode) const SizedBox(height: 8),
+        if (isEditMode)
+          PrimaryButton(
+            isMaxParent: true,
+            text: "Xoá",
+            onPressed: controller.deleteCategory,
+            backgroundColor: AppColors.d300,
+            color: AppColors.red,
+          ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initController());
     return Material(
       color: Colors.transparent,
       child: Center(
@@ -23,7 +58,6 @@ class CategoryDialog extends StatelessWidget {
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              spacing: 20,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -34,24 +68,24 @@ class CategoryDialog extends StatelessWidget {
                       textStyle: AppTextStyle.medium24,
                       color: AppColors.primary,
                     ),
-                    AppVectors.icClose.show(onTap: () => Get.back()),
+                    AppVectors.icClose.show(
+                      backgroundColor: AppColors.d300,
+                      padding: EdgeInsets.all(8),
+                      onTap: () => Get.back(),
+                    ),
                   ],
                 ),
-                SimpleInputTextField(hintText: "Nhập tên danh mục"),
-                Column(
-                  spacing: 8,
-                  children: [
-                    PrimaryButton(isMaxParent: true, text: "Thêm", onPressed: () {}),
-                    if (isEditMode)
-                      PrimaryButton(
-                        isMaxParent: true,
-                        text: "Xoá",
-                        onPressed: () {},
-                        backgroundColor: AppColors.d200,
-                        color: AppColors.red,
-                      ),
-                  ],
+                const SizedBox(height: 20),
+                Obx(
+                  () => SimpleInputTextField(
+                    controller: controller.categoryNameController,
+                    hintText: "Nhập tên danh mục",
+                    errorText: controller.errorMess.value,
+                    onChanged: (_) => controller.onChangeDismissError(),
+                  ),
                 ),
+                const SizedBox(height: 20),
+                _buildActionButtons(),
               ],
             ),
           ),

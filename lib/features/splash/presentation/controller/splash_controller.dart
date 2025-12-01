@@ -1,11 +1,25 @@
 import 'package:get/get.dart';
+import 'package:keep_link/core/service/deep_link_service.dart';
+import 'package:keep_link/features/link/presentation/page/add_link_page.dart';
 import 'package:keep_link/features/link/presentation/page/link_collection_page.dart';
 
+class SplashArg {
+  String? deepLinkText;
+  SplashArg({this.deepLinkText});
+}
+
 class SplashController extends GetxController {
+  SplashController();
   @override
-  void onInit() async {
-    await Future.delayed(Duration(milliseconds: 50));
-    Get.offAndToNamed(LinkCollectionPage.routeName);
-    super.onInit();
+  Future<void> onReady() async {
+    super.onReady();
+    if (DeepLinkService.sharedText != null) {
+      Get.offAllNamed(
+        AddLinkPage.routeName,
+        arguments: SplashArg(deepLinkText: DeepLinkService.sharedText),
+      );
+      return;
+    }
+    Get.offAllNamed(LinkCollectionPage.routeName);
   }
 }
