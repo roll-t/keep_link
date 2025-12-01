@@ -8,6 +8,8 @@ PODS:
     - Flutter
   - flutter_native_splash (2.4.3):
     - Flutter
+  - fluttertoast (0.0.2):
+    - Flutter
   - just_audio (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -39,6 +41,7 @@ DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_localization (from `.symlinks/plugins/flutter_localization/ios`)
   - flutter_native_splash (from `.symlinks/plugins/flutter_native_splash/ios`)
+  - fluttertoast (from `.symlinks/plugins/fluttertoast/ios`)
   - just_audio (from `.symlinks/plugins/just_audio/darwin`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
@@ -60,6 +63,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_localization/ios"
   flutter_native_splash:
     :path: ".symlinks/plugins/flutter_native_splash/ios"
+  fluttertoast:
+    :path: ".symlinks/plugins/fluttertoast/ios"
   just_audio:
     :path: ".symlinks/plugins/just_audio/darwin"
   package_info_plus:
@@ -85,6 +90,7 @@ SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_localization: 72299fb6cb4e51cae587bd953ed0b958040b71e6
   flutter_native_splash: c32d145d68aeda5502d5f543ee38c192065986cf
+  fluttertoast: 2c67e14dce98bbdb200df9e1acf610d7a6264ea1
   just_audio: 4e391f57b79cad2b0674030a00453ca5ce817eed
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880

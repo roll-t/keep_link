@@ -9,6 +9,8 @@ class SplashPage extends GetView<SplashController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(body: TextWidget(text: "Loading..."));
+    return Scaffold(
+      body: Center(child: TextWidget(text: "Loading...")),
+    );
   }
 }
