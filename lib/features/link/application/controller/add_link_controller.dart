@@ -1,11 +1,16 @@
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/local_storage/sql_lite.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
+import 'package:keep_link/core/ui/popup/custom_popup_controller.dart';
 import 'package:keep_link/core/utils/controller/deep_link_controller.dart';
+import 'package:keep_link/core/utils/utils.dart';
+import 'package:keep_link/features/link/data/model/link_model.dart';
 
 class AddLinkController extends GetxController {
   final TextEditingController linkController = TextEditingController();
@@ -15,41 +20,43 @@ class AddLinkController extends GetxController {
 
   final RxString errorLinkMess = "".obs;
   final RxString errorTitleMess = "".obs;
-
   final RxString _queryLink = "".obs;
 
   @override
   void onInit() {
     super.onInit();
+    _setupWorkers();
+    _checkInitialData();
+  }
 
+  void _setupWorkers() {
     debounce(_queryLink, (link) {
       if (_isValidUrl(link)) {
         _deepLinkController.fetchMetaData(link);
       }
-    }, time: const Duration(milliseconds: 300));
-
-    // Handle Deep Link từ Share
-    if (_deepLinkController.deepLink != null && _deepLinkController.deepLink!.isNotEmpty) {
-      final sharedLink = _deepLinkController.deepLink!;
-      linkController.text = sharedLink;
-      if (_isValidUrl(sharedLink)) {
-        _deepLinkController.fetchMetaData(sharedLink);
-      }
-    }
-
-    // Auto-fill Title
+    }, time: const Duration(milliseconds: 200));
     ever(_deepLinkController.metaData, (meta) {
-      if (meta != null && titleController.text.isEmpty) {
+      if (meta != null) {
         titleController.text = meta.title;
+        if (titleController.text.isNotEmpty) {
+          errorTitleMess.value = "";
+        }
       }
     });
+  }
+
+  void _checkInitialData() {
+    final sharedLink = _deepLinkController.deepLink;
+    if (sharedLink != null && sharedLink.isNotEmpty) {
+      linkController.text = sharedLink;
+      onChangLinkTextField(sharedLink);
+    }
   }
 
   bool validateInput() {
     bool isValid = true;
     final link = linkController.text.trim();
     final title = titleController.text.trim();
-
     if (link.isEmpty) {
       errorLinkMess.value = "Link không được để trống";
       isValid = false;
@@ -59,57 +66,70 @@ class AddLinkController extends GetxController {
     } else {
       errorLinkMess.value = "";
     }
-
     if (title.isEmpty) {
       errorTitleMess.value = "Tiêu đề không được để trống";
       isValid = false;
     } else {
       errorTitleMess.value = "";
     }
-
     return isValid;
   }
 
   Future<void> addLink() async {
-    if (!validateInput()) return;
-    Get.back(result: {"title": titleController.text.trim(), "link": linkController.text.trim()});
+    try {
+      if (!validateInput()) return;
+      final now = DateTime.now();
+      final link = LinkModel(
+        id: now.millisecondsSinceEpoch.toString(),
+        name: titleController.text.trim(),
+        metaDataModel: _deepLinkController.metaData.value,
+        createdAt: now,
+        updatedAt: now,
+        categoryId: Get.find<CustomPopupController>().selectedItem.value?.id?.trim(),
+      );
+      await DbHelper.upsert(link);
+      Utils.dimissKeyboard();
+      onCancel();
+      _clearInputs();
+
+      Fluttertoast.showToast(msg: "Thêm thành công");
+    } catch (e, stackTrace) {
+      log("Error adding link: $e");
+      print(stackTrace);
+      Fluttertoast.showToast(msg: "Thêm thất bại, vui lòng thử lại");
+    }
+  }
+
+  void _clearInputs() {
     linkController.clear();
     titleController.clear();
-    Fluttertoast.showToast(msg: "Thêm thành công");
+    _queryLink.value = "";
   }
 
   bool _isValidUrl(String url) {
     if (url.isEmpty) return false;
     final uri = Uri.tryParse(url);
-    return uri != null && uri.hasScheme && uri.hasAuthority && (uri.host.isNotEmpty);
+    return uri != null &&
+        uri.hasScheme &&
+        ['http', 'https'].contains(uri.scheme) &&
+        uri.hasAuthority;
   }
 
   Future<void> onPasteClipboard() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
-    if (data != null && data.text != null && data.text!.isNotEmpty) {
-      final pastedText = data.text!;
+    final pastedText = data?.text;
+    if (pastedText != null && pastedText.isNotEmpty) {
       linkController.text = pastedText;
-
-      // Clear lỗi ngay
-      if (errorLinkMess.value.isNotEmpty) errorLinkMess.value = "";
-
-      // Với Paste, ta gọi fetch NGAY LẬP TỨC (không cần chờ debounce) để trải nghiệm nhanh hơn
-      if (_isValidUrl(pastedText)) {
-        _deepLinkController.fetchMetaData(pastedText);
-      }
-
-      Fluttertoast.showToast(msg: "Đã dán");
+      errorLinkMess.value = "";
+      _queryLink.value = pastedText;
+      Fluttertoast.showToast(msg: "Đã dán link");
     } else {
-      Fluttertoast.showToast(msg: "Chưa có dữ liệu trong bộ nhớ tạm");
+      Fluttertoast.showToast(msg: "Bộ nhớ tạm trống");
     }
   }
 
-  // 3. Update hàm này chỉ để đẩy dữ liệu vào luồng debounce
   void onChangLinkTextField(String value) {
-    // Clear lỗi UI
     if (errorLinkMess.value.isNotEmpty) errorLinkMess.value = "";
-
-    // Đẩy value vào biến Rx để debounce worker xử lý
     _queryLink.value = value;
   }
 
@@ -122,7 +142,11 @@ class AddLinkController extends GetxController {
       if (Platform.isAndroid) {
         SystemNavigator.pop();
       } else if (Platform.isIOS) {
-        exit(0);
+        try {
+          exit(0);
+        } catch (e) {
+          Get.back();
+        }
       }
     } else {
       Get.back();
@@ -133,7 +157,6 @@ class AddLinkController extends GetxController {
   void onClose() {
     linkController.dispose();
     titleController.dispose();
-    // _queryLink tự động dispose theo controller
     super.onClose();
   }
 }

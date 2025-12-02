@@ -15,7 +15,6 @@ class MetaDataModel {
     required this.appleIcon,
   });
 
-  /// Tạo từ Map
   factory MetaDataModel.fromMap(Map<String, dynamic> map) {
     return MetaDataModel(
       url: map['URL'] ?? '',
@@ -27,7 +26,6 @@ class MetaDataModel {
     );
   }
 
-  /// Chuyển về Map (nếu cần)
   Map<String, dynamic> toMap() {
     return {
       'URL': url,

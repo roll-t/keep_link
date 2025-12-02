@@ -184,7 +184,7 @@ class DialogUtils {
                   if (onCancel != null)
                     Expanded(
                       child: PrimaryButton(
-                        backgroundColor: AppColors.t400,
+                        backgroundColor: AppColors.d300,
                         text: cancelText,
                         isMaxParent: true,
                         onPressed: onCancel,

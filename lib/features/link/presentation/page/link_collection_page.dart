@@ -25,11 +25,12 @@ class _BodyBuilder extends StatelessWidget {
         ListLinkCollection(),
         Container(
           width: double.infinity,
-          height: 80,
+          height: 120,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
                 AppColors.black.withOpacityCompat(.9),
+                AppColors.black.withOpacityCompat(.6),
                 AppColors.black.withOpacityCompat(.3),
                 AppColors.transparent,
                 AppColors.transparent,

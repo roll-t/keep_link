@@ -22,14 +22,15 @@ class AddLinkPage extends StatelessWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 12).copyWith(top: 40),
         child: Column(
-          spacing: 20,
           children: [
             _buildHeader(),
+            SizedBox(height: 24),
+            const DeepLinkPreview(),
+            SizedBox(height: 4),
             GetBuilder<AddLinkController>(
               builder: (controller) {
                 return Column(
                   children: [
-                    const DeepLinkPreview(),
                     SizedBox(height: 4),
                     Obx(
                       () => SimpleInputTextField(
@@ -45,7 +46,6 @@ class AddLinkPage extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 20),
-
                     Obx(
                       () => SimpleInputTextField(
                         controller: controller.titleController,
@@ -56,7 +56,6 @@ class AddLinkPage extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 20),
-
                     _buildActionButtons(controller),
                   ],
                 );

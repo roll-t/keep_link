@@ -26,6 +26,27 @@ class DbHelper {
     );
   }
 
+  // Delete whole database file
+  static Future<void> deleteDatabaseFile() async {
+    final path = join(await getDatabasesPath(), 'app_database.db');
+    await deleteDatabase(path);
+    _db = null; // reset instance
+  }
+
+  // Delete DB then recreate new one
+  static Future<void> resetDatabase() async {
+    await deleteDatabaseFile();
+
+    // Recreate DB by calling getter
+    await database;
+
+    // Re-create tables using stored table creators
+    final db = await database;
+    for (var tableCreator in _tableCreators) {
+      await db.execute(tableCreator);
+    }
+  }
+
   static final List<String> _tableCreators = [];
 
   static void registerModel(DbModel model) {
@@ -56,10 +77,26 @@ class DbHelper {
     await db.insert(model.tableName, model.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  // Get all
-  static Future<List<Map<String, dynamic>>> getAll(String tableName) async {
+  static Future<List<Map<String, dynamic>>> getAll(
+    String tableName, {
+    String? orderByColumn,
+    bool descending = true,
+  }) async {
     final db = await database;
-    return await db.query(tableName);
+
+    final pragma = await db.rawQuery("PRAGMA table_info($tableName)");
+    final columns = pragma.map((e) => e['name'] as String).toList();
+
+    String? orderBy;
+    if (orderByColumn != null && columns.contains(orderByColumn)) {
+      orderBy = '$orderByColumn ${descending ? 'DESC' : 'ASC'}';
+    } else if (columns.contains('created_at')) {
+      orderBy = 'created_at ${descending ? 'DESC' : 'ASC'}';
+    } else if (columns.contains('createdAt')) {
+      orderBy = 'createdAt ${descending ? 'DESC' : 'ASC'}';
+    }
+
+    return await db.query(tableName, orderBy: orderBy);
   }
 
   // Get by id

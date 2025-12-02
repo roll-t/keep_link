@@ -12,6 +12,7 @@ class AppVectors {
   static const icEdit = _SvgIcon("${_root}ic_edit$_ext");
   static const icClose = _SvgIcon("${_root}ic_close$_ext");
   static const icClipBoard = _SvgIcon("${_root}ic_clip_board$_ext");
+  static const icEmpty = _SvgIcon("${_root}ic_empty$_ext");
 }
 
 class _SvgIcon {

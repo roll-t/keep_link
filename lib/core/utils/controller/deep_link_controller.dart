@@ -1,5 +1,7 @@
 // ignore_for_file: depend_on_referenced_packages
 
+import 'dart:developer';
+
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:html/dom.dart';
@@ -46,8 +48,7 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
 
   Future<void> fetchMetaData(String url) async {
     isLoading.value = true;
-    update(["EXTRA_LINK_ID"]); // Trigger GetBuilder loading state
-
+    update(["EXTRA_LINK_ID"]);
     try {
       if (_isTikTokUrl(url)) {
         metaData.value = await _fetchTikTokMeta(url);
@@ -55,10 +56,10 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
         metaData.value = await _fetchNormalMeta(url);
       }
     } catch (e) {
-      print("Error fetching metadata: $e");
+      log("Error fetching metadata: $e");
     } finally {
       isLoading.value = false;
-      update(["EXTRA_LINK_ID"]); // Trigger GetBuilder render UI
+      update(["EXTRA_LINK_ID"]);
     }
   }
 
@@ -70,7 +71,6 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
       final parsed = TiktokMetaData.fromJson(video.toMap());
       return parsed.toMetaData().copyWith(url: url);
     } catch (e) {
-      // Fallback sang normal meta nếu API tiktok lỗi
       return await _fetchNormalMeta(url);
     }
   }

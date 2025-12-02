@@ -25,19 +25,23 @@ class HeaderLinkCollection extends GetView<CategoryController> {
             ),
             CustomPopupWidget(controller: controller.popupController),
             Row(
-              spacing: 12,
               children: [
                 Obx(
                   () => controller.popupController.selectedItem.value?.id == "all"
                       ? SizedBox.shrink()
-                      : AppVectors.icEdit.show(
-                          size: 28,
-                          backgroundColor: AppColors.d200,
-                          padding: const EdgeInsets.all(8),
-                          onTap: () {
-                            // edit
-                            Get.dialog(CategoryDialog(isEditMode: true));
-                          },
+                      : Row(
+                          children: [
+                            AppVectors.icEdit.show(
+                              size: 28,
+                              backgroundColor: AppColors.d200,
+                              padding: const EdgeInsets.all(8),
+                              onTap: () {
+                                // edit
+                                Get.dialog(CategoryDialog(isEditMode: true));
+                              },
+                            ),
+                            SizedBox(width: 12),
+                          ],
                         ),
                 ),
                 AppVectors.icAdd.show(

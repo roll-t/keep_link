@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
+import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
+import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/features/link/presentation/page/add_link_page.dart';
 
 class ActionAddLink extends StatelessWidget {
@@ -9,14 +11,24 @@ class ActionAddLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: 3.1415926535 / 2,
-      child: AppVectors.icAddLink.show(
-        backgroundColor: AppColors.d200,
-        padding: const EdgeInsets.all(12),
-        onTap: () {
-          Get.toNamed(AddLinkPage.routeName);
-        },
+    return GestureDetector(
+      onTap: () {
+        Get.toNamed(AddLinkPage.routeName);
+      },
+      child: Container(
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(1000),
+          color: AppColors.primary,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 6,
+          children: [
+            Transform.rotate(angle: 3.1415926535 / 2, child: AppVectors.icAddLink.show(size: 15)),
+            TextWidget(text: "Thêm link", textStyle: AppTextStyle.bold16, color: AppColors.t100),
+          ],
+        ),
       ),
     );
   }
