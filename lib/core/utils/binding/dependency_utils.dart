@@ -23,4 +23,20 @@ class DependencyUtils {
       Get.delete(tag: tag, force: true);
     }
   }
+
+  /// Find dependency safely, nếu chưa có sẽ trả về null
+  static T? find<T extends Object>() {
+    if (Get.isRegistered<T>()) {
+      return Get.find<T>();
+    }
+    return null;
+  }
+
+  /// Find dependency với tag nếu cần
+  static T? findByTag<T extends Object>(String tag) {
+    if (Get.isRegistered<T>(tag: tag)) {
+      return Get.find<T>(tag: tag);
+    }
+    return null;
+  }
 }

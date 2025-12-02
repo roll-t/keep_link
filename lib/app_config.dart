@@ -11,6 +11,11 @@ Future<void> appConfig() async {
   await DeepLinkService.init();
   Utils.ignoreException();
   WidgetsBinding.instance.addObserver(AppLifecycleHandler());
+
+  // Đăng ký model
   DbHelper.registerModel(CategoryModel(id: ''));
   DbHelper.registerModel(LinkModel(id: ''));
+
+  // Reset database -> Xóa sạch & tạo lại table
+  // await DbHelper.resetDatabase();
 }

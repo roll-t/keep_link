@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/local_storage/sql_lite.dart';
+import 'package:keep_link/core/ui/popup/custom_popup_controller.dart';
 import 'package:keep_link/features/link/data/model/link_model.dart';
 
 class LinkCollectionController extends GetxController {
@@ -14,14 +15,21 @@ class LinkCollectionController extends GetxController {
     await fetchAllLinks();
   }
 
-  /// Lấy tất cả link từ DB
+  /// Lấy tất cả link từ DB, nhưng chỉ lấy theo category đang chọn
   Future<void> fetchAllLinks() async {
+    final CustomPopupController categoryCustomPopup = Get.find<CustomPopupController>();
     try {
+      final categoryId = categoryCustomPopup.selectedItem.value?.id;
       final rows = await DbHelper.getAll('links');
-      final links = rows.map((row) {
-        return LinkModel.fromJson(Map<String, dynamic>.from(row));
-      }).toList();
+      final links =
+          (categoryId == 'all' || categoryId == null
+                  ? rows
+                  : rows.where((row) => row['categoryId'] == categoryId))
+              .map((row) => LinkModel.fromJson(Map<String, dynamic>.from(row)))
+              .toList();
       listLink.assignAll(links);
+
+      log('Fetched ${links.length} links for category $categoryId');
     } catch (e) {
       log('Error fetching links: $e');
     }

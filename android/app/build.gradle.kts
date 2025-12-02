@@ -26,8 +26,12 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
+     buildTypes {
         release {
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             signingConfig = signingConfigs.getByName("debug")
         }
     }

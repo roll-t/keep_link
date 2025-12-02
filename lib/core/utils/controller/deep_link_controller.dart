@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html_parser;
+import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/core/utils/mixin/argument_handle_mixin_controller.dart';
 import 'package:keep_link/features/link/data/model/meta_data_model.dart';
 import 'package:keep_link/features/link/data/model/tiktok_meta_data.dart';
@@ -15,17 +16,13 @@ import 'package:tiktok_scraper/tiktok_scraper.dart';
 class DeepLinkController extends GetxController with ArgumentHandlerMixinController<SplashArg> {
   final Rx<MetaDataModel?> metaData = Rx(null);
   final RxBool isLoading = false.obs;
-  String? deepLink; // Bỏ late final để tránh lỗi runtime nếu access sớm
-
-  // Singleton Dio instance để tối ưu performance
+  String? deepLink;
   static final Dio _dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-        // Hoặc giả lập browser
-        // "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36..."
       },
       followRedirects: true,
       maxRedirects: 5,
@@ -48,6 +45,7 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
 
   Future<void> fetchMetaData(String url) async {
     isLoading.value = true;
+    DialogUtils.showProgressDialog();
     update(["EXTRA_LINK_ID"]);
     try {
       if (_isTikTokUrl(url)) {
@@ -60,6 +58,7 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
     } finally {
       isLoading.value = false;
       update(["EXTRA_LINK_ID"]);
+      Get.back();
     }
   }
 
@@ -118,8 +117,6 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
     String? title, description, image, favicon, appleIcon;
     final uriBase = Uri.parse(url);
 
-    // Helper function để resolve URL tương đối thành tuyệt đối
-    // Ví dụ: /img/logo.png -> https://domain.com/img/logo.png
     String resolveUrl(String? path) {
       if (path == null || path.isEmpty) return '';
       try {
@@ -131,8 +128,7 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
 
     // 1. Quét thẻ META
     for (var meta in doc.getElementsByTagName("meta")) {
-      final property =
-          meta.attributes["property"] ?? meta.attributes["name"]; // Hỗ trợ cả property và name
+      final property = meta.attributes["property"] ?? meta.attributes["name"];
       final content = meta.attributes["content"];
 
       if (content == null || content.isEmpty) continue;

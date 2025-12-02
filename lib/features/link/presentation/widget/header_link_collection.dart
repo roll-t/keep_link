@@ -3,7 +3,9 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/ui/popup/custom_popup_widget.dart';
+import 'package:keep_link/core/utils/binding/dependency_utils.dart';
 import 'package:keep_link/features/link/application/controller/category_controller.dart';
+import 'package:keep_link/features/link/application/controller/link_collection_controller.dart';
 import 'package:keep_link/features/link/presentation/widget/category_dialog.dart';
 
 class HeaderLinkCollection extends GetView<CategoryController> {
@@ -23,7 +25,12 @@ class HeaderLinkCollection extends GetView<CategoryController> {
               backgroundColor: AppColors.d200,
               padding: const EdgeInsets.all(8),
             ),
-            CustomPopupWidget(controller: controller.popupController),
+            CustomPopupWidget(
+              controller: controller.popupController,
+              onSelected: () {
+                DependencyUtils.find<LinkCollectionController>()?.fetchAllLinks();
+              },
+            ),
             Row(
               children: [
                 Obx(

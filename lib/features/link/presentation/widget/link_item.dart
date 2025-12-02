@@ -28,6 +28,7 @@ class LinkItem extends StatelessWidget {
           Align(
             alignment: Alignment.center,
             child: Container(
+              margin: EdgeInsets.all(12),
               padding: EdgeInsets.all(8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),

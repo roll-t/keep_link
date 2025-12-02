@@ -8,9 +8,10 @@ import 'package:keep_link/core/ui/popup/custom_popup_controller.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 
 class CustomPopupWidget extends StatelessWidget {
-  const CustomPopupWidget({super.key, required this.controller});
-
+  final VoidCallback? onSelected;
   final CustomPopupController controller;
+
+  const CustomPopupWidget({super.key, required this.controller, this.onSelected});
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +57,7 @@ class CustomPopupWidget extends StatelessWidget {
                 return GestureDetector(
                   onTap: () {
                     controller.selectItem(item);
+                    onSelected?.call();
                     Navigator.of(context).pop();
                   },
                   child: Container(

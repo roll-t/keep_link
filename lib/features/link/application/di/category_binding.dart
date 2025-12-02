@@ -5,6 +5,6 @@ import 'package:keep_link/features/link/application/controller/category_controll
 class CategoryBinding extends Bindings {
   @override
   void dependencies() {
-    DependencyUtils.lazyPut(() => CategoryController());
+    DependencyUtils.put(() => CategoryController());
   }
 }

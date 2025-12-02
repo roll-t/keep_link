@@ -4,5 +4,6 @@ import 'package:keep_link/app_config.dart';
 
 void main() async {
   await appConfig();
+
   runApp(const App());
 }

@@ -39,7 +39,7 @@ class CategoryModel implements DbModel {
     'name': 'TEXT NOT NULL',
     'description': 'TEXT',
     'icon_url': 'TEXT',
-    'createdAt': 'TEXT',
+    'created_at': 'TEXT',
     'updated_at': 'TEXT',
   };
 

@@ -15,7 +15,7 @@ final appPage = [
   GetPage(
     name: LinkCollectionPage.routeName,
     page: () => const LinkCollectionPage(),
-    bindings: [LinkCollectionBinding(), CategoryBinding()],
+    bindings: [CategoryBinding(), LinkCollectionBinding()],
   ),
   GetPage(
     name: AddLinkPage.routeName,

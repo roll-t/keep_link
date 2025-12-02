@@ -89,7 +89,7 @@ class AddLinkController extends GetxController {
       );
       await DbHelper.upsert(link);
       Utils.dimissKeyboard();
-      onCancel();
+      onCancel(arg: true);
       _clearInputs();
 
       Fluttertoast.showToast(msg: "Thêm thành công");
@@ -137,7 +137,7 @@ class AddLinkController extends GetxController {
     if (errorTitleMess.value.isNotEmpty) errorTitleMess.value = "";
   }
 
-  void onCancel() {
+  void onCancel({dynamic arg}) {
     if (DeepLinkService.isOpenedFromShare) {
       if (Platform.isAndroid) {
         SystemNavigator.pop();
@@ -149,7 +149,7 @@ class AddLinkController extends GetxController {
         }
       }
     } else {
-      Get.back();
+      Get.back(result: arg);
     }
   }
 
