@@ -6,6 +6,7 @@ import 'package:keep_link/core/model/item_model.dart';
 import 'package:keep_link/core/ui/popup/custom_popup_controller.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/category/data/model/category_model.dart';
+import 'package:keep_link/features/link/application/controller/link_collection_controller.dart';
 
 class CategoryController extends GetxController {
   final categoryNameController = TextEditingController();
@@ -36,6 +37,7 @@ class CategoryController extends GetxController {
     await DbHelper.upsert(category);
     categories.add(category);
     _updatePopupItems(selectId: category.id);
+    Get.find<LinkCollectionController>().fetchAllLinks();
     _closePopup();
   }
 

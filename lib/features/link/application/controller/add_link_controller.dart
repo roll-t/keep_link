@@ -9,105 +9,87 @@ import 'package:keep_link/core/local_storage/sql_lite.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
 import 'package:keep_link/core/ui/popup/custom_popup_controller.dart';
 import 'package:keep_link/core/utils/controller/deep_link_controller.dart';
+import 'package:keep_link/core/utils/mixin/argument_handle_mixin_controller.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/link/data/model/link_model.dart';
 
-class AddLinkController extends GetxController {
-  final TextEditingController linkController = TextEditingController();
-  final TextEditingController titleController = TextEditingController();
+class AddLinkController extends GetxController with ArgumentHandlerMixinController<LinkModel> {
+  final DeepLinkController _deepLink = Get.find<DeepLinkController>();
 
-  final DeepLinkController _deepLinkController = Get.find<DeepLinkController>();
-
-  final RxString errorLinkMess = "".obs;
-  final RxString errorTitleMess = "".obs;
-  final RxString _queryLink = "".obs;
+  final linkController = TextEditingController();
+  final titleController = TextEditingController();
+  final errorLinkMess = "".obs;
+  final errorTitleMess = "".obs;
+  final _queryLink = "".obs;
+  final isEditModel = false.obs;
 
   @override
   void onInit() {
     super.onInit();
     _setupWorkers();
-    _checkInitialData();
+    Future.microtask(_loadInitialData);
   }
+
+  // ===============================================================
+  // INIT / WORKERS
+  // ===============================================================
 
   void _setupWorkers() {
     debounce(_queryLink, (link) {
-      if (_isValidUrl(link)) {
-        _deepLinkController.fetchMetaData(link);
-      }
+      if (_isValidUrl(link)) _deepLink.fetchMetaData(link);
     }, time: const Duration(milliseconds: 200));
-    ever(_deepLinkController.metaData, (meta) {
+    ever(_deepLink.metaData, (meta) {
       if (meta != null) {
-        titleController.text = meta.title;
-        if (titleController.text.isNotEmpty) {
-          errorTitleMess.value = "";
+        if (!isEditModel.value) {
+          titleController.text = meta.title;
         }
+        if (meta.title.isNotEmpty) errorTitleMess.value = "";
       }
     });
   }
 
-  void _checkInitialData() {
-    final sharedLink = _deepLinkController.deepLink;
+  void _loadInitialData() {
+    isEditModel.value = handleArgumentFromGet();
+    final popup = Get.find<CustomPopupController>();
+    if (isEditModel.value && argsData != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        popup.selectedItem(popup.getItemById(argsData!.categoryId ?? "all"));
+        linkController.text = argsData!.metaDataModel?.url.trim() ?? "";
+        _queryLink.value = linkController.text;
+        titleController.text = argsData!.name ?? "";
+        return;
+      });
+    }
+
+    // OPEN FROM SHARE
+    final sharedLink = _deepLink.deepLink;
     if (sharedLink != null && sharedLink.isNotEmpty) {
       linkController.text = sharedLink;
-      onChangLinkTextField(sharedLink);
+      onChangeLink(sharedLink);
     }
   }
+
+  // ===============================================================
+  // VALIDATION
+  // ===============================================================
 
   bool validateInput() {
-    bool isValid = true;
     final link = linkController.text.trim();
     final title = titleController.text.trim();
-    if (link.isEmpty) {
-      errorLinkMess.value = "Link không được để trống";
-      isValid = false;
-    } else if (!_isValidUrl(link)) {
-      errorLinkMess.value = "Link không hợp lệ";
-      isValid = false;
-    } else {
-      errorLinkMess.value = "";
-    }
-    if (title.isEmpty) {
-      errorTitleMess.value = "Tiêu đề không được để trống";
-      isValid = false;
-    } else {
-      errorTitleMess.value = "";
-    }
-    return isValid;
+    if (link.isEmpty) return _setError(errorLinkMess, "Link không được để trống");
+    if (!_isValidUrl(link)) return _setError(errorLinkMess, "Link không hợp lệ");
+    errorLinkMess.value = "";
+    if (title.isEmpty) return _setError(errorTitleMess, "Tiêu đề không được để trống");
+    errorTitleMess.value = "";
+    return true;
   }
 
-  Future<void> addLink() async {
-    try {
-      if (!validateInput()) return;
-      final now = DateTime.now();
-      final link = LinkModel(
-        id: now.millisecondsSinceEpoch.toString(),
-        name: titleController.text.trim(),
-        metaDataModel: _deepLinkController.metaData.value,
-        createdAt: now,
-        updatedAt: now,
-        categoryId: Get.find<CustomPopupController>().selectedItem.value?.id?.trim(),
-      );
-      await DbHelper.upsert(link);
-      Utils.dimissKeyboard();
-      onCancel(arg: true);
-      _clearInputs();
-
-      Fluttertoast.showToast(msg: "Thêm thành công");
-    } catch (e, stackTrace) {
-      log("Error adding link: $e");
-      print(stackTrace);
-      Fluttertoast.showToast(msg: "Thêm thất bại, vui lòng thử lại");
-    }
-  }
-
-  void _clearInputs() {
-    linkController.clear();
-    titleController.clear();
-    _queryLink.value = "";
+  bool _setError(RxString target, String msg) {
+    target.value = msg;
+    return false;
   }
 
   bool _isValidUrl(String url) {
-    if (url.isEmpty) return false;
     final uri = Uri.tryParse(url);
     return uri != null &&
         uri.hasScheme &&
@@ -115,36 +97,114 @@ class AddLinkController extends GetxController {
         uri.hasAuthority;
   }
 
+  // ===============================================================
+  // ACTION: ADD LINK
+  // ===============================================================
+
+  void onSave() {
+    if (isEditModel.value) {
+      updateLink();
+    } else {
+      addLink();
+    }
+  }
+
+  Future<void> addLink() async {
+    if (!validateInput()) return;
+    try {
+      final now = DateTime.now();
+      final popup = Get.find<CustomPopupController>();
+      final link = LinkModel(
+        id: now.millisecondsSinceEpoch.toString(),
+        name: titleController.text.trim(),
+        metaDataModel: _deepLink.metaData.value,
+        createdAt: now,
+        updatedAt: now,
+        categoryId: popup.selectedItem.value?.id?.trim(),
+      );
+      await DbHelper.upsert(link);
+      Utils.dimissKeyboard();
+      onCancel(arg: true);
+      _clearInput();
+
+      Fluttertoast.showToast(msg: "Thêm thành công");
+    } catch (e, s) {
+      log("Error add link => $e\n$s");
+      Fluttertoast.showToast(msg: "Thêm thất bại, vui lòng thử lại");
+    }
+  }
+
+  Future<void> updateLink() async {
+    try {
+      if (!validateInput()) return;
+      final now = DateTime.now();
+      final link = LinkModel(
+        id: "${argsData?.id}",
+        name: titleController.text.trim(),
+        metaDataModel: _deepLink.metaData.value,
+        createdAt: argsData?.createdAt,
+        updatedAt: now,
+        categoryId: Get.find<CustomPopupController>().selectedItem.value?.id?.trim(),
+      );
+      await DbHelper.update('links', link.id, link.toJson());
+      Utils.dimissKeyboard();
+      onCancel(arg: true);
+      _clearInput();
+      Fluttertoast.showToast(msg: "Cập nhật thành công");
+    } catch (e, s) {
+      log("Error updating link => $e\n$s");
+      Fluttertoast.showToast(msg: "Cập nhật thất bại, vui lòng thử lại");
+    }
+  }
+
+  void _clearInput() {
+    linkController.clear();
+    titleController.clear();
+    _queryLink.value = "";
+  }
+
+  // ===============================================================
+  // CLIPBOARD
+  // ===============================================================
+
   Future<void> onPasteClipboard() async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final pastedText = data?.text;
-    if (pastedText != null && pastedText.isNotEmpty) {
-      linkController.text = pastedText;
+    final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+
+    if (text != null && text.trim().isNotEmpty) {
+      linkController.text = text.trim();
       errorLinkMess.value = "";
-      _queryLink.value = pastedText;
+      _queryLink.value = text.trim();
       Fluttertoast.showToast(msg: "Đã dán link");
     } else {
       Fluttertoast.showToast(msg: "Bộ nhớ tạm trống");
     }
   }
 
-  void onChangLinkTextField(String value) {
+  // ===============================================================
+  // TEXT FIELD CHANGE
+  // ===============================================================
+
+  void onChangeLink(String v) {
     if (errorLinkMess.value.isNotEmpty) errorLinkMess.value = "";
-    _queryLink.value = value;
+    _queryLink.value = v.trim();
   }
 
-  void onChangTitleField(String value) {
+  void onChangeTitle(String v) {
     if (errorTitleMess.value.isNotEmpty) errorTitleMess.value = "";
   }
+
+  // ===============================================================
+  // EXIT HANDLER
+  // ===============================================================
 
   void onCancel({dynamic arg}) {
     if (DeepLinkService.isOpenedFromShare) {
       if (Platform.isAndroid) {
         SystemNavigator.pop();
-      } else if (Platform.isIOS) {
+      } else {
         try {
           exit(0);
-        } catch (e) {
+        } catch (_) {
           Get.back();
         }
       }

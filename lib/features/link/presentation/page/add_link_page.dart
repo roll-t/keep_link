@@ -38,7 +38,7 @@ class AddLinkPage extends StatelessWidget {
                         hintText: "Nhập link",
                         controller: controller.linkController,
                         errorText: controller.errorLinkMess.value,
-                        onChanged: controller.onChangLinkTextField,
+                        onChanged: controller.onChangeLink,
                         suffixIcon: AppVectors.icClipBoard.show(
                           padding: const EdgeInsets.all(10),
                           onTap: controller.onPasteClipboard,
@@ -51,7 +51,7 @@ class AddLinkPage extends StatelessWidget {
                         controller: controller.titleController,
                         label: "Tiêu đề",
                         hintText: "Nhập tiêu đề",
-                        onChanged: controller.onChangTitleField,
+                        onChanged: controller.onChangeTitle,
                         errorText: controller.errorTitleMess.value,
                       ),
                     ),
@@ -68,17 +68,23 @@ class AddLinkPage extends StatelessWidget {
   }
 
   Widget _buildHeader() {
-    return GetBuilder<CategoryController>(
-      builder: (controller) {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            TextWidget(
-              text: "Thêm Link",
-              textStyle: AppTextStyle.semiBold20,
-              color: AppColors.primary,
-            ),
-            Row(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        GetBuilder<AddLinkController>(
+          builder: (controller) {
+            return Obx(
+              () => TextWidget(
+                text: controller.isEditModel.value ? "Chỉnh sửa" : "Thêm Link",
+                textStyle: AppTextStyle.semiBold20,
+                color: AppColors.primary,
+              ),
+            );
+          },
+        ),
+        GetBuilder<CategoryController>(
+          builder: (controller) {
+            return Row(
               spacing: 12,
               children: [
                 CustomPopupWidget(controller: controller.popupController),
@@ -89,10 +95,10 @@ class AddLinkPage extends StatelessWidget {
                   onTap: () => Get.dialog(const CategoryDialog()),
                 ),
               ],
-            ),
-          ],
-        );
-      },
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -110,7 +116,7 @@ class AddLinkPage extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: PrimaryButton(isMaxParent: true, text: "Lưu", onPressed: controller.addLink),
+          child: PrimaryButton(isMaxParent: true, text: "Lưu", onPressed: controller.onSave),
         ),
       ],
     );

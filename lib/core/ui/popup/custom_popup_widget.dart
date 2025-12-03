@@ -30,8 +30,10 @@ class CustomPopupWidget extends StatelessWidget {
             controller.isOpen.value = false;
           },
           onBeforePopup: () {
-            controller.isOpen.value = true;
-            controller.scrollToSelected();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              controller.isOpen.value = true;
+              controller.scrollToSelected();
+            });
           },
 
           contentDecoration: BoxDecoration(

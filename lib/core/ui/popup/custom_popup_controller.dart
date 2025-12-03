@@ -29,4 +29,12 @@ class CustomPopupController extends GetxController {
       });
     }
   }
+
+  ItemModel? getItemById(String id) {
+    try {
+      return items.firstWhere((item) => item.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
 }

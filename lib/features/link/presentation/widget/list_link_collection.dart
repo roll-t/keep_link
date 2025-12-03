@@ -18,7 +18,6 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
       if (listLink.isEmpty) {
         return _buildEmptyState();
       }
-
       return _buildLinkGrid(listLink);
     });
   }
@@ -40,6 +39,23 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
             text: "Hãy lưu những link bạn yêu thích",
             color: AppColors.t400,
             textStyle: AppTextStyle.medium14,
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () {
+              controller.onRefreshData();
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: AppColors.d100,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [TextWidget(text: "Reload")],
+              ),
+            ),
           ),
         ],
       ),

@@ -77,6 +77,12 @@ class DbHelper {
     await db.insert(model.tableName, model.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  // Update row by id
+  static Future<void> update(String tableName, String id, Map<String, dynamic> data) async {
+    final db = await database;
+    await db.update(tableName, data, where: 'id = ?', whereArgs: [id]);
+  }
+
   static Future<List<Map<String, dynamic>>> getAll(
     String tableName, {
     String? orderByColumn,
