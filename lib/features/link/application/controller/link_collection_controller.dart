@@ -4,8 +4,8 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/local_storage/sql_lite.dart';
-import 'package:keep_link/core/ui/popup/custom_popup_controller.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
+import 'package:keep_link/features/category/application/controller/custom_popup_controller.dart';
 import 'package:keep_link/features/link/data/model/link_model.dart';
 
 class LinkCollectionController extends GetxController {

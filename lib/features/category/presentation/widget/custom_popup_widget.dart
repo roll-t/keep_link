@@ -4,14 +4,21 @@ import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/library/custom_popup.dart';
-import 'package:keep_link/core/ui/popup/custom_popup_controller.dart';
+import 'package:keep_link/core/model/item_model.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/features/category/application/controller/custom_popup_controller.dart';
 
 class CustomPopupWidget extends StatelessWidget {
   final VoidCallback? onSelected;
   final CustomPopupController controller;
+  final bool isHasAll;
 
-  const CustomPopupWidget({super.key, required this.controller, this.onSelected});
+  const CustomPopupWidget({
+    super.key,
+    required this.controller,
+    this.onSelected,
+    this.isHasAll = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -41,21 +48,26 @@ class CustomPopupWidget extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
 
-          // ------ POPUP LIST ------
+          // ===================== POPUP LIST =====================
           content: Container(
             width: Get.width * .7,
             constraints: BoxConstraints(
               maxHeight: controller.items.length > controller.maxItemDisplay
                   ? controller.itemHeight * controller.maxItemDisplay
-                  : ((controller.items.length) * controller.itemHeight),
+                  : ((controller.items.length + (isHasAll ? 1 : 0)) * controller.itemHeight),
             ),
             child: ListView.builder(
               controller: controller.scrollController,
               padding: EdgeInsets.zero,
-              itemCount: controller.items.length,
+              itemCount: controller.items.length + (isHasAll ? 1 : 0),
               itemBuilder: (context, i) {
-                final item = controller.items[i];
+                // Nếu có ALL -> index 0 là ALL
+                final item = isHasAll && i == 0
+                    ? ItemModel(id: "all", name: "Tất cả")
+                    : controller.items[isHasAll ? i - 1 : i];
+
                 final isSelected = controller.selectedItem.value?.id == item.id;
+
                 return GestureDetector(
                   onTap: () {
                     controller.selectItem(item);
@@ -81,7 +93,7 @@ class CustomPopupWidget extends StatelessWidget {
             ),
           ),
 
-          // ------ BUTTON INSIDE CONTAINER ------
+          // ===================== BUTTON INSIDE =====================
           child: Container(
             padding: const EdgeInsets.only(left: 14, right: 8),
             height: controller.itemHeight,
@@ -90,7 +102,9 @@ class CustomPopupWidget extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextWidget(
-                    text: controller.selectedItem.value?.name ?? "Select Item",
+                    text:
+                        controller.selectedItem.value?.name ??
+                        (isHasAll ? "Tất cả" : "Chọn danh mục"),
                     maxLines: 1,
                     textStyle: AppTextStyle.semiBold16,
                   ),

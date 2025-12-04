@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 import 'package:keep_link/core/routes/not_found/not_found_page.dart';
+import 'package:keep_link/features/category/application/di/category_binding.dart';
 import 'package:keep_link/features/link/application/di/add_link_binding.dart';
-import 'package:keep_link/features/link/application/di/category_binding.dart';
 import 'package:keep_link/features/link/application/di/link_collection_binding.dart';
 import 'package:keep_link/features/link/presentation/page/add_link_page.dart';
 import 'package:keep_link/features/link/presentation/page/link_collection_page.dart';

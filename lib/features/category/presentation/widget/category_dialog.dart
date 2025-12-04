@@ -6,7 +6,7 @@ import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/ui/button/primary_button.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/ui/text_field/simple_input_textfield.dart';
-import 'package:keep_link/features/link/application/controller/category_controller.dart';
+import 'package:keep_link/features/category/application/controller/category_controller.dart';
 
 class CategoryDialog extends GetView<CategoryController> {
   final bool isEditMode;
