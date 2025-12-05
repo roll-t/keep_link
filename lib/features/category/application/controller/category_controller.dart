@@ -49,6 +49,8 @@ class CategoryController extends GetxController {
   /// -----------------------------
   Future<void> fetchCategories() async {
     final res = await DbHelper.getAll(CategoryModel().tableName);
+
+    // Nếu có dữ liệu -> parse như bình thường
     if (res.isNotEmpty) {
       categories.value = res
           .map(
@@ -62,15 +64,30 @@ class CategoryController extends GetxController {
             ),
           )
           .toList();
+    } else {
+      // -----------------------------
+      // 👉 KHÔNG CÓ DANH MỤC -> TẠO MỘT DANH MỤC "Mới"
+      // -----------------------------
+      final now = DateTime.now();
+      final defaultCategory = CategoryModel(
+        id: now.millisecondsSinceEpoch.toString(),
+        name: "Keep link category",
+        createdAt: now,
+      );
 
-      categories.sort((a, b) {
-        final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return aTime.compareTo(bTime);
-      });
-
-      _updatePopupItems();
+      await DbHelper.upsert(defaultCategory);
+      categories.add(defaultCategory);
     }
+
+    // Sắp xếp theo createdAt
+    categories.sort((a, b) {
+      final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return aTime.compareTo(bTime);
+    });
+
+    // Cập nhật danh sách popup
+    _updatePopupItems();
   }
 
   /// -----------------------------

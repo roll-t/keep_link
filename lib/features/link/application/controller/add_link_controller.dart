@@ -15,9 +15,11 @@ import 'package:keep_link/features/link/data/model/link_model.dart';
 
 class AddLinkController extends GetxController with ArgumentHandlerMixinController<LinkModel> {
   final DeepLinkController _deepLink = Get.find<DeepLinkController>();
+  final CustomPopupController _popup = Get.find<CustomPopupController>();
 
   final linkController = TextEditingController();
   final titleController = TextEditingController();
+
   final errorLinkMess = "".obs;
   final errorTitleMess = "".obs;
   final _queryLink = "".obs;
@@ -33,41 +35,49 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ===============================================================
   // INIT / WORKERS
   // ===============================================================
-
   void _setupWorkers() {
-    debounce(_queryLink, (link) {
+    debounce<String>(_queryLink, (link) {
       if (_isValidUrl(link)) _deepLink.fetchMetaData(link);
     }, time: const Duration(milliseconds: 200));
+
     ever(_deepLink.metaData, (meta) {
       if (meta != null) {
         if (!isEditModel.value) {
           titleController.text = meta.title;
         }
-        if (meta.title.isNotEmpty) errorTitleMess.value = "";
+        if ((meta.title).isNotEmpty) errorTitleMess.value = "";
       }
     });
   }
 
   void _loadInitialData() {
     isEditModel.value = handleArgumentFromGet();
-    final popup = Get.find<CustomPopupController>();
 
+    // If editing and argsData contains metadata but deepLink controller has none
     if (isEditModel.value && argsData != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        // select category if exists in popup items (safe)
         final categoryId = argsData?.categoryId ?? "";
-
         if (categoryId.isEmpty || categoryId == "all") {
-          final allItem = popup.items.firstWhereOrNull((e) => e.id == "all");
-          popup.selectedItem.value = allItem;
+          final allItem = _popup.items.firstWhereOrNull((e) => e.id == "all");
+          _popup.selectedItem.value = allItem;
         } else {
-          final item = popup.getItemById(categoryId);
-          popup.selectedItem.value = item;
+          final item = _popup.getItemById(categoryId);
+          _popup.selectedItem.value = item;
         }
 
-        // ---- Set link, title ----
+        // ensure we keep original metadata if deepLink.metaData is empty
+        if (_deepLink.metaData.value == null && argsData!.metaDataModel != null) {
+          _deepLink.metaData.value = argsData!.metaDataModel;
+        }
+
+        // set link & title fallback
         linkController.text = argsData!.metaDataModel?.url.trim() ?? "";
         _queryLink.value = linkController.text;
-        titleController.text = argsData!.name ?? "";
+
+        if (titleController.text.isEmpty) {
+          titleController.text = argsData!.name ?? "";
+        }
       });
     }
 
@@ -82,21 +92,29 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ===============================================================
   // VALIDATION
   // ===============================================================
-
   bool validateInput() {
-    // if (popupController.selectedItem.value?.id == "" ||
-    //     popupController.selectedItem.value?.id == "all") {
-    //   Fluttertoast.showToast(msg: "Hãy chọn dang mục!");
-    //   return false;
-    // }
+    final selectedId = _selectedCategoryId();
+    if (selectedId == null || selectedId.isEmpty || selectedId == 'all') {
+      Fluttertoast.showToast(msg: "Hãy chọn danh mục!");
+      return false;
+    }
+
     final link = linkController.text.trim();
     final title = titleController.text.trim();
+
     if (link.isEmpty) return _setError(errorLinkMess, "Link không được để trống");
     if (!_isValidUrl(link)) return _setError(errorLinkMess, "Link không hợp lệ");
+
     errorLinkMess.value = "";
+
     if (title.isEmpty) return _setError(errorTitleMess, "Tiêu đề không được để trống");
+
     errorTitleMess.value = "";
     return true;
+  }
+
+  String? _selectedCategoryId() {
+    return _popup.selectedItem.value?.id?.trim();
   }
 
   bool _setError(RxString target, String msg) {
@@ -105,17 +123,14 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   }
 
   bool _isValidUrl(String url) {
+    // Relaxed check: must have scheme (http/https)
     final uri = Uri.tryParse(url);
-    return uri != null &&
-        uri.hasScheme &&
-        ['http', 'https'].contains(uri.scheme) &&
-        uri.hasAuthority;
+    return uri != null && uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https');
   }
 
   // ===============================================================
-  // ACTION: ADD LINK
+  // ACTION: ADD / UPDATE LINK
   // ===============================================================
-
   void onSave() {
     if (isEditModel.value) {
       updateLink();
@@ -126,21 +141,21 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
 
   Future<void> addLink() async {
     if (!validateInput()) return;
+
     try {
       final now = DateTime.now();
-      final popup = Get.find<CustomPopupController>();
       final link = LinkModel(
         id: now.millisecondsSinceEpoch.toString(),
         name: titleController.text.trim(),
-        metaDataModel: _deepLink.metaData.value,
+        metaDataModel: _deepLink.metaData.value ?? argsData?.metaDataModel,
         createdAt: now,
         updatedAt: now,
-        categoryId: popup.selectedItem.value?.id?.trim(),
+        categoryId: _selectedCategoryId(),
       );
+
       await DbHelper.upsert(link);
       Utils.dimissKeyboard();
-      onCancel(arg: true);
-      _clearInput();
+      _clearAndClose(result: true);
 
       Fluttertoast.showToast(msg: "Thêm thành công");
     } catch (e, s) {
@@ -150,26 +165,33 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   }
 
   Future<void> updateLink() async {
+    if (!validateInput()) return;
+
     try {
-      if (!validateInput()) return;
       final now = DateTime.now();
       final link = LinkModel(
         id: "${argsData?.id}",
         name: titleController.text.trim(),
-        metaDataModel: _deepLink.metaData.value,
+        metaDataModel: _deepLink.metaData.value ?? argsData?.metaDataModel,
         createdAt: argsData?.createdAt,
         updatedAt: now,
-        categoryId: Get.find<CustomPopupController>().selectedItem.value?.id?.trim(),
+        categoryId: _selectedCategoryId(),
       );
+
       await DbHelper.update('links', link.id, link.toJson());
       Utils.dimissKeyboard();
-      onCancel(arg: true);
-      _clearInput();
+      _clearAndClose(result: true);
+
       Fluttertoast.showToast(msg: "Cập nhật thành công");
     } catch (e, s) {
       log("Error updating link => $e\n$s");
       Fluttertoast.showToast(msg: "Cập nhật thất bại, vui lòng thử lại");
     }
+  }
+
+  void _clearAndClose({dynamic result}) {
+    _clearInput();
+    onCancel(arg: result);
   }
 
   void _clearInput() {
@@ -181,14 +203,14 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ===============================================================
   // CLIPBOARD
   // ===============================================================
-
   Future<void> onPasteClipboard() async {
-    final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+    final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text?.trim();
 
-    if (text != null && text.trim().isNotEmpty) {
-      linkController.text = text.trim();
+    if (text?.isNotEmpty == true) {
+      linkController.text = text!;
       errorLinkMess.value = "";
-      _queryLink.value = text.trim();
+      // trigger the same flow as typing
+      onChangeLink(text);
       Fluttertoast.showToast(msg: "Đã dán link");
     } else {
       Fluttertoast.showToast(msg: "Bộ nhớ tạm trống");
@@ -198,7 +220,6 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ===============================================================
   // TEXT FIELD CHANGE
   // ===============================================================
-
   void onChangeLink(String v) {
     if (errorLinkMess.value.isNotEmpty) errorLinkMess.value = "";
     _queryLink.value = v.trim();
@@ -211,18 +232,14 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ===============================================================
   // EXIT HANDLER
   // ===============================================================
-
   void onCancel({dynamic arg}) {
     if (DeepLinkService.isOpenedFromShare) {
       if (Platform.isAndroid) {
         SystemNavigator.pop();
-      } else {
-        try {
-          exit(0);
-        } catch (_) {
-          Get.back();
-        }
+        return;
       }
+      // iOS: avoid exit(0), fallback to back
+      Get.back();
     } else {
       Get.back(result: arg);
     }

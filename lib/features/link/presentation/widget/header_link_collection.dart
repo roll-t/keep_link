@@ -7,6 +7,7 @@ import 'package:keep_link/features/category/application/controller/category_cont
 import 'package:keep_link/features/category/presentation/widget/category_dialog.dart';
 import 'package:keep_link/features/category/presentation/widget/custom_popup_widget.dart';
 import 'package:keep_link/features/link/application/controller/link_collection_controller.dart';
+import 'package:keep_link/features/setting/presentation/page/setting_page.dart';
 
 class HeaderLinkCollection extends GetView<CategoryController> {
   const HeaderLinkCollection({super.key});
@@ -24,6 +25,9 @@ class HeaderLinkCollection extends GetView<CategoryController> {
               size: 28,
               backgroundColor: AppColors.d200,
               padding: const EdgeInsets.all(8),
+              onTap: () {
+                Get.toNamed(SettingPage.routeName);
+              },
             ),
             CustomPopupWidget(
               controller: controller.popupController,
