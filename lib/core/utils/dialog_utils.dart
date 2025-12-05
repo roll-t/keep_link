@@ -216,7 +216,7 @@ class DialogUtils {
             CircleAvatar(
               backgroundColor: Colors.transparent,
               radius: 30,
-              child: Image.asset(AppImages.iLogo, height: 40, width: 40),
+              child: Image.asset(AppImages.iLogo.path, height: 40, width: 40),
             ),
             const SizedBox(height: 12),
             const Text(

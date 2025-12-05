@@ -27,7 +27,6 @@ class HeaderLinkCollection extends GetView<CategoryController> {
             ),
             CustomPopupWidget(
               controller: controller.popupController,
-              isHasAll: true,
               onSelected: () {
                 DependencyUtils.find<LinkCollectionController>()?.fetchAllLinks();
               },

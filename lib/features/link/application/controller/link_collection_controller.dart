@@ -10,11 +10,14 @@ import 'package:keep_link/features/link/data/model/link_model.dart';
 
 class LinkCollectionController extends GetxController {
   final RxList<LinkModel> listLink = <LinkModel>[].obs;
+  final RxBool isLoading = false.obs;
 
   @override
   onInit() async {
     super.onInit();
+    isLoading.value = true;
     await fetchAllLinks();
+    isLoading.value = false;
   }
 
   /// Lấy tất cả link từ DB, nhưng chỉ lấy theo category đang chọn

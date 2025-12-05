@@ -84,6 +84,11 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ===============================================================
 
   bool validateInput() {
+    // if (popupController.selectedItem.value?.id == "" ||
+    //     popupController.selectedItem.value?.id == "all") {
+    //   Fluttertoast.showToast(msg: "Hãy chọn dang mục!");
+    //   return false;
+    // }
     final link = linkController.text.trim();
     final title = titleController.text.trim();
     if (link.isEmpty) return _setError(errorLinkMess, "Link không được để trống");

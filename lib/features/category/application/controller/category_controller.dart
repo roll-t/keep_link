@@ -99,9 +99,11 @@ class CategoryController extends GetxController {
   Future<void> deleteCategory() async {
     final selected = popupController.selectedItem.value;
     if (selected == null || selected.id == 'all') return;
-    final id = selected.id ?? "";
-    await DbHelper.delete(CategoryModel().tableName, id);
-    categories.removeWhere((e) => e.id == id);
+    if (Get.find<LinkCollectionController>().listLink.isNotEmpty) {
+      Fluttertoast.showToast(msg: "Danh mục có chứa link\nKhông thể xóa!");
+      return;
+    }
+
     DialogUtils.showConfirm(
       alertType: AlertType.warning,
       title: "Xác nhận",
@@ -140,11 +142,6 @@ class CategoryController extends GetxController {
   /// VALIDATION
   /// -----------------------------
   bool _validateCategoryName() {
-    if (popupController.selectedItem.value?.id == "" ||
-        popupController.selectedItem.value?.id == "all") {
-      Fluttertoast.showToast(msg: "Hãy chọn dang mục!");
-      return false;
-    }
     final name = categoryNameController.text.trim();
     if (name.isEmpty) {
       errorMess.value = "Tên danh mục không được bỏ trống";
@@ -158,13 +155,27 @@ class CategoryController extends GetxController {
   /// CẬP NHẬT DỮ LIỆU CHO POPUP
   /// -----------------------------
   void _updatePopupItems({String? selectId}) {
-    popupController.items.value = categories.map((c) => ItemModel(id: c.id, name: c.name)).toList();
+    // Tạo danh sách items (thêm Tất cả ở đầu)
+    final newItems = [
+      ItemModel(id: "all", name: "Tất cả"),
+      ...categories.map((c) => ItemModel(id: c.id, name: c.name)),
+    ];
+
+    // Gán vào popupController
+    popupController.items
+      ..clear()
+      ..addAll(newItems);
+
+    // Xử lý chọn item
     if (selectId != null) {
-      final matchedItem = popupController.items.firstWhere((e) => e.id == selectId);
-      popupController.selectedItem.value = matchedItem;
+      // Tìm item, nếu không có thì chọn "Tất cả"
+      final matched = newItems.firstWhere((e) => e.id == selectId, orElse: () => newItems.first);
+      popupController.selectedItem.value = matched;
     } else {
-      popupController.selectedItem.value ??= popupController.items.first;
+      // Nếu chưa có selected -> lấy item đầu tiên
+      popupController.selectedItem.value ??= newItems.first;
     }
+
     popupController.items.refresh();
   }
 
