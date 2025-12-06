@@ -9,9 +9,7 @@ import 'package:keep_link/features/setting/presentation/page/pin_verify_page.dar
 
 class SecurityMethodPage extends GetView<SecurityMethodController> {
   static String routeName = "/SecurityMethodPage";
-
   const SecurityMethodPage({super.key});
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -24,95 +22,100 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
           ),
           title: TextWidget(text: "Phương thức bảo mật", textStyle: AppTextStyle.semiBold20),
         ),
-        body: Obx(
-          () => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-            child: Column(
-              spacing: 20,
-              children: [
-                // ----- Bật bảo mật -----
-                Container(
-                  width: Get.width,
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    color: AppColors.d300,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      TextWidget(text: "Bật bảo mật", textStyle: AppTextStyle.semiBold20),
-                      Switch(
-                        value: controller.isSecurityEnabled.value,
-                        onChanged: (_) => controller.toggleSecurity(),
+        body: SingleChildScrollView(
+          child: SizedBox(
+            height: (Get.height - 140),
+            child: Obx(
+              () => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                child: Column(
+                  spacing: 20,
+                  children: [
+                    // ----- Bật bảo mật -----
+                    Container(
+                      width: Get.width,
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: AppColors.d300,
                       ),
-                    ],
-                  ),
-                ),
-
-                // ----- PIN -----
-                Expanded(
-                  child: Opacity(
-                    opacity: controller.isSecurityEnabled.value ? 1 : .5,
-                    child: IgnorePointer(
-                      ignoring: !controller.isSecurityEnabled.value,
-                      child: GestureDetector(
-                        onTap: () async {
-                          final newPin = await Get.toNamed(PinVerifyPage.routeName);
-                          if (newPin != null) {
-                            Get.snackbar("Thành công", "Đổi PIN thành công");
-                          }
-                        },
-                        child: Container(
-                          width: Get.width,
-                          padding: EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            color: AppColors.d300,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextWidget(text: "Bật bảo mật", textStyle: AppTextStyle.semiBold20),
+                          Switch(
+                            value: controller.isSecurityEnabled.value,
+                            onChanged: (_) => controller.toggleSecurity(),
                           ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            spacing: 12,
-                            children: [
-                              AppVectors.icPin.show(size: Get.width * .3),
-                              TextWidget(text: "PIN", textStyle: AppTextStyle.bold36),
-                            ],
+                        ],
+                      ),
+                    ),
+
+                    // ----- PIN -----
+                    Expanded(
+                      child: Opacity(
+                        opacity: controller.isSecurityEnabled.value ? 1 : .5,
+                        child: IgnorePointer(
+                          ignoring: !controller.isSecurityEnabled.value,
+                          child: GestureDetector(
+                            onTap: () async {
+                              final newPin = await Get.toNamed(PinVerifyPage.routeName);
+                              if (newPin != null) {
+                                Get.snackbar("Thành công", "Đổi PIN thành công");
+                              }
+                            },
+                            child: Container(
+                              width: Get.width,
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                color: AppColors.d300,
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                spacing: 12,
+                                children: [
+                                  AppVectors.icPin.show(size: Get.width * .3),
+                                  TextWidget(text: "PIN", textStyle: AppTextStyle.bold36),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ),
 
-                // ----- Vân tay -----
-                Expanded(
-                  child: Opacity(
-                    opacity: controller.isSecurityEnabled.value ? 1 : .5,
-                    child: IgnorePointer(
-                      ignoring: !controller.isSecurityEnabled.value,
-                      child: GestureDetector(
-                        onTap: () => controller.toggleFingerprint(),
-                        child: Container(
-                          width: Get.width,
-                          padding: EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            color: AppColors.d300,
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            spacing: 12,
-                            children: [
-                              AppVectors.icFinger.show(size: Get.width * .3),
-                              TextWidget(text: "Vân tay", textStyle: AppTextStyle.bold36),
-                            ],
+                    // ----- Vân tay -----
+                    Expanded(
+                      child: Opacity(
+                        opacity: controller.isSecurityEnabled.value ? 1 : .5,
+                        child: IgnorePointer(
+                          ignoring: !controller.isSecurityEnabled.value,
+                          child: GestureDetector(
+                            onTap: () => controller.toggleFingerprint(),
+                            child: Container(
+                              width: Get.width,
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                color: AppColors.d300,
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                spacing: 12,
+                                children: [
+                                  AppVectors.icFinger.show(size: Get.width * .3),
+                                  TextWidget(text: "Vân tay", textStyle: AppTextStyle.bold36),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
