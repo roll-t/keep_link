@@ -14,94 +14,95 @@ import 'package:keep_link/features/link/presentation/widget/deep_link_preview.da
 
 class AddLinkPage extends StatelessWidget {
   static String routeName = "/AddLinkPage";
+
   const AddLinkPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final addController = Get.find<AddLinkController>();
+    final categoryController = Get.find<CategoryController>();
+
     return Scaffold(
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 12).copyWith(top: 40),
         child: Column(
           children: [
-            _buildHeader(),
-            SizedBox(height: 24),
+            _buildHeader(addController, categoryController),
+            const SizedBox(height: 24),
             const DeepLinkPreview(),
-            SizedBox(height: 4),
-            GetBuilder<AddLinkController>(
-              builder: (controller) {
-                return Column(
-                  children: [
-                    SizedBox(height: 4),
-                    Obx(
-                      () => SimpleInputTextField(
-                        label: "Link",
-                        hintText: "Nhập link",
-                        controller: controller.linkController,
-                        errorText: controller.errorLinkMess.value,
-                        onChanged: controller.onChangeLink,
-                        suffixIcon: AppVectors.icClipBoard.show(
-                          padding: const EdgeInsets.all(10),
-                          onTap: controller.onPasteClipboard,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    Obx(
-                      () => SimpleInputTextField(
-                        controller: controller.titleController,
-                        label: "Tiêu đề",
-                        hintText: "Nhập tiêu đề",
-                        onChanged: controller.onChangeTitle,
-                        errorText: controller.errorTitleMess.value,
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    _buildActionButtons(controller),
-                  ],
-                );
-              },
-            ),
+            const SizedBox(height: 12),
+            _buildForm(addController),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  // ---------------- HEADER ----------------
+  Widget _buildHeader(AddLinkController addController, CategoryController categoryController) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        GetBuilder<AddLinkController>(
-          builder: (controller) {
-            return Obx(
-              () => TextWidget(
-                text: controller.isEditModel.value ? "Chỉnh sửa" : "Thêm Link",
-                textStyle: AppTextStyle.semiBold20,
-                color: AppColors.primary,
-              ),
-            );
-          },
+        Obx(
+          () => TextWidget(
+            text: addController.isEditModel.value ? "Chỉnh sửa" : "Thêm Link",
+            textStyle: AppTextStyle.semiBold20,
+            color: AppColors.primary,
+          ),
         ),
-        GetBuilder<CategoryController>(
-          builder: (controller) {
-            return Row(
-              spacing: 12,
-              children: [
-                CustomPopupWidget(controller: controller.popupController),
-                AppVectors.icAdd.show(
-                  size: 28,
-                  backgroundColor: AppColors.d200,
-                  padding: const EdgeInsets.all(8),
-                  onTap: () => Get.dialog(const CategoryDialog()),
-                ),
-              ],
-            );
-          },
+
+        Row(
+          spacing: 12,
+          children: [
+            CustomPopupWidget(controller: categoryController.popupController),
+            AppVectors.icAdd.show(
+              size: 28,
+              backgroundColor: AppColors.d200,
+              padding: const EdgeInsets.all(8),
+              onTap: () => Get.dialog(const CategoryDialog()),
+            ),
+          ],
         ),
       ],
     );
   }
 
+  // ---------------- FORM INPUT ----------------
+  Widget _buildForm(AddLinkController controller) {
+    return Column(
+      children: [
+        Obx(
+          () => SimpleInputTextField(
+            label: "Link",
+            hintText: "Nhập link",
+            controller: controller.linkController,
+            errorText: controller.errorLinkMess.value,
+            onChanged: controller.onChangeLink,
+            suffixIcon: AppVectors.icClipBoard.show(
+              padding: const EdgeInsets.all(10),
+              onTap: controller.onPasteClipboard,
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        Obx(
+          () => SimpleInputTextField(
+            controller: controller.titleController,
+            label: "Tiêu đề",
+            hintText: "Nhập tiêu đề",
+            onChanged: controller.onChangeTitle,
+            errorText: controller.errorTitleMess.value,
+          ),
+        ),
+        const SizedBox(height: 28),
+
+        _buildActionButtons(controller),
+      ],
+    );
+  }
+
+  // ---------------- BOTTOM BUTTONS ----------------
   Widget _buildActionButtons(AddLinkController controller) {
     return Row(
       spacing: 20,

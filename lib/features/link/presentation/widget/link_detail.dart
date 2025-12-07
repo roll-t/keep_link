@@ -5,6 +5,7 @@ import 'package:keep_link/core/config/app_edge_insets.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/ui/image/cache_image.dart';
+import 'package:keep_link/core/ui/image/image_view.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/link/application/controller/link_collection_controller.dart';
@@ -27,15 +28,24 @@ class LinkDetail extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (link.metaDataModel?.imageUrl != "")
-              CacheImageWidget(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
+              GestureDetector(
+                onTap: () {
+                  ImageView(
+                    listImageUrl: [link.metaDataModel?.imageUrl ?? "/"],
+                    listTagHero: ["note_lesson_image_hero"],
+                    initIndexImage: 0,
+                  );
+                },
+                child: CacheImageWidget(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                  imageUrl: link.metaDataModel?.imageUrl ?? "/",
+                  height: Get.width * .4,
+                  width: constraintSize.width,
+                  fit: BoxFit.cover,
                 ),
-                imageUrl: link.metaDataModel?.imageUrl ?? "/",
-                height: Get.width * .4,
-                width: constraintSize.width,
-                fit: BoxFit.cover,
               ),
             Padding(
               padding: AppEdgeInsets.all12,

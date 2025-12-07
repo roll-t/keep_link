@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/local_storage/sql_lite.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
 import 'package:keep_link/core/utils/controller/deep_link_controller.dart';
+import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/core/utils/mixin/argument_handle_mixin_controller.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/application/controller/custom_popup_controller.dart';
@@ -15,7 +17,7 @@ import 'package:keep_link/features/link/data/model/link_model.dart';
 
 class AddLinkController extends GetxController with ArgumentHandlerMixinController<LinkModel> {
   final DeepLinkController _deepLink = Get.find<DeepLinkController>();
-  final CustomPopupController _popup = Get.find<CustomPopupController>();
+  final popup = Get.find<CustomPopupController>();
 
   final linkController = TextEditingController();
   final titleController = TextEditingController();
@@ -52,18 +54,16 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
 
   void _loadInitialData() {
     isEditModel.value = handleArgumentFromGet();
-
-    // If editing and argsData contains metadata but deepLink controller has none
     if (isEditModel.value && argsData != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         // select category if exists in popup items (safe)
         final categoryId = argsData?.categoryId ?? "";
         if (categoryId.isEmpty || categoryId == "all") {
-          final allItem = _popup.items.firstWhereOrNull((e) => e.id == "all");
-          _popup.selectedItem.value = allItem;
+          final allItem = popup.items.firstWhereOrNull((e) => e.id == "all");
+          popup.selectedItem.value = allItem;
         } else {
-          final item = _popup.getItemById(categoryId);
-          _popup.selectedItem.value = item;
+          final item = popup.getItemById(categoryId);
+          popup.selectedItem.value = item;
         }
 
         // ensure we keep original metadata if deepLink.metaData is empty
@@ -93,12 +93,14 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // VALIDATION
   // ===============================================================
   bool validateInput() {
-    final selectedId = _selectedCategoryId();
-    if (selectedId == null || selectedId.isEmpty || selectedId == 'all') {
-      Fluttertoast.showToast(msg: "Hãy chọn danh mục!");
+    if (popup.selectedItem.value?.id == "all" || popup.selectedItem.value?.id == "") {
+      DialogUtils.showAlert(
+        alertType: AlertType.error,
+        title: "Cảnh báo",
+        content: "Hãy chọn danh mục",
+      );
       return false;
     }
-
     final link = linkController.text.trim();
     final title = titleController.text.trim();
 
@@ -114,7 +116,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   }
 
   String? _selectedCategoryId() {
-    return _popup.selectedItem.value?.id?.trim();
+    return popup.selectedItem.value?.id?.trim();
   }
 
   bool _setError(RxString target, String msg) {
@@ -175,7 +177,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
         metaDataModel: _deepLink.metaData.value ?? argsData?.metaDataModel,
         createdAt: argsData?.createdAt,
         updatedAt: now,
-        categoryId: _selectedCategoryId(),
+        categoryId: popup.selectedItem.value?.id?.trim(),
       );
 
       await DbHelper.update('links', link.id, link.toJson());
