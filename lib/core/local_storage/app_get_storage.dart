@@ -18,6 +18,9 @@ class AppGetStorage {
   static const String _isLoggedIn = 'isLoggedIn';
   static const String _selectedLanguageKey = 'selected_language';
   static const String _isNotificationEnabled = 'isNotificationEnabled';
+  static const String _pinKey = 'app_pin';
+  static const String _securityEnabledKey = 'security_enabled';
+  static const String _fingerprintEnabledKey = 'fingerprint_enabled';
 
   // ========== Theme ========== //
   static void saveTheme(bool isDark) => _box.write(_themeKey, isDark);
@@ -30,7 +33,11 @@ class AppGetStorage {
   // ========== Token ========== //
   static void saveToken(String token) => _box.write(_tokenKey, token);
   static String? getToken() => _box.read(_tokenKey);
+  static void setSecurityEnabled(bool value) => _box.write(_securityEnabledKey, value);
+  static bool isSecurityEnabled() => _box.read(_securityEnabledKey) ?? false;
 
+  static void setFingerprintEnabled(bool value) => _box.write(_fingerprintEnabledKey, value);
+  static bool isFingerprintEnabled() => _box.read(_fingerprintEnabledKey) ?? false;
   // ========== Login ========== //
   static void setLoggedIn(bool value) => _box.write(_isLoggedIn, value);
 
@@ -42,6 +49,9 @@ class AppGetStorage {
     _box.remove(_tokenKey);
     _box.remove(_userKey);
   }
+
+  static void savePin(String pin) => _box.write(_pinKey, pin);
+  static String? getPin() => _box.read(_pinKey);
 
   // ========== Language ========== //
   static void setLanguage(String language) {

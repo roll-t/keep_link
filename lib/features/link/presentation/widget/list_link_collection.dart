@@ -14,6 +14,10 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      if (controller.isLoading.value) {
+        return Center(child: CircularProgressIndicator());
+      }
+
       final listLink = controller.listLink;
       if (listLink.isEmpty) {
         return _buildEmptyState();

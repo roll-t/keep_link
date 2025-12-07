@@ -7,7 +7,7 @@ class AppTheme {
   // ------------------------------
   static final ColorScheme lightColorScheme = ColorScheme(
     brightness: Brightness.light,
-    primary: const Color(0xFFF8D028),
+    primary: AppColors.primary,
     onPrimary: const Color(0xFF333333),
     primaryContainer: const Color(0xFFFDD943),
     onPrimaryContainer: const Color(0xFF333333),
@@ -25,7 +25,7 @@ class AppTheme {
   // ------------------------------
   static final ColorScheme darkColorScheme = ColorScheme(
     brightness: Brightness.dark,
-    primary: const Color(0xFFF8D028),
+    primary: AppColors.primary,
     onPrimary: const Color(0xFF191919),
     primaryContainer: const Color(0xFFD0C000),
     onPrimaryContainer: const Color(0xFF000000),
