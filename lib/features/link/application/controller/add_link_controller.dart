@@ -5,16 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/local_storage/sql_lite.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
 import 'package:keep_link/core/ui/popup/custom_popup_controller.dart';
 import 'package:keep_link/core/utils/controller/deep_link_controller.dart';
+import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/core/utils/mixin/argument_handle_mixin_controller.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/link/data/model/link_model.dart';
 
 class AddLinkController extends GetxController with ArgumentHandlerMixinController<LinkModel> {
   final DeepLinkController _deepLink = Get.find<DeepLinkController>();
+  final popup = Get.find<CustomPopupController>();
 
   final linkController = TextEditingController();
   final titleController = TextEditingController();
@@ -50,7 +53,6 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
 
   void _loadInitialData() {
     isEditModel.value = handleArgumentFromGet();
-    final popup = Get.find<CustomPopupController>();
     if (isEditModel.value && argsData != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         popup.selectedItem(popup.getItemById(argsData!.categoryId ?? "all"));
@@ -74,6 +76,14 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ===============================================================
 
   bool validateInput() {
+    if (popup.selectedItem.value?.id == "all" || popup.selectedItem.value?.id == "") {
+      DialogUtils.showAlert(
+        alertType: AlertType.error,
+        title: "Cảnh báo",
+        content: "Hãy chọn danh mục",
+      );
+      return false;
+    }
     final link = linkController.text.trim();
     final title = titleController.text.trim();
     if (link.isEmpty) return _setError(errorLinkMess, "Link không được để trống");
@@ -113,7 +123,6 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
     if (!validateInput()) return;
     try {
       final now = DateTime.now();
-      final popup = Get.find<CustomPopupController>();
       final link = LinkModel(
         id: now.millisecondsSinceEpoch.toString(),
         name: titleController.text.trim(),
@@ -144,7 +153,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
         metaDataModel: _deepLink.metaData.value,
         createdAt: argsData?.createdAt,
         updatedAt: now,
-        categoryId: Get.find<CustomPopupController>().selectedItem.value?.id?.trim(),
+        categoryId: popup.selectedItem.value?.id?.trim(),
       );
       await DbHelper.update('links', link.id, link.toJson());
       Utils.dimissKeyboard();

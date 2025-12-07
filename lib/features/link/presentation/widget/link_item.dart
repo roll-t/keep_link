@@ -11,7 +11,6 @@ import 'package:keep_link/features/link/presentation/widget/link_detail.dart';
 class LinkItem extends StatelessWidget {
   final int index;
   final LinkModel item;
-
   const LinkItem({super.key, required this.index, required this.item});
 
   @override

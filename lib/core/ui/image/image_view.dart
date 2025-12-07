@@ -4,18 +4,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/config/app_colors.dart';
+import 'package:keep_link/core/extension/colors.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
-import 'package:qna/core/configs/app_colors.dart';
-import 'package:qna/core/ui/button/icon_button_custom.dart';
-import 'package:qna/core/utils/utils.dart';
 
-import '../../../../../core/ui/text/text_widget.dart';
-// ImageView(
-//                               listImageUrl: [imageUrl ?? "/"],
-//                               listTagHero: ["note_lesson_image_hero"],
-//                               initIndexImage: 0,
-//                             ),
+import '../../../../../../core/ui/text/text_widget.dart';
+
 class ImageView extends StatefulWidget {
   const ImageView({
     super.key,
@@ -152,9 +147,7 @@ class ImageViewState extends State<ImageView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: widget.backgroundIsTransparent
-          ? Colors.black
-          : widget.backgroundColor,
+      backgroundColor: widget.backgroundIsTransparent ? Colors.black : widget.backgroundColor,
       // appBar: AppBarWidget(
       //   isLeading: true,
       //   callbackLeading: () => Get.back(),
@@ -183,59 +176,49 @@ class ImageViewState extends State<ImageView> {
         onHorizontalDragEnd: (details) => _endHorizontalDrag(details),
         child: Container(
           color: widget.backgroundColor.withOpacityCompat(opacity),
-          constraints: BoxConstraints.expand(
-            height: MediaQuery.of(context).size.height,
-          ),
+          constraints: BoxConstraints.expand(height: MediaQuery.of(context).size.height),
           child: Stack(
             children: <Widget>[
               AnimatedPositioned(
-                  duration: animationDuration,
-                  curve: Curves.fastOutSlowIn,
-                  top: 0 + positionYDelta,
-                  bottom: 0 - positionYDelta,
-                  left: 0 - positionXDelta,
-                  right: positionXDelta,
-                  child: PhotoViewGallery.builder(
-                    pageController: pageController,
-                    itemCount: widget.listImageUrl.length,
-                    builder: (_, index) {
-                      bool isHttpUrl =
-                          Utils.isHttpUrl(widget.listImageUrl[index]);
-                      if (isHttpUrl) {
-                        return PhotoViewGalleryPageOptions.customChild(
-                          child: CachedNetworkImage(
-                            imageUrl: widget.listImageUrl[index],
-                            placeholder: (context, url) => const Center(
-                              child: CircularProgressIndicator(
-                                color: AppColors.primary500,
-                              ),
-                            ),
-                            imageBuilder: (context, imageProvider) => PhotoView(
-                              imageProvider: imageProvider,
-                              heroAttributes: widget.listTagHero.isEmpty
-                                  ? null
-                                  : PhotoViewHeroAttributes(
-                                      tag: widget.listTagHero[index],
-                                    ),
-                            ),
-                            errorWidget: (context, _, __) => const Center(
-                              child: TextWidget(
-                                text: 'Đã xảy ra lỗi. Vui lòng thử lại!',
-                                color: AppColors.white,
-                              ),
+                duration: animationDuration,
+                curve: Curves.fastOutSlowIn,
+                top: 0 + positionYDelta,
+                bottom: 0 - positionYDelta,
+                left: 0 - positionXDelta,
+                right: positionXDelta,
+                child: PhotoViewGallery.builder(
+                  pageController: pageController,
+                  itemCount: widget.listImageUrl.length,
+                  builder: (_, index) {
+                    bool isHttpUrl = GetUtils.isURL(widget.listImageUrl[index]);
+                    if (isHttpUrl) {
+                      return PhotoViewGalleryPageOptions.customChild(
+                        child: CachedNetworkImage(
+                          imageUrl: widget.listImageUrl[index],
+                          placeholder: (context, url) =>
+                              const Center(child: CircularProgressIndicator()),
+                          imageBuilder: (context, imageProvider) => PhotoView(
+                            imageProvider: imageProvider,
+                            heroAttributes: widget.listTagHero.isEmpty
+                                ? null
+                                : PhotoViewHeroAttributes(tag: widget.listTagHero[index]),
+                          ),
+                          errorWidget: (context, _, __) => const Center(
+                            child: TextWidget(
+                              text: 'Đã xảy ra lỗi. Vui lòng thử lại!',
+                              color: AppColors.white,
                             ),
                           ),
-                        );
-                      } else {
-                        return PhotoViewGalleryPageOptions.customChild(
-                          child: Image.file(
-                            File(widget.listImageUrl[index]),
-                            fit: BoxFit.contain,
-                          ),
-                        );
-                      }
-                    },
-                  )),
+                        ),
+                      );
+                    } else {
+                      return PhotoViewGalleryPageOptions.customChild(
+                        child: Image.file(File(widget.listImageUrl[index]), fit: BoxFit.contain),
+                      );
+                    }
+                  },
+                ),
+              ),
               Positioned(
                 top: 25,
                 left: 10,
@@ -247,26 +230,19 @@ class ImageViewState extends State<ImageView> {
                       IconButton(
                         icon: SvgPicture.asset(
                           'assets/icons/ic_arrow_left_2.svg',
-                          colorFilter: ColorFilter.mode(
-                            AppColors.white,
-                            BlendMode.srcIn,
-                          ),
+                          colorFilter: ColorFilter.mode(AppColors.white, BlendMode.srcIn),
                         ),
                         onPressed: () => Get.back(),
                       ),
-                      if ((widget.isViewInComment ?? false))
-                        IconButtonCustom(
-                          onPressed: () async {
-                            if (widget.onTap != null) {
-                              await widget.onTap?.call();
-                            }
-                          },
-                          icon: const Icon(
-                            Icons.more_vert,
-                            size: 26.0,
-                            color: AppColors.white,
-                          ),
-                        )
+                      // if ((widget.isViewInComment ?? false))
+                      //   IconButtonCustom(
+                      //     onPressed: () async {
+                      //       if (widget.onTap != null) {
+                      //         await widget.onTap?.call();
+                      //       }
+                      //     },
+                      //     icon: const Icon(Icons.more_vert, size: 26.0, color: AppColors.white),
+                      //   ),
                     ],
                   ),
                 ),

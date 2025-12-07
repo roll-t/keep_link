@@ -7,10 +7,8 @@ class CustomPopupController extends GetxController {
   final int maxItemDisplay = 6;
   final RxList<ItemModel> items = <ItemModel>[].obs;
   final Rx<ItemModel?> selectedItem = Rx<ItemModel?>(null);
-
   final ScrollController scrollController = ScrollController();
   final RxBool isOpen = false.obs;
-
   void selectItem(ItemModel item) {
     selectedItem.value = item;
   }
