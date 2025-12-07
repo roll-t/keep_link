@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_images.dart';
+import 'package:keep_link/core/config/app_vectors.dart';
+import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/utils/binding/dependency_utils.dart';
 import 'package:keep_link/features/setting/presentation/widget/pin_verify_form.dart';
 import 'package:keep_link/features/splash/presentation/controller/splash_controller.dart';
@@ -11,26 +14,49 @@ class SplashPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // LẤY CONTROLLER MỘT CÁCH AN TOÀN
     final controller = DependencyUtils.find<SplashController>();
-
     return Scaffold(
       body: Center(
         child: Obx(() {
-          final RxBool securityEnabled = controller?.isSecurityEnabled ?? false.obs;
-
+          final RxBool needPinVerify = controller?.needPinVerify ?? false.obs;
           return Column(
             mainAxisSize: MainAxisSize.min,
-            spacing: 20,
+            spacing: 28,
             children: [
               AppImages.iLogo.show(size: Get.width * .35),
-
-              // Nếu cần nhập PIN thì hiện form
-              if (securityEnabled.value)
-                PinVerifyForm(
-                  onCompleted: () {
-                    controller?.goToHome();
-                  },
+              if (needPinVerify.value)
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.d500,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  width: Get.width * .8,
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PinVerifyForm(
+                        width: Get.width * .8,
+                        margin: EdgeInsets.zero,
+                        backgound: AppColors.d500,
+                        onCompleted: () {
+                          controller?.goToHome();
+                        },
+                      ),
+                      if (controller?.isFingerprintEnabled.value ?? false) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: TextWidget(text: "Hoặc"),
+                        ),
+                        AppVectors.icFinger.show(
+                          size: 60,
+                          onTap: () {
+                            controller?.verifyFinger();
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
             ],
           );

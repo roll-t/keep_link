@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/local_storage/app_get_storage.dart';
+import 'package:keep_link/core/service/biometric_service.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/setting/application/di/pin_verify_binding.dart';
 import 'package:keep_link/features/setting/presentation/widget/pin_verify_form.dart';
@@ -15,6 +17,11 @@ class SecurityMethodController extends GetxController {
     super.onInit();
     isSecurityEnabled.value = AppGetStorage.isSecurityEnabled();
     isFingerprintEnabled.value = AppGetStorage.isFingerprintEnabled();
+  }
+
+  // Hàm toast tiện dùng
+  void showToast(String message) {
+    Fluttertoast.showToast(msg: message);
   }
 
   void toggleSecurity() async {
@@ -33,7 +40,7 @@ class SecurityMethodController extends GetxController {
         if (newPin != null) {
           isSecurityEnabled.value = true;
           AppGetStorage.setSecurityEnabled(true);
-          Get.snackbar("Thành công", "Bảo mật đã được bật");
+          showToast("Bảo mật đã được bật");
         }
         return;
       }
@@ -41,6 +48,7 @@ class SecurityMethodController extends GetxController {
       // Nếu đã có PIN → chỉ bật
       isSecurityEnabled.value = true;
       AppGetStorage.setSecurityEnabled(true);
+      showToast("Bảo mật đã được bật");
       return;
     }
 
@@ -55,6 +63,7 @@ class SecurityMethodController extends GetxController {
             onCompleted: () async {
               isSecurityEnabled.value = false;
               AppGetStorage.setSecurityEnabled(false);
+              showToast("Đã tắt bảo mật");
             },
           ),
         ),
@@ -63,13 +72,39 @@ class SecurityMethodController extends GetxController {
     );
   }
 
-  void toggleFingerprint() {
+  void toggleFingerprint() async {
     if (!isSecurityEnabled.value) {
-      Get.snackbar("Thông báo", "Hãy bật bảo mật trước");
+      showToast("Hãy bật bảo mật trước");
       return;
     }
 
+    // Kiểm tra thiết bị hỗ trợ
+    if (!await BiometricService.isSupported()) {
+      showToast("Thiết bị không hỗ trợ vân tay");
+      return;
+    }
+
+    // Kiểm tra đã đăng ký vân tay
+    if (!await BiometricService.canCheck()) {
+      showToast("Bạn chưa đăng ký vân tay trên thiết bị");
+      return;
+    }
+
+    // Yêu cầu xác thực trước khi bật/tắt
+    final ok = await BiometricService.authenticate();
+    if (!ok) {
+      showToast("Xác thực không thành công");
+      return;
+    }
+
+    // Toggle
     isFingerprintEnabled.value = !isFingerprintEnabled.value;
     AppGetStorage.setFingerprintEnabled(isFingerprintEnabled.value);
+
+    showToast(
+      isFingerprintEnabled.value
+          ? "Đã bật đăng nhập bằng vân tay"
+          : "Đã tắt đăng nhập bằng vân tay",
+    );
   }
 }

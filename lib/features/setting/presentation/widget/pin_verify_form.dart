@@ -9,9 +9,22 @@ import 'package:pinput/pinput.dart';
 enum FromType { confirm, create, changePassword }
 
 class PinVerifyForm extends StatelessWidget {
-  const PinVerifyForm({super.key, this.onCompleted, this.fromType = FromType.confirm});
   final VoidCallback? onCompleted;
   final FromType fromType;
+  final Color? backgound;
+  final Widget? title;
+  final double? width;
+  final EdgeInsets? margin;
+
+  const PinVerifyForm({
+    super.key,
+    this.onCompleted,
+    this.backgound,
+    this.fromType = FromType.confirm,
+    this.title,
+    this.width,
+    this.margin,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,10 +32,13 @@ class PinVerifyForm extends StatelessWidget {
       builder: (controller) {
         final defaultPinTheme = _buildDefaultPinTheme();
         return Container(
-          width: Get.width,
-          margin: const EdgeInsets.symmetric(horizontal: 40),
+          width: width ?? Get.width,
+          margin: margin ?? const EdgeInsets.symmetric(horizontal: 40),
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: AppColors.d300, borderRadius: BorderRadius.circular(16)),
+          decoration: BoxDecoration(
+            color: backgound ?? AppColors.d300,
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Obx(() {
             final isConfirmStep = controller.firstPin.value.isNotEmpty;
             if (fromType == FromType.changePassword) {
@@ -61,11 +77,16 @@ class PinVerifyForm extends StatelessWidget {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextWidget(
-                  text: isConfirmStep ? "Xác nhận PIN" : "Nhập PIN",
-                  textStyle: AppTextStyle.semiBold20,
-                ),
-                const SizedBox(height: 20),
+                ...(title != null
+                    ? [title!]
+                    : [
+                        TextWidget(
+                          text: (isConfirmStep ? "Xác nhận PIN" : "Nhập PIN"),
+                          textStyle: AppTextStyle.semiBold20,
+                        ),
+                        SizedBox(height: 20),
+                      ]),
+
                 Pinput(
                   length: 4,
                   controller: controller.pinController,

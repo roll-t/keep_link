@@ -16,6 +16,7 @@ class App extends StatelessWidget {
     return GetMaterialApp(
       defaultTransition: Transition.noTransition,
       debugShowCheckedModeBanner: false,
+      transitionDuration: const Duration(milliseconds: 150),
 
       ///---> [Localization service]
       translations: LocalizationService(),

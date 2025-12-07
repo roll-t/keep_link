@@ -86,6 +86,12 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
                               width: Get.width,
                               padding: EdgeInsets.all(16),
                               decoration: BoxDecoration(
+                                border: Border.all(
+                                  width: controller.isSecurityEnabled.value ? 3 : 0,
+                                  color: controller.isSecurityEnabled.value
+                                      ? AppColors.primary
+                                      : AppColors.transparent,
+                                ),
                                 borderRadius: BorderRadius.circular(16),
                                 color: AppColors.d300,
                               ),
@@ -115,6 +121,12 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
                               width: Get.width,
                               padding: EdgeInsets.all(16),
                               decoration: BoxDecoration(
+                                border: Border.all(
+                                  width: controller.isFingerprintEnabled.value ? 3 : 0,
+                                  color: controller.isFingerprintEnabled.value
+                                      ? AppColors.primary
+                                      : AppColors.transparent,
+                                ),
                                 borderRadius: BorderRadius.circular(16),
                                 color: AppColors.d300,
                               ),
