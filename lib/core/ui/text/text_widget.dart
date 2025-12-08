@@ -17,6 +17,7 @@ class TextWidget extends StatelessWidget {
   final String? fontFamily;
   final TextTransformType transform;
   final AppTextStyleModel? textStyle;
+  final Color? decorationColor; // << NEW
   final EdgeInsets padding;
   final bool? colorFixed;
 
@@ -28,6 +29,7 @@ class TextWidget extends StatelessWidget {
     required this.text,
     this.color = AppColors.t200,
     this.colorFixed = false,
+    this.decorationColor = AppColors.t200, // << NEW
     this.size = 14,
     this.fontWeight = FontWeight.normal,
     this.fontStyle = FontStyle.normal,
@@ -78,6 +80,7 @@ class TextWidget extends StatelessWidget {
           shadows: listShadow,
           fontWeight: textStyle?.fontWeight ?? fontWeight,
           decoration: textDecoration,
+          decorationColor: decorationColor, // << NEW
           overflow: TextOverflow.ellipsis,
         ),
       ),

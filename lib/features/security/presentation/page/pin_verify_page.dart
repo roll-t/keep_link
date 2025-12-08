@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
-import 'package:keep_link/features/setting/application/controller/pin_verify_controller.dart';
-import 'package:keep_link/features/setting/presentation/widget/pin_verify_form.dart';
+import 'package:keep_link/features/security/application/controller/pin_verify_controller.dart';
+import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
 
 class PinVerifyPage extends GetView<PinVerifyController> {
   static const routeName = "/PinVerifyPage";

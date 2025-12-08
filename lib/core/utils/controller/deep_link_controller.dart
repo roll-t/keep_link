@@ -3,6 +3,7 @@
 import 'dart:developer';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html_parser;
@@ -33,7 +34,9 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
   void onInit() {
     super.onInit();
     if (handleArgumentFromGet()) {
-      _initDeepLink();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initDeepLink();
+      });
     }
   }
 
@@ -45,6 +48,7 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
 
   Future<void> fetchMetaData(String url) async {
     isLoading.value = true;
+    await Future.delayed(Duration(milliseconds: 50));
     DialogUtils.showProgressDialog();
     update(["EXTRA_LINK_ID"]);
     try {

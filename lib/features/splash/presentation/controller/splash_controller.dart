@@ -31,7 +31,6 @@ class SplashController extends GetxController {
   Future<void> _handleNavigation() async {
     // Delay nhẹ để hiển thị splash đẹp hơn
     await Future.delayed(const Duration(milliseconds: 300));
-
     // ---------- 1. Deep Link ----------
     final shared = DeepLinkService.sharedText;
     if (shared != null) {

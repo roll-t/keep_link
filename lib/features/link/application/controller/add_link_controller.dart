@@ -44,9 +44,11 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
 
     ever(_deepLink.metaData, (meta) {
       if (meta != null) {
-        if (!isEditModel.value) {
-          titleController.text = meta.title;
-        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!isEditModel.value) {
+            titleController.text = meta.title;
+          }
+        });
         if ((meta.title).isNotEmpty) errorTitleMess.value = "";
       }
     });

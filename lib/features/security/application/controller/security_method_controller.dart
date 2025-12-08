@@ -5,8 +5,8 @@ import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/local_storage/app_get_storage.dart';
 import 'package:keep_link/core/service/biometric_service.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
-import 'package:keep_link/features/setting/application/di/pin_verify_binding.dart';
-import 'package:keep_link/features/setting/presentation/widget/pin_verify_form.dart';
+import 'package:keep_link/features/security/application/di/pin_verify_binding.dart';
+import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
 
 class SecurityMethodController extends GetxController {
   final isSecurityEnabled = false.obs;
@@ -86,6 +86,12 @@ class SecurityMethodController extends GetxController {
 
     // Kiểm tra đã đăng ký vân tay
     if (!await BiometricService.canCheck()) {
+      showToast("Bạn chưa đăng ký vân tay trên thiết bị");
+      return;
+    }
+
+    // Kiểm tra đã đăng ký vân tay
+    if (!await BiometricService.hasEnrolled()) {
       showToast("Bạn chưa đăng ký vân tay trên thiết bị");
       return;
     }

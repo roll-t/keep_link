@@ -5,7 +5,7 @@ import 'package:keep_link/core/config/app_images.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/utils/binding/dependency_utils.dart';
-import 'package:keep_link/features/setting/presentation/widget/pin_verify_form.dart';
+import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
 import 'package:keep_link/features/splash/presentation/controller/splash_controller.dart';
 
 class SplashPage extends StatelessWidget {
@@ -38,7 +38,7 @@ class SplashPage extends StatelessWidget {
                       PinVerifyForm(
                         width: Get.width * .8,
                         margin: EdgeInsets.zero,
-                        backgound: AppColors.d500,
+                        background: AppColors.d500,
                         onCompleted: () {
                           controller?.goToHome();
                         },

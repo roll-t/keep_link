@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
-import 'package:keep_link/features/setting/application/controller/pin_verify_controller.dart';
+import 'package:keep_link/features/security/application/controller/pin_verify_controller.dart';
 import 'package:pinput/pinput.dart';
 
 enum FromType { confirm, create, changePassword }
@@ -11,7 +11,7 @@ enum FromType { confirm, create, changePassword }
 class PinVerifyForm extends StatelessWidget {
   final VoidCallback? onCompleted;
   final FromType fromType;
-  final Color? backgound;
+  final Color? background;
   final Widget? title;
   final double? width;
   final EdgeInsets? margin;
@@ -19,7 +19,7 @@ class PinVerifyForm extends StatelessWidget {
   const PinVerifyForm({
     super.key,
     this.onCompleted,
-    this.backgound,
+    this.background,
     this.fromType = FromType.confirm,
     this.title,
     this.width,
@@ -36,14 +36,14 @@ class PinVerifyForm extends StatelessWidget {
           margin: margin ?? const EdgeInsets.symmetric(horizontal: 40),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: backgound ?? AppColors.d300,
+            color: background ?? AppColors.d300,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Obx(() {
             final isConfirmStep = controller.firstPin.value.isNotEmpty;
             if (fromType == FromType.changePassword) {
               return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   TextWidget(text: "Nhập PIN mới", textStyle: AppTextStyle.semiBold20),
                   const SizedBox(height: 12),
@@ -57,7 +57,7 @@ class PinVerifyForm extends StatelessWidget {
                     onCompleted: (pin) => controller.onCompletedNewPin(pin),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
 
                   TextWidget(text: "Xác nhận PIN", textStyle: AppTextStyle.semiBold20),
                   const SizedBox(height: 12),

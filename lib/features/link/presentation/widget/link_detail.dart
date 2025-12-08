@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_edge_insets.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/ui/image/cache_image.dart';
-import 'package:keep_link/core/ui/image/image_view.dart';
+import 'package:keep_link/core/ui/image/full_screen_image_page.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/link/application/controller/link_collection_controller.dart';
@@ -17,7 +19,7 @@ class LinkDetail extends StatelessWidget {
   const LinkDetail({super.key, required this.link});
   @override
   Widget build(BuildContext context) {
-    final Size constraintSize = Size(Get.width * .98, Get.width * 1.2);
+    final Size constraintSize = Size(Get.width * .98, Get.width * 1.5);
     return Center(
       child: Container(
         width: constraintSize.width,
@@ -30,23 +32,25 @@ class LinkDetail extends StatelessWidget {
             if (link.metaDataModel?.imageUrl != "")
               GestureDetector(
                 onTap: () {
-                  ImageView(
-                    listImageUrl: [link.metaDataModel?.imageUrl ?? "/"],
-                    listTagHero: ["note_lesson_image_hero"],
-                    initIndexImage: 0,
-                  );
+                  final imageUrl = link.metaDataModel?.imageUrl ?? "";
+                  if (imageUrl.isEmpty) return;
+                  Get.to(() => FullScreenImagePage(imageUrl: imageUrl));
                 },
-                child: CacheImageWidget(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
+                child: Hero(
+                  tag: link.metaDataModel?.imageUrl ?? "",
+                  child: CacheImageWidget(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                    imageUrl: link.metaDataModel?.imageUrl ?? "/",
+                    height: Get.width * .6,
+                    width: constraintSize.width,
+                    fit: BoxFit.cover,
                   ),
-                  imageUrl: link.metaDataModel?.imageUrl ?? "/",
-                  height: Get.width * .4,
-                  width: constraintSize.width,
-                  fit: BoxFit.cover,
                 ),
               ),
+
             Padding(
               padding: AppEdgeInsets.all12,
               child: Column(
@@ -64,6 +68,7 @@ class LinkDetail extends StatelessWidget {
                         ),
                     ],
                   ),
+
                   SizedBox(height: 12),
                   if (link.metaDataModel?.description.isNotEmpty ?? false)
                     TextWidget(
@@ -71,6 +76,34 @@ class LinkDetail extends StatelessWidget {
                       text: (link.metaDataModel?.description ?? ""),
                       maxLines: 5,
                     ),
+                  GestureDetector(
+                    onTap: () {
+                      final textToCopy = link.metaDataModel?.url ?? "";
+                      if (textToCopy.isEmpty) return;
+                      Clipboard.setData(ClipboardData(text: textToCopy));
+                      Fluttertoast.showToast(msg: "Đã sao chép");
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 6.0),
+                      child: SizedBox(
+                        width: Get.width * .6,
+                        child: Row(
+                          spacing: 3,
+                          children: [
+                            AppVectors.icCopy.show(size: 15),
+                            Expanded(
+                              child: TextWidget(
+                                text: (link.metaDataModel?.url ?? ""),
+                                textStyle: AppTextStyle.regular12,
+                                maxLines: 1,
+                                textDecoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                   SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

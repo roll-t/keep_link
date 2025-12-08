@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/local_storage/app_get_storage.dart';
-import 'package:keep_link/features/setting/presentation/widget/pin_verify_form.dart';
+import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
 
 class PinVerifyController extends GetxController {
   // PIN cũ (xác thực)

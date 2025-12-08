@@ -27,11 +27,12 @@
   "dart.previewFlutterUiGuides": true,
   "dart.previewFlutterUiGuidesCustomTracking": true,
   "cSpell.words": [
+    "chép",
     "Getx",
     "Rxn",
     "usecase",
-    "widget",
-    "viewmodel"
+    "viewmodel",
+    "widget"
   ],
   "files.exclude": {
     "**/.git": true,

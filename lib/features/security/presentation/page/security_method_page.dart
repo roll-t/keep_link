@@ -5,10 +5,10 @@ import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
-import 'package:keep_link/features/setting/application/controller/security_method_controller.dart';
-import 'package:keep_link/features/setting/application/di/pin_verify_binding.dart';
-import 'package:keep_link/features/setting/presentation/page/pin_verify_page.dart';
-import 'package:keep_link/features/setting/presentation/widget/pin_verify_form.dart';
+import 'package:keep_link/features/security/application/controller/security_method_controller.dart';
+import 'package:keep_link/features/security/application/di/pin_verify_binding.dart';
+import 'package:keep_link/features/security/presentation/page/pin_verify_page.dart';
+import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
 
 class SecurityMethodPage extends GetView<SecurityMethodController> {
   static String routeName = "/SecurityMethodPage";
@@ -30,7 +30,7 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
             height: (Get.height - 140),
             child: Obx(
               () => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 child: Column(
                   spacing: 20,
                   children: [
@@ -39,7 +39,7 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
                       width: Get.width,
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(8),
                         color: AppColors.d300,
                       ),
                       child: Row(

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
+import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
-import 'package:keep_link/features/setting/presentation/page/security_method_page.dart';
+import 'package:keep_link/features/security/presentation/page/security_method_page.dart';
+import 'package:keep_link/features/setting/presentation/page/warning_page.dart';
+import 'package:keep_link/features/setting/presentation/widget/item_setting.dart';
 
 class SettingPage extends StatelessWidget {
   static String routeName = "/SettingPage";
@@ -24,28 +27,30 @@ class SettingPage extends StatelessWidget {
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 12).copyWith(top: 16),
         child: Column(
+          spacing: 16,
           children: [
-            GestureDetector(
+            ItemSetting(
+              title: "Bảo mật",
               onTap: () {
                 Get.toNamed(SecurityMethodPage.routeName);
               },
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: AppColors.d300,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextWidget(
-                      text: "Bảo mật",
-                      color: AppColors.t300,
-                      textStyle: AppTextStyle.semiBold18,
-                    ),
-                    Icon(Icons.arrow_forward_ios_rounded, color: AppColors.t300),
-                  ],
-                ),
+              leadingIcon: AppVectors.icLock.show(
+                size: 18,
+                color: AppColors.t300,
+                backgroundColor: AppColors.d100,
+                padding: EdgeInsets.all(8),
+              ),
+            ),
+            ItemSetting(
+              title: "Lưu ý",
+              onTap: () {
+                Get.toNamed(WarningPage.routeName);
+              },
+              leadingIcon: AppVectors.icWarning.show(
+                size: 18,
+                color: AppColors.t300,
+                backgroundColor: AppColors.d100,
+                padding: EdgeInsets.all(8),
               ),
             ),
           ],

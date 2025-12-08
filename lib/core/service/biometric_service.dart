@@ -13,6 +13,12 @@ class BiometricService {
     return await auth.canCheckBiometrics;
   }
 
+  /// Đã đăng ký sinh trắc học (vân tay / face) chưa?
+  static Future<bool> hasEnrolled() async {
+    final biometrics = await auth.getAvailableBiometrics();
+    return biometrics.isNotEmpty;
+  }
+
   /// Xác thực vân tay
   static Future<bool> authenticate() async {
     try {

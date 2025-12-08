@@ -71,7 +71,7 @@ class CategoryController extends GetxController {
       final now = DateTime.now();
       final defaultCategory = CategoryModel(
         id: now.millisecondsSinceEpoch.toString(),
-        name: "Keep link category",
+        name: "Danh mục",
         createdAt: now,
       );
 

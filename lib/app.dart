@@ -4,7 +4,6 @@ import 'package:keep_link/app_binding.dart';
 import 'package:keep_link/core/config/app_theme.dart';
 import 'package:keep_link/core/lang/translation_service.dart';
 import 'package:keep_link/core/routes/app_pages.dart';
-import 'package:keep_link/core/utils/controller/theme_controller.dart';
 import 'package:keep_link/features/splash/presentation/page/splash_page.dart';
 
 class App extends StatelessWidget {
@@ -12,7 +11,7 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeController = Get.put(ThemeController());
+    // final themeController = Get.put(ThemeController());
     return GetMaterialApp(
       defaultTransition: Transition.noTransition,
       debugShowCheckedModeBanner: false,
@@ -35,7 +34,8 @@ class App extends StatelessWidget {
       ///---> [Theme config]
       theme: AppTheme.dark,
       darkTheme: AppTheme.dark,
-      themeMode: themeController.themeMode,
+      // themeMode: themeController.themeMode,
+      themeMode: ThemeMode.dark,
     );
   }
 }
