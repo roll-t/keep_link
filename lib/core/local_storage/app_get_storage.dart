@@ -37,7 +37,8 @@ class AppGetStorage {
   static bool isSecurityEnabled() => _box.read(_securityEnabledKey) ?? false;
 
   static void setFingerprintEnabled(bool value) => _box.write(_fingerprintEnabledKey, value);
-  static bool isFingerprintEnabled() => _box.read(_fingerprintEnabledKey) ?? false;
+  // static bool isFingerprintEnabled() => _box.read(_fingerprintEnabledKey) ?? false;// chức năng đang phát triển
+  static bool isFingerprintEnabled() => false; // đóng tạm thời
   // ========== Login ========== //
   static void setLoggedIn(bool value) => _box.write(_isLoggedIn, value);
 

@@ -18,4 +18,5 @@
     <color name="textPrimary">#212121</color>
     <color name="textSecondary">#757575</color>
 
+	<color name="ic_launcher_background">#000000FF</color>
 </resources>

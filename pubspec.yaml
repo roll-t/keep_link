@@ -30,6 +30,7 @@ dependencies:
   pinput: ^6.0.1
   local_auth: ^3.0.0 
   flutter_markdown_plus: ^1.0.5
+  flutter_launcher_icons: ^0.14.4
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -45,16 +46,14 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/vectors/
-
-flutter_native_splash:
+    
+flutter_icons:
   android: true
-  ios: true
-  web: false
-  color: "#ffffff"
-  image: assets/splash/splash.png
-  
-  android_gravity: center 
-  
-  android_12:
-    image: assets/splash/splash.png
-    color: "#ffffff"
+  ios: false
+
+  # Icon fallback cho Android cũ
+  image_path: "assets/images/i_logo_app.png"
+
+  # Adaptive icon (Android 8+)
+  adaptive_icon_background: "#000000FF"
+  adaptive_icon_foreground: "assets/images/i_logo_app.png"

@@ -23,7 +23,8 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+        "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
       },
       followRedirects: true,
       maxRedirects: 5,
@@ -119,8 +120,10 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
 
   Map<String, dynamic> _parseMetadata(Document doc, String url) {
     String? title, description, image, favicon, appleIcon;
+
     final uriBase = Uri.parse(url);
 
+    // Resolve URL tương đối thành URL tuyệt đối
     String resolveUrl(String? path) {
       if (path == null || path.isEmpty) return '';
       try {
@@ -130,36 +133,102 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
       }
     }
 
-    // 1. Quét thẻ META
+    bool isJunkDescription(String text) {
+      final t = text.toLowerCase();
+      return t.startsWith("nguồn:") ||
+          t.contains("nguồn:") ||
+          t.contains("source:") ||
+          t.length < 10;
+    }
+
+    // ===========================
+    // 1. META TAGS
+    // ===========================
     for (var meta in doc.getElementsByTagName("meta")) {
       final property = meta.attributes["property"] ?? meta.attributes["name"];
       final content = meta.attributes["content"];
 
       if (content == null || content.isEmpty) continue;
 
-      if (property == "og:title" || property == "title") title = content;
-      if (property == "og:description" || property == "description") description = content;
-      if (property == "og:image") image = content;
-    }
+      switch (property) {
+        case "og:title":
+          title ??= content;
+          break;
 
-    // 2. Quét thẻ LINK (Icon)
-    for (var link in doc.getElementsByTagName("link")) {
-      final rel = link.attributes['rel'];
-      final href = link.attributes['href'];
-      if (href == null) continue;
+        case "twitter:title":
+          title ??= content;
+          break;
 
-      if (rel == 'apple-touch-icon') appleIcon = href;
-      if (rel?.contains('icon') == true) favicon = href;
-    }
+        case "title":
+          title ??= content;
+          break;
 
-    // 3. Fallback Title
-    if (title == null || title.isEmpty) {
-      final titleTags = doc.getElementsByTagName("title");
-      if (titleTags.isNotEmpty) {
-        title = titleTags.first.text;
+        case "og:description":
+          if (!isJunkDescription(content)) {
+            description = content;
+          }
+          break;
+
+        case "twitter:description":
+          if (!isJunkDescription(content)) {
+            description ??= content;
+          }
+          break;
+
+        case "description":
+          if (!isJunkDescription(content)) {
+            description ??= content;
+          }
+          break;
+
+        case "og:image":
+          image ??= content;
+          break;
+
+        case "twitter:image":
+          image ??= content;
+          break;
       }
     }
 
+    // ===========================
+    // 2. LINK TAGS → favicon + apple-icon
+    // ===========================
+    for (var link in doc.getElementsByTagName("link")) {
+      final rel = (link.attributes['rel'] ?? '').toLowerCase();
+      final href = link.attributes['href'];
+      if (href == null) continue;
+
+      if (rel == 'apple-touch-icon' || rel.contains('apple-touch-icon')) {
+        appleIcon ??= href;
+      }
+
+      if (rel.contains('icon')) {
+        favicon ??= href;
+      }
+
+      if (rel.contains('shortcut icon')) {
+        favicon ??= href;
+      }
+
+      if (rel.contains('image_src')) {
+        image ??= href;
+      }
+    }
+
+    // ===========================
+    // 3. Fallback Title
+    // ===========================
+    if (title == null || title.isEmpty) {
+      final tags = doc.getElementsByTagName("title");
+      if (tags.isNotEmpty) {
+        title = tags.first.text;
+      }
+    }
+
+    // ===========================
+    // 4. Kết quả cuối cùng
+    // ===========================
     return {
       'URL': url,
       'TITLE': title ?? '',

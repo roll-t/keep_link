@@ -4,9 +4,15 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <application
+        android:label="Keep link"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
 
-    <application android:label="Keep link" android:name="${applicationName}"
-        android:icon="@drawable/splash">
+        <!-- MAIN ACTIVITY -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -16,7 +22,6 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
-            <!-- Theme meta -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
@@ -40,7 +45,7 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
-            <!-- App custom deep link -->
+            <!-- App deep link -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -48,7 +53,7 @@
                 <data android:scheme="keeplink" android:host="open" />
             </intent-filter>
 
-            <!-- TikTok deep link www.tiktok.com -->
+            <!-- TikTok -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -56,13 +61,14 @@
                 <data android:scheme="https" android:host="www.tiktok.com" />
             </intent-filter>
 
-            <!-- TikTok deep link vm.tiktok.com -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="vm.tiktok.com" />
             </intent-filter>
+
+            <!-- Google -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -71,6 +77,8 @@
                 <data android:scheme="https" android:host="google.com" />
                 <data android:scheme="https" android:host="m.google.com" />
             </intent-filter>
+
+            <!-- SEND ANY -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -78,9 +86,26 @@
                 <data android:mimeType="text/html" />
                 <data android:mimeType="text/uri-list" />
             </intent-filter>
-
-
         </activity>
+
+        <!-- Bubble Service (đặt bên trong application!) -->
+        <service
+            android:name=".BubbleService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
+
+        <service
+            android:name=".LinkAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_config" />
+        </service>
 
         <!-- Flutter embedding -->
         <meta-data
@@ -89,7 +114,7 @@
 
     </application>
 
-    <!-- Queries: dùng cho Android 11+ để detect process text -->
+    <!-- Queries for Android 11+ -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />

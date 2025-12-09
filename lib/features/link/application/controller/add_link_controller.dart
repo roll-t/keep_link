@@ -28,10 +28,12 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   final isEditModel = false.obs;
 
   @override
-  void onInit() {
+  void onInit() async {
     super.onInit();
     _setupWorkers();
     Future.microtask(_loadInitialData);
+    await DeepLinkService.init();
+    print(DeepLinkService.sharedText);
   }
 
   // ===============================================================

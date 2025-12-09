@@ -1,0 +1,7 @@
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/bubble_icon"
+  android:layout_width="20dp"
+  android:layout_height="20dp"
+  android:src="@drawable/ic_bubble"
+  android:background="@drawable/bubble_bg"
+  android:padding="3dp" />

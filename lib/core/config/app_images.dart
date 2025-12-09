@@ -5,6 +5,7 @@ class AppImages {
   static const String _ext = ".png";
 
   static const iLogo = _PngImage("${_root}i_logo$_ext");
+  static const iBgSplash = _PngImage("${_root}i_bg_splash$_ext");
 }
 
 class _PngImage {

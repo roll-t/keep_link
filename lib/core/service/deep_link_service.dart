@@ -12,8 +12,9 @@ class DeepLinkService {
   static Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
-
+    print(">>> RUN CODE");
     final initialIntent = await ReceiveIntent.getInitialIntent();
+    print(">>> RUN CODE $initialIntent ");
     if (initialIntent != null) {
       _processIntent(initialIntent, fromColdStart: true);
     }

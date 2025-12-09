@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
+import 'package:keep_link/core/service/bubble_service.dart';
+import 'package:keep_link/core/service/overlay_permission.dart';
 import 'package:keep_link/core/utils/binding/dependency_utils.dart';
 import 'package:keep_link/features/category/application/controller/category_controller.dart';
 import 'package:keep_link/features/category/presentation/widget/category_dialog.dart';
@@ -48,9 +50,15 @@ class HeaderLinkCollection extends GetView<CategoryController> {
                               size: 28,
                               backgroundColor: AppColors.d200,
                               padding: const EdgeInsets.all(8),
-                              onTap: () {
-                                // edit
-                                Get.dialog(CategoryDialog(isEditMode: true));
+                              onTap: () async {
+                                final granted = await OverlayPermission.check();
+                                if (!granted) {
+                                  await OverlayPermission.request();
+                                  return;
+                                }
+
+                                await BubbleService.startBubble();
+                                // Get.dialog(CategoryDialog(isEditMode: true));
                               },
                             ),
                             SizedBox(width: 12),
