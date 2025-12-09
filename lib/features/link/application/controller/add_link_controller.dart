@@ -251,6 +251,26 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
     }
   }
 
+  void setupBubbleChannel() {
+    const channel = MethodChannel('keep_link/bubble_click');
+
+    channel.setMethodCallHandler((call) async {
+      if (call.method == "addClipboardLink") {
+        final url = call.arguments['url'] as String?;
+        if (url == null || url.isEmpty) return;
+
+        final controller = Get.find<AddLinkController>();
+        controller.linkController.text = url;
+        controller.onChangeLink(url);
+
+        await controller.addLink(); // xử lý add link, show toast thành công/thất bại
+      } else if (call.method == "showToast") {
+        final msg = call.arguments['msg'] as String? ?? "";
+        Fluttertoast.showToast(msg: msg);
+      }
+    });
+  }
+
   @override
   void onClose() {
     linkController.dispose();

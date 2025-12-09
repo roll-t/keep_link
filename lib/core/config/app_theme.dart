@@ -67,4 +67,10 @@ class AppTheme {
       centerTitle: true,
     ),
   );
+
+  static final ThemeData transparent = ThemeData(
+    useMaterial3: true,
+    scaffoldBackgroundColor: Colors.transparent,
+    colorScheme: darkColorScheme.copyWith(surface: Colors.transparent),
+  );
 }

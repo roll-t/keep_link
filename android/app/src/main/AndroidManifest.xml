@@ -88,6 +88,20 @@
             </intent-filter>
         </activity>
 
+        <!-- ⭐ Transparent Flutter Activity (ĐÚNG VỊ TRÍ) -->
+        <activity
+            android:name=".TransparentFlutterActivity"
+            android:exported="true"
+            android:theme="@style/TransparentTheme"
+            android:launchMode="singleTop"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <!-- BẮT BUỘC: cho phép Flutter hoạt động trong suốt -->
+            <meta-data
+                android:name="io.flutter.embedding.android.TransparencyMode"
+                android:value="transparent" />
+        </activity>
         <!-- Bubble Service (đặt bên trong application!) -->
         <service
             android:name=".BubbleService"

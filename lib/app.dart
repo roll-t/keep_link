@@ -5,6 +5,7 @@ import 'package:keep_link/core/config/app_theme.dart';
 import 'package:keep_link/core/lang/translation_service.dart';
 import 'package:keep_link/core/routes/app_pages.dart';
 import 'package:keep_link/features/splash/presentation/page/splash_page.dart';
+import 'package:keep_link/overlay_handler.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -15,6 +16,7 @@ class App extends StatelessWidget {
     return GetMaterialApp(
       defaultTransition: Transition.noTransition,
       debugShowCheckedModeBanner: false,
+      navigatorKey: OverlayHandler.navigatorKey,
       transitionDuration: const Duration(milliseconds: 150),
 
       ///---> [Localization service]
@@ -32,7 +34,8 @@ class App extends StatelessWidget {
       unknownRoute: notFoundPage,
 
       ///---> [Theme config]
-      theme: AppTheme.dark,
+      // theme: AppTheme.dark,
+      theme: AppTheme.transparent,
       darkTheme: AppTheme.dark,
       // themeMode: themeController.themeMode,
       themeMode: ThemeMode.dark,

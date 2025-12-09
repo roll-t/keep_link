@@ -89,7 +89,6 @@ class DbHelper {
     bool descending = true,
   }) async {
     final db = await database;
-
     final pragma = await db.rawQuery("PRAGMA table_info($tableName)");
     final columns = pragma.map((e) => e['name'] as String).toList();
 
