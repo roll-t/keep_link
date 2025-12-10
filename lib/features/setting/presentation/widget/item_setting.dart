@@ -6,8 +6,15 @@ import 'package:keep_link/core/ui/text/text_widget.dart';
 class ItemSetting extends StatelessWidget {
   final VoidCallback onTap;
   final Widget? leadingIcon;
+  final Widget? subfix;
   final String title;
-  const ItemSetting({super.key, required this.title, required this.onTap, this.leadingIcon});
+  const ItemSetting({
+    super.key,
+    required this.title,
+    required this.onTap,
+    this.leadingIcon,
+    this.subfix,
+  });
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -26,7 +33,7 @@ class ItemSetting extends StatelessWidget {
                 TextWidget(text: title, color: AppColors.t200, textStyle: AppTextStyle.semiBold18),
               ],
             ),
-            Icon(Icons.arrow_forward_ios_rounded, color: AppColors.t200),
+            subfix ?? Icon(Icons.arrow_forward_ios_rounded, color: AppColors.t200),
           ],
         ),
       ),

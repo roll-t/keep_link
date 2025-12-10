@@ -11,6 +11,11 @@
     "editor.defaultFormatter": null,
     "editor.formatOnSave": true
   },
+  "[kotlin]": {
+    "editor.defaultFormatter": "esafirm.kotlin-formatter",
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true
+  },
   "dart.analysisExcludedFolders": [
     "build/",
     ".dart_tool/",

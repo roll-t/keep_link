@@ -1,25 +1,19 @@
 package com.example.keep_link
 
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.widget.Toast
+import androidx.annotation.RequiresApi
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity: FlutterActivity() {
+class MainActivity : FlutterActivity() {
 
     private val CHANNEL = "keep_link/bubble"
     private val PERMISSION = "keep_link/overlay_permission"
     private val BUBBLE_CHANNEL = "keep_link/bubble_click"
-
-    private var bubbleClickChannel: MethodChannel? = null
-    private var bubbleReceiver: BroadcastReceiver? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -37,33 +31,26 @@ class MainActivity: FlutterActivity() {
                         }
                         result.success(true)
                     }
-
                     "stopBubble" -> {
                         val intent = Intent(this, BubbleService::class.java)
                         stopService(intent)
                         result.success(true)
                     }
-
                     else -> result.notImplemented()
                 }
             }
 
-        // BUBBLE CLICK CHANNEL → Flutter
-        bubbleClickChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BUBBLE_CHANNEL)
-
-        // Đăng ký BroadcastReceiver để nhận intent từ BubbleService
-        bubbleReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action == "keep_link.ACTION_ADD_CLIPBOARD_LINK") {
-                    val url = intent.getStringExtra("url")
-                    url?.let {
-                        // Gọi Flutter controller
-                        bubbleClickChannel?.invokeMethod("addClipboardLink", mapOf("url" to it))
+        // CHANNEL cho click bubble
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BUBBLE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "addClipboardLink" -> {
+                        // Trả về true nếu đã gửi lệnh cho Flutter
+                        result.success(true)
                     }
+                    else -> result.notImplemented()
                 }
             }
-        }
-        registerReceiver(bubbleReceiver, IntentFilter("keep_link.ACTION_ADD_CLIPBOARD_LINK"))
 
         // MANAGE OVERLAY PERMISSION
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PERMISSION)
@@ -72,7 +59,6 @@ class MainActivity: FlutterActivity() {
                     "checkPermission" -> {
                         result.success(Settings.canDrawOverlays(this))
                     }
-
                     "requestPermission" -> {
                         if (!Settings.canDrawOverlays(this)) {
                             val intent = Intent(
@@ -83,7 +69,6 @@ class MainActivity: FlutterActivity() {
                         }
                         result.success(true)
                     }
-
                     else -> result.notImplemented()
                 }
             }
@@ -101,12 +86,5 @@ class MainActivity: FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        bubbleReceiver?.let {
-            unregisterReceiver(it)
-        }
     }
 }

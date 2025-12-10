@@ -19,6 +19,7 @@ class AppVectors {
   static const icLock = _SvgIcon("${_root}ic_lock$_ext");
   static const icWarning = _SvgIcon("${_root}ic_warning$_ext");
   static const icCopy = _SvgIcon("${_root}ic_copy$_ext");
+  static const icFloatingExtension = _SvgIcon("${_root}ic_floating_extension$_ext");
 }
 
 class _SvgIcon {

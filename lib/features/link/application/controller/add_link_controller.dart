@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_enum.dart';
+import 'package:keep_link/core/local_storage/app_get_storage.dart';
 import 'package:keep_link/core/local_storage/sql_lite.dart';
+import 'package:keep_link/core/service/bubble_service.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
 import 'package:keep_link/core/utils/controller/deep_link_controller.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
@@ -32,8 +34,6 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
     super.onInit();
     _setupWorkers();
     Future.microtask(_loadInitialData);
-    await DeepLinkService.init();
-    print(DeepLinkService.sharedText);
   }
 
   // ===============================================================
@@ -238,13 +238,17 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ===============================================================
   // EXIT HANDLER
   // ===============================================================
-  void onCancel({dynamic arg}) {
+  void onCancel({dynamic arg}) async {
     if (DeepLinkService.isOpenedFromShare) {
+      final isBubbleEnabled = AppGetStorage.read<bool>('bubble_enabled') ?? false;
+      if (isBubbleEnabled) {
+        await BubbleService.startBubble();
+      }
       if (Platform.isAndroid) {
         SystemNavigator.pop();
         return;
       }
-      // iOS: avoid exit(0), fallback to back
+      // iOS: fallback to back
       Get.back();
     } else {
       Get.back(result: arg);

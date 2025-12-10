@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
-import android.os.IBinder
+import android.os.IBinder 
 import android.provider.Settings
 import android.view.*
 import android.widget.Toast
@@ -76,11 +76,13 @@ class BubbleService : Service() {
     private fun setTouchListener(view: View, params: WindowManager.LayoutParams) {
         view.setOnTouchListener(object : View.OnTouchListener {
             private var isClick = false
+            private var isMoving = false
+
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         isClick = true
-                        removeView.visibility = View.VISIBLE
+                        isMoving = false
                         initialX = params.x
                         initialY = params.y
                         initialTouchX = event.rawX
@@ -90,26 +92,37 @@ class BubbleService : Service() {
                     MotionEvent.ACTION_MOVE -> {
                         val dx = event.rawX - initialTouchX
                         val dy = event.rawY - initialTouchY
-                        if (abs(dx) > 10 || abs(dy) > 10) isClick = false
 
-                        params.x = initialX + dx.toInt()
-                        params.y = initialY + dy.toInt()
-                        windowManager.updateViewLayout(view, params)
+                        if (!isMoving && (abs(dx) > 10 || abs(dy) > 10)) {
+                            // Bắt đầu di chuyển → hiện nút xóa
+                            isMoving = true
+                            removeView.visibility = View.VISIBLE
+                        }
 
-                        removeView.scaleX = if (event.rawY > resources.displayMetrics.heightPixels * 0.75) 1.2f else 1f
-                        removeView.scaleY = removeView.scaleX
+                        if (isMoving) {
+                            isClick = false
+                            params.x = initialX + dx.toInt()
+                            params.y = initialY + dy.toInt()
+                            windowManager.updateViewLayout(view, params)
+
+                            removeView.scaleX = if (event.rawY > resources.displayMetrics.heightPixels * 0.75) 1.2f else 1f
+                            removeView.scaleY = removeView.scaleX
+                        }
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
                         removeView.visibility = View.GONE
+
                         if (isClick) {
                             view.performClick()
                             return true
                         }
-                        if (event.rawY > resources.displayMetrics.heightPixels * 0.75) {
+
+                        if (isMoving && event.rawY > resources.displayMetrics.heightPixels * 0.75) {
                             stopSelf()
                             return true
                         }
+
                         snapToEdge(params)
                         return true
                     }
