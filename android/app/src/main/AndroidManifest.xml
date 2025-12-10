@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.keep_link">
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -7,9 +8,10 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
     <application
+        android:name=".MyApp"
         android:label="Keep link"
-        android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
         <!-- MAIN ACTIVITY -->
@@ -22,6 +24,7 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
+            <!-- Normal flutter theme -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
@@ -88,26 +91,13 @@
             </intent-filter>
         </activity>
 
-        <!-- ⭐ Transparent Flutter Activity (ĐÚNG VỊ TRÍ) -->
-        <activity
-            android:name=".TransparentFlutterActivity"
-            android:exported="true"
-            android:theme="@style/TransparentTheme"
-            android:launchMode="singleTop"
-            android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
-
-            <!-- BẮT BUỘC: cho phép Flutter hoạt động trong suốt -->
-            <meta-data
-                android:name="io.flutter.embedding.android.TransparencyMode"
-                android:value="transparent" />
-        </activity>
-        <!-- Bubble Service (đặt bên trong application!) -->
+        <!-- Bubble Service -->
         <service
             android:name=".BubbleService"
             android:exported="false"
             android:foregroundServiceType="specialUse" />
 
+        <!-- Accessibility service -->
         <service
             android:name=".LinkAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
@@ -121,14 +111,22 @@
                 android:resource="@xml/accessibility_config" />
         </service>
 
+        <!-- Bubble Receiver -->
+        <receiver
+            android:name=".BubbleReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="keep_link.BUBBLE_CLICKED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Flutter embedding -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-
     </application>
 
-    <!-- Queries for Android 11+ -->
+    <!-- Android 11+ queries -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />

@@ -1,5 +1,6 @@
 package com.example.keep_link
 
+import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
@@ -11,6 +12,8 @@ import android.view.*
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import kotlin.math.abs
+import android.util.Log
+import io.flutter.plugin.common.MethodChannel
 
 class BubbleService : Service() {
     private lateinit var windowManager: WindowManager
@@ -53,18 +56,20 @@ class BubbleService : Service() {
     }
 
     // --------------------- Bubble ---------------------
+    @SuppressLint("InflateParams")
     private fun setupBubble() {
         bubbleParams = createLayoutParams(Gravity.TOP or Gravity.START, 0, 300)
         bubbleView = LayoutInflater.from(this).inflate(R.layout.bubble_layout, null)
-        bubbleView.setOnClickListener {
-            processClipboardLink()
-        }
+//        bubbleView.setOnClickListener {
+//            processClipboardLink()
+//        }
 
         setTouchListener(bubbleView, bubbleParams)
         windowManager.addView(bubbleView, bubbleParams)
     }
 
     // --------------------- Remove zone ---------------------
+    @SuppressLint("InflateParams")
     private fun setupRemoveZone() {
         removeParams = createLayoutParams(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL, 0, 150)
         removeView = LayoutInflater.from(this).inflate(R.layout.bubble_remove_layout, null)
@@ -113,8 +118,18 @@ class BubbleService : Service() {
                     MotionEvent.ACTION_UP -> {
                         removeView.visibility = View.GONE
 
+
                         if (isClick) {
-                            view.performClick()
+                            Log.d(">>>", "test print")
+
+                            val intent = Intent()
+                            intent.setClassName(
+                                "com.example.keep_link",
+                                "com.example.keep_link.BubbleReceiver"
+                            )
+                            intent.action = "keep_link.BUBBLE_CLICKED"
+
+                            sendBroadcast(intent)
                             return true
                         }
 

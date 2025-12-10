@@ -1,24 +1,38 @@
 package com.example.keep_link
 
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.annotation.RequiresApi
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterEngineCache
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
-
 class MainActivity : FlutterActivity() {
 
     private val CHANNEL = "keep_link/bubble"
     private val PERMISSION = "keep_link/overlay_permission"
     private val BUBBLE_CHANNEL = "keep_link/bubble_click"
 
+    override fun provideFlutterEngine(context: Context): FlutterEngine? {
+        return FlutterEngineCache.getInstance().get("my_engine")
+    }
+
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // START / STOP BUBBLE SERVICE
+
+        BubbleReceiver.channel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            BUBBLE_CHANNEL
+        )
+
+        // START / STOP BUBBL   E SERVICE
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -31,23 +45,13 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(true)
                     }
+
                     "stopBubble" -> {
                         val intent = Intent(this, BubbleService::class.java)
                         stopService(intent)
                         result.success(true)
                     }
-                    else -> result.notImplemented()
-                }
-            }
 
-        // CHANNEL cho click bubble
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BUBBLE_CHANNEL)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "addClipboardLink" -> {
-                        // Trả về true nếu đã gửi lệnh cho Flutter
-                        result.success(true)
-                    }
                     else -> result.notImplemented()
                 }
             }
@@ -59,6 +63,7 @@ class MainActivity : FlutterActivity() {
                     "checkPermission" -> {
                         result.success(Settings.canDrawOverlays(this))
                     }
+
                     "requestPermission" -> {
                         if (!Settings.canDrawOverlays(this)) {
                             val intent = Intent(
@@ -69,6 +74,7 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(true)
                     }
+
                     else -> result.notImplemented()
                 }
             }
@@ -76,15 +82,10 @@ class MainActivity : FlutterActivity() {
 
     override fun onResume() {
         super.onResume()
-        // gửi kết quả permission về Flutter
+
         MethodChannel(
             flutterEngine?.dartExecutor?.binaryMessenger!!,
             PERMISSION
         ).invokeMethod("permissionResult", Settings.canDrawOverlays(this))
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
     }
 }
