@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/features/setting/application/controller/warning_controller.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class WarningPage extends GetView<WarningController> {
   static String routeName = "/WarningPage";
@@ -26,6 +27,32 @@ class WarningPage extends GetView<WarningController> {
             p: const TextStyle(fontSize: 15, height: 1.6),
             listBullet: const TextStyle(fontSize: 16),
           ),
+          onTapLink: (text, href, title) async {
+            if (href == null) return;
+
+            final uri = Uri.parse(href);
+
+            if (uri.scheme == 'mailto') {
+              // mở Gmail app
+              if (!await launchUrl(uri)) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text("Không thể mở email")));
+              }
+            } else if (uri.scheme == 'zalo') {
+              if (!await launchUrl(uri)) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text("Không thể mở Zalo")));
+              }
+            } else {
+              if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text("Không thể mở link")));
+              }
+            }
+          },
         ),
       ),
     );
