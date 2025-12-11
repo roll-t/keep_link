@@ -5,7 +5,6 @@ import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/features/security/presentation/page/security_method_page.dart';
-import 'package:keep_link/features/setting/application/controller/bubble_setting_controller.dart';
 import 'package:keep_link/features/setting/presentation/page/warning_page.dart';
 import 'package:keep_link/features/setting/presentation/widget/item_setting.dart';
 
@@ -54,28 +53,28 @@ class SettingPage extends StatelessWidget {
                 padding: EdgeInsets.all(8),
               ),
             ),
-            GetBuilder<BubbleSettingController>(
-              builder: (controller) {
-                return Obx(
-                  () => ItemSetting(
-                    title: "Bong bóng tiện ích",
-                    onTap: () async {
-                      await controller.toggleBubble(!controller.isBubbleEnabled.value);
-                    },
-                    leadingIcon: AppVectors.icFloatingExtension.show(
-                      size: 18,
-                      color: AppColors.t300,
-                      backgroundColor: AppColors.d100,
-                      padding: const EdgeInsets.all(8),
-                    ),
-                    subfix: Switch(
-                      value: controller.isBubbleEnabled.value,
-                      onChanged: (value) => controller.toggleBubble(value),
-                    ),
-                  ),
-                );
-              },
-            ),
+            // GetBuilder<BubbleSettingController>(
+            //   builder: (controller) {
+            //     return Obx(
+            //       () => ItemSetting(
+            //         title: "Bong bóng tiện ích",
+            //         onTap: () async {
+            //           await controller.toggleBubble(!controller.isBubbleEnabled.value);
+            //         },
+            //         leadingIcon: AppVectors.icFloatingExtension.show(
+            //           size: 18,
+            //           color: AppColors.t300,
+            //           backgroundColor: AppColors.d100,
+            //           padding: const EdgeInsets.all(8),
+            //         ),
+            //         subfix: Switch(
+            //           value: controller.isBubbleEnabled.value,
+            //           onChanged: (value) => controller.toggleBubble(value),
+            //         ),
+            //       ),
+            //     );
+            //   },
+            // ),
           ],
         ),
       ),

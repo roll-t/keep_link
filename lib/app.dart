@@ -32,8 +32,7 @@ class App extends StatelessWidget {
       unknownRoute: notFoundPage,
 
       ///---> [Theme config]
-      // theme: AppTheme.dark,
-      theme: AppTheme.transparent,
+      theme: AppTheme.dark,
       darkTheme: AppTheme.dark,
       // themeMode: themeController.themeMode,
       themeMode: ThemeMode.dark,

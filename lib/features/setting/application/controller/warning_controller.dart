@@ -19,8 +19,8 @@ Khi bạn **gỡ cài đặt ứng dụng**, toàn bộ dữ liệu sẽ **bị 
 
 Nếu bạn gặp lỗi hoặc có góp ý, vui lòng liên hệ:
 
-- 📩 Email: contact@example.com  
-- 💬 Zalo: 0123 456 789  
+- 📩 Email: phuoctruong727@gmail.com  
+- 💬 Zalo: 0838629035  
 
 ---
 

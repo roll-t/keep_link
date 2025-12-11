@@ -6,4 +6,4 @@
   android:notificationTimeout="100"
   android:canRetrieveWindowContent="true"
   android:accessibilityFlags="flagDefault"
-  android:settingsActivity="com.example.keep_link.YourSettingActivity" />
+  android:settingsActivity="com.phamtruong.keeplink.YourSettingActivity" />
