@@ -15,6 +15,7 @@ class CategoryController extends GetxController {
   final CustomPopupController popupController = Get.put(CustomPopupController());
   final RxList<CategoryModel> categories = <CategoryModel>[].obs;
   final RxString errorMess = "".obs;
+  final Rx<CategoryVisibility> visibility = CategoryVisibility.public.obs;
 
   @override
   void onInit() {
@@ -186,6 +187,10 @@ class CategoryController extends GetxController {
     });
 
     _updatePopupItems(selectId: selectedId);
+  }
+
+  void setVisibility(CategoryVisibility value) {
+    visibility.value = value;
   }
 
   /// -----------------------------

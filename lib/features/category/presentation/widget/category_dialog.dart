@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
+import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
+import 'package:keep_link/core/extension/colors.dart';
 import 'package:keep_link/core/ui/button/primary_button.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/ui/text_field/simple_input_textfield.dart';
 import 'package:keep_link/features/category/application/controller/category_controller.dart';
 
 class CategoryDialog extends GetView<CategoryController> {
+  static String routeName = '/category_dialog';
   final bool isEditMode;
-
   const CategoryDialog({super.key, this.isEditMode = false});
-
   void _initController() {
     final selectedName = controller.popupController.selectedItem.value?.name ?? "";
     controller.errorMess.value = "";
@@ -48,9 +49,9 @@ class CategoryDialog extends GetView<CategoryController> {
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) => _initController());
-    return Material(
-      color: Colors.transparent,
-      child: Center(
+    return Scaffold(
+      backgroundColor: AppColors.black.withOpacityCompat(0.6),
+      body: Center(
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: AppColors.d500, borderRadius: BorderRadius.circular(8)),
@@ -75,7 +76,22 @@ class CategoryDialog extends GetView<CategoryController> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
+
+                TextWidget(
+                  text: "Trạng Thái",
+                  textStyle: AppTextStyle.regular14,
+                  color: AppColors.t300,
+                ),
+                const SizedBox(height: 8),
+                _buildVisibilitySelector(),
+                const SizedBox(height: 12),
+                TextWidget(
+                  text: "Tên Danh Mục",
+                  textStyle: AppTextStyle.regular14,
+                  color: AppColors.t300,
+                ),
+                const SizedBox(height: 8),
                 Obx(
                   () => SimpleInputTextField(
                     controller: controller.categoryNameController,
@@ -88,6 +104,65 @@ class CategoryDialog extends GetView<CategoryController> {
                 _buildActionButtons(),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVisibilitySelector() {
+    return Obx(() {
+      final isPublic = controller.visibility.value == CategoryVisibility.public;
+      return Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(color: AppColors.d300, borderRadius: BorderRadius.circular(24)),
+        child: Row(
+          children: [
+            _visibilityItem(
+              label: "Công khai",
+              icon: Icons.public,
+              selected: isPublic,
+              onTap: () => controller.setVisibility(CategoryVisibility.public),
+            ),
+            _visibilityItem(
+              label: "Riêng tư",
+              icon: Icons.lock,
+              selected: !isPublic,
+              onTap: () => controller.setVisibility(CategoryVisibility.private),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _visibilityItem({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: selected ? AppColors.white : AppColors.t300),
+              const SizedBox(width: 8),
+              TextWidget(
+                text: label,
+                textStyle: AppTextStyle.semiBold14,
+                color: selected ? AppColors.white : AppColors.t300,
+              ),
+            ],
           ),
         ),
       ),
