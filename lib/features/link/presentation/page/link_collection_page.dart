@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/extension/colors.dart';
-import 'package:keep_link/features/link/presentation/widget/action_add_link.dart';
+import 'package:keep_link/features/link/presentation/widget/floating_button_add_link.dart';
 import 'package:keep_link/features/link/presentation/widget/header_link_collection.dart';
 import 'package:keep_link/features/link/presentation/widget/list_link_collection.dart';
 
@@ -12,7 +12,7 @@ class LinkCollectionPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(body: const _BodyBuilder(), floatingActionButton: ActionAddLink());
+    return Scaffold(body: const _BodyBuilder(), floatingActionButton: FloatingButtonAddLink());
   }
 }
 
@@ -29,9 +29,9 @@ class _BodyBuilder extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppColors.black.withOpacityCompat(.9),
-                AppColors.black.withOpacityCompat(.6),
-                AppColors.black.withOpacityCompat(.3),
+                AppColors.black.withOpacityCompat(.8),
+                AppColors.black.withOpacityCompat(.5),
+                AppColors.black.withOpacityCompat(.2),
                 AppColors.transparent,
                 AppColors.transparent,
               ],

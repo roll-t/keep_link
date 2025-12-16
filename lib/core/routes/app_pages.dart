@@ -3,7 +3,6 @@ import 'package:keep_link/core/routes/not_found/not_found_page.dart';
 import 'package:keep_link/features/category/application/di/category_binding.dart';
 import 'package:keep_link/features/link/application/di/add_link_binding.dart';
 import 'package:keep_link/features/link/application/di/link_collection_binding.dart';
-import 'package:keep_link/features/link/presentation/page/add_link_native_page.dart';
 import 'package:keep_link/features/link/presentation/page/add_link_page.dart';
 import 'package:keep_link/features/link/presentation/page/link_collection_page.dart';
 import 'package:keep_link/features/security/application/di/pin_verify_binding.dart';
@@ -59,12 +58,6 @@ final appPage = [
     name: PinVerifyPage.routeName,
     transition: Transition.downToUp,
     page: () => const PinVerifyPage(),
-    binding: PinVerifyBinding(),
-  ),
-  GetPage(
-    name: AddLinkNativePage.routeName,
-    transition: Transition.downToUp,
-    page: () => const AddLinkNativePage(),
     binding: PinVerifyBinding(),
   ),
 ];

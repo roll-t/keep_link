@@ -17,9 +17,9 @@ class SplashPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = DependencyUtils.find<SplashController>();
     return Container(
-      // decoration: BoxDecoration(
-      //   image: DecorationImage(image: AssetImage(AppImages.iBgSplash.path), fit: BoxFit.cover),
-      // ),
+      decoration: BoxDecoration(
+        image: DecorationImage(image: AssetImage(AppImages.iBgSplash.path), fit: BoxFit.cover),
+      ),
       child: GestureDetector(
         onTap: () {
           Utils.dimissKeyboard();

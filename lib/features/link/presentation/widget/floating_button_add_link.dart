@@ -7,8 +7,8 @@ import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/features/link/application/controller/link_collection_controller.dart';
 import 'package:keep_link/features/link/presentation/page/add_link_page.dart';
 
-class ActionAddLink extends StatelessWidget {
-  const ActionAddLink({super.key});
+class FloatingButtonAddLink extends StatelessWidget {
+  const FloatingButtonAddLink({super.key});
 
   @override
   Widget build(BuildContext context) {
