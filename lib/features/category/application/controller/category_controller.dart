@@ -26,17 +26,24 @@ class CategoryController extends GetxController {
   /// -----------------------------
   /// CREATE / INSERT
   /// -----------------------------
-  Future<void> addCategory() async {
-    if (!_validateCategoryName()) return;
 
-    final now = DateTime.now();
-    final category = CategoryModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: categoryNameController.text.trim(),
-      createdAt: now,
-    );
-    await DbHelper.upsert(category);
-    categories.add(category);
+  Future<void> addCategory() async {
+    if (!_validateCategory()) return;
+    CategoryModel? category;
+    try {
+      final now = DateTime.now();
+      category = CategoryModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: categoryNameController.text.trim(),
+        createdAt: now,
+      );
+      await DbHelper.upsert(category);
+    } catch (e, s) {
+      debugPrint('Add category error: $e');
+      debugPrintStack(stackTrace: s);
+      return;
+    }
+    categories.insert(0, category);
     _updatePopupItems(selectId: category.id);
     if (!DeepLinkService.isOpenedFromShare) {
       Get.find<LinkCollectionController>().fetchAllLinks();
@@ -49,7 +56,6 @@ class CategoryController extends GetxController {
   /// -----------------------------
   Future<void> fetchCategories() async {
     final res = await DbHelper.getAll(CategoryModel().tableName);
-
     // Nếu có dữ liệu -> parse như bình thường
     if (res.isNotEmpty) {
       categories.value = res
@@ -79,14 +85,12 @@ class CategoryController extends GetxController {
       categories.add(defaultCategory);
     }
 
-    // Sắp xếp theo createdAt
     categories.sort((a, b) {
-      final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return aTime.compareTo(bTime);
+      final aTime = a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bTime = b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bTime.compareTo(aTime);
     });
 
-    // Cập nhật danh sách popup
     _updatePopupItems();
   }
 
@@ -94,7 +98,7 @@ class CategoryController extends GetxController {
   /// UPDATE
   /// -----------------------------
   Future<void> updateCategory() async {
-    if (!_validateCategoryName()) return;
+    if (!_validateCategory()) return;
     final selected = popupController.selectedItem.value;
     if (selected == null || selected.id == 'all') return;
     final current = categories.firstWhere((e) => e.id == selected.id);
@@ -155,10 +159,43 @@ class CategoryController extends GetxController {
     errorMess.value = "";
   }
 
+  Future<void> refreshCategory() async {
+    final selectedId = popupController.selectedItem.value?.id;
+    categories.clear();
+    final res = await DbHelper.getAll(CategoryModel().tableName);
+
+    if (res.isNotEmpty) {
+      categories.value = res
+          .map(
+            (e) => CategoryModel(
+              id: e['id'],
+              name: e['name'],
+              description: e['description'],
+              iconUrl: e['icon_url'],
+              createdAt: e['created_at'] != null ? DateTime.tryParse(e['created_at']) : null,
+              updatedAt: e['updated_at'] != null ? DateTime.tryParse(e['updated_at']) : null,
+            ),
+          )
+          .toList();
+    }
+
+    categories.sort((a, b) {
+      final aTime = a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bTime = b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bTime.compareTo(aTime);
+    });
+
+    _updatePopupItems(selectId: selectedId);
+  }
+
   /// -----------------------------
   /// VALIDATION
   /// -----------------------------
-  bool _validateCategoryName() {
+  bool _validateCategory() {
+    if (categories.length >= 30) {
+      Fluttertoast.showToast(msg: "Tạo được tối đa 30 danh mục");
+      return false;
+    }
     final name = categoryNameController.text.trim();
     if (name.isEmpty) {
       errorMess.value = "Tên danh mục không được bỏ trống";
@@ -178,18 +215,14 @@ class CategoryController extends GetxController {
       ...categories.map((c) => ItemModel(id: c.id, name: c.name)),
     ];
 
-    // Gán vào popupController
     popupController.items
       ..clear()
       ..addAll(newItems);
 
-    // Xử lý chọn item
     if (selectId != null) {
-      // Tìm item, nếu không có thì chọn "Tất cả"
       final matched = newItems.firstWhere((e) => e.id == selectId, orElse: () => newItems.first);
       popupController.selectedItem.value = matched;
     } else {
-      // Nếu chưa có selected -> lấy item đầu tiên
       popupController.selectedItem.value ??= newItems.first;
     }
 

@@ -54,7 +54,7 @@ class AddLinkPage extends StatelessWidget {
         Row(
           spacing: 12,
           children: [
-            CustomPopupWidget(controller: categoryController.popupController),
+            CustomPopupWidget(controller: categoryController.popupController, hasAll: false),
             AppVectors.icAdd.show(
               size: 28,
               backgroundColor: AppColors.d200,

@@ -10,8 +10,14 @@ import 'package:keep_link/features/category/application/controller/custom_popup_
 class CustomPopupWidget extends StatelessWidget {
   final VoidCallback? onSelected;
   final CustomPopupController controller;
+  final bool hasAll;
 
-  const CustomPopupWidget({super.key, required this.controller, this.onSelected});
+  const CustomPopupWidget({
+    super.key,
+    required this.controller,
+    this.onSelected,
+    this.hasAll = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +27,13 @@ class CustomPopupWidget extends StatelessWidget {
       decoration: BoxDecoration(color: AppColors.d200, borderRadius: BorderRadius.circular(100)),
       alignment: Alignment.center,
       child: Obx(() {
+        final RxString displayTitle =
+            (hasAll
+                    ? controller.selectedItem.value?.name ?? "Chọn danh mục"
+                    : (controller.selectedItem.value?.id == 'all'
+                          ? "Chọn danh mục"
+                          : controller.selectedItem.value?.name ?? "Chọn danh mục"))
+                .obs;
         return CustomPopup(
           barrierColor: Colors.transparent,
           showArrow: false,
@@ -39,44 +52,54 @@ class CustomPopupWidget extends StatelessWidget {
             color: AppColors.d200,
             borderRadius: BorderRadius.circular(12),
           ),
-          content: Container(
-            width: Get.width * .7,
-            constraints: BoxConstraints(
-              maxHeight: controller.items.length > controller.maxItemDisplay
-                  ? controller.itemHeight * controller.maxItemDisplay
-                  : controller.items.length * controller.itemHeight,
-            ),
-            child: ListView.builder(
-              controller: controller.scrollController,
-              padding: EdgeInsets.zero,
-              itemCount: controller.items.length,
-              itemBuilder: (context, index) {
-                final item = controller.items[index];
-                final isSelected = controller.selectedItem.value?.id == item.id;
+          content: Builder(
+            builder: (context) {
+              final displayItems = hasAll
+                  ? controller.items
+                  : controller.items.where((e) => e.id != 'all').toList();
 
-                return GestureDetector(
-                  onTap: () {
-                    controller.selectItem(item);
-                    onSelected?.call();
-                    Navigator.of(context).pop();
+              return Container(
+                width: Get.width * .7,
+                constraints: BoxConstraints(
+                  maxHeight: displayItems.length > controller.maxItemDisplay
+                      ? controller.itemHeight * controller.maxItemDisplay
+                      : displayItems.length * controller.itemHeight,
+                ),
+                child: ListView.builder(
+                  controller: controller.scrollController,
+                  padding: EdgeInsets.zero,
+                  itemCount: displayItems.length,
+                  itemBuilder: (context, index) {
+                    final item = displayItems[index];
+                    final isSelected = controller.selectedItem.value?.id == item.id;
+                    final isLastItem = index == displayItems.length - 1;
+                    return GestureDetector(
+                      onTap: () {
+                        controller.selectItem(item);
+                        onSelected?.call();
+                        Navigator.of(context).pop();
+                      },
+                      child: Container(
+                        height: controller.itemHeight,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        alignment: Alignment.centerLeft,
+                        decoration: BoxDecoration(
+                          border: !isLastItem
+                              ? Border(bottom: BorderSide(color: AppColors.d100))
+                              : null,
+                          color: isSelected ? AppColors.d100 : Colors.transparent,
+                        ),
+                        child: TextWidget(
+                          text: item.name ?? "",
+                          maxLines: 1,
+                          textStyle: AppTextStyle.semiBold16,
+                        ),
+                      ),
+                    );
                   },
-                  child: Container(
-                    height: controller.itemHeight,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    alignment: Alignment.centerLeft,
-                    decoration: BoxDecoration(
-                      border: Border(bottom: BorderSide(color: AppColors.d100)),
-                      color: isSelected ? AppColors.d100 : Colors.transparent,
-                    ),
-                    child: TextWidget(
-                      text: item.name ?? "",
-                      maxLines: 1,
-                      textStyle: AppTextStyle.semiBold16,
-                    ),
-                  ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
 
           // ===== BUTTON =====
@@ -88,7 +111,7 @@ class CustomPopupWidget extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextWidget(
-                    text: controller.selectedItem.value?.name ?? "Chọn danh mục",
+                    text: displayTitle.value,
                     maxLines: 1,
                     textStyle: AppTextStyle.semiBold16,
                   ),

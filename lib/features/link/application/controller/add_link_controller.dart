@@ -18,10 +18,8 @@ import 'package:keep_link/features/link/data/model/link_model.dart';
 class AddLinkController extends GetxController with ArgumentHandlerMixinController<LinkModel> {
   final DeepLinkController _deepLink = Get.find<DeepLinkController>();
   final popup = Get.find<CustomPopupController>();
-
   final linkController = TextEditingController();
   final titleController = TextEditingController();
-
   final errorLinkMess = "".obs;
   final errorTitleMess = "".obs;
   final _queryLink = "".obs;
@@ -40,8 +38,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   void _setupWorkers() {
     debounce<String>(_queryLink, (link) {
       if (_isValidUrl(link)) _deepLink.fetchMetaData(link);
-    }, time: const Duration(milliseconds: 200));
-
+    }, time: const Duration(milliseconds: 150));
     ever(_deepLink.metaData, (meta) {
       if (meta != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -252,10 +249,6 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
     } else {
       Get.back(result: arg);
     }
-  }
-
-  void onNativeClick() {
-    print(">>> CALL NATIVE SUCCESS");
   }
 
   @override

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/local_storage/sql_lite.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
+import 'package:keep_link/features/category/application/controller/category_controller.dart';
 import 'package:keep_link/features/category/application/controller/custom_popup_controller.dart';
 import 'package:keep_link/features/link/data/model/link_model.dart';
 
@@ -20,7 +21,6 @@ class LinkCollectionController extends GetxController {
     isLoading.value = false;
   }
 
-  /// Lấy tất cả link từ DB, nhưng chỉ lấy theo category đang chọn
   Future<void> fetchAllLinks() async {
     final CustomPopupController categoryCustomPopup = Get.find<CustomPopupController>();
     try {
@@ -72,6 +72,9 @@ class LinkCollectionController extends GetxController {
   Future<void> onRefreshData() async {
     try {
       await fetchAllLinks();
+      if (Get.isRegistered<CategoryController>()) {
+        await Get.find<CategoryController>().refreshCategory();
+      }
       Fluttertoast.showToast(msg: "Refreshed");
       log('Link data has been refreshed.');
     } catch (e) {
