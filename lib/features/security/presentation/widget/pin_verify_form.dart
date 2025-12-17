@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/security/application/controller/pin_verify_controller.dart';
 import 'package:pinput/pinput.dart';
 
@@ -15,6 +16,7 @@ class PinVerifyForm extends StatelessWidget {
   final Widget? title;
   final double? width;
   final EdgeInsets? margin;
+  final bool isDismissDialog;
 
   const PinVerifyForm({
     super.key,
@@ -24,6 +26,7 @@ class PinVerifyForm extends StatelessWidget {
     this.title,
     this.width,
     this.margin,
+    this.isDismissDialog = true,
   });
 
   @override
@@ -50,6 +53,9 @@ class PinVerifyForm extends StatelessWidget {
 
                   // PIN mới
                   Pinput(
+                    onTapOutside: (event) {
+                      Utils.dimissKeyboard();
+                    },
                     length: 4,
                     controller: controller.newPinController,
                     focusNode: controller.newPinFocus,

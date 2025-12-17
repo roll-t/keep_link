@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
+import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/library/custom_popup.dart';
@@ -89,10 +90,17 @@ class CustomPopupWidget extends StatelessWidget {
                               : null,
                           color: isSelected ? AppColors.d100 : Colors.transparent,
                         ),
-                        child: TextWidget(
-                          text: item.name ?? "",
-                          maxLines: 1,
-                          textStyle: AppTextStyle.semiBold16,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            TextWidget(
+                              text: item.name ?? "",
+                              maxLines: 1,
+                              textStyle: AppTextStyle.semiBold16,
+                            ),
+                            if (item.visibility == VisibilityStatus.private)
+                              Icon(Icons.lock, size: 16, color: AppColors.t300),
+                          ],
                         ),
                       ),
                     );

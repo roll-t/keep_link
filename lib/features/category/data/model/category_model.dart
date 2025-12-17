@@ -1,3 +1,4 @@
+import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/model/db_model.dart';
 
 class CategoryModel implements DbModel {
@@ -7,7 +8,8 @@ class CategoryModel implements DbModel {
   String? description;
   String? iconUrl;
 
-  /// Thời gian tạo và cập nhật
+  VisibilityStatus visibility;
+
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -16,6 +18,7 @@ class CategoryModel implements DbModel {
     this.name,
     this.description,
     this.iconUrl,
+    this.visibility = VisibilityStatus.public,
     this.createdAt,
     DateTime? updatedAt,
   }) : updatedAt = updatedAt ?? DateTime.now();
@@ -29,9 +32,26 @@ class CategoryModel implements DbModel {
     'name': name,
     'description': description,
     'icon_url': iconUrl,
+    'visibility': visibility.name,
     'created_at': createdAt?.toIso8601String(),
     'updated_at': updatedAt?.toIso8601String(),
   };
+
+  /// Helper parse từ DB
+  factory CategoryModel.fromJson(Map<String, dynamic> json) {
+    return CategoryModel(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      iconUrl: json['icon_url'],
+      visibility: VisibilityStatus.values.firstWhere(
+        (e) => e.name == json['visibility'],
+        orElse: () => VisibilityStatus.public,
+      ),
+      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at']) : null,
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at']) : null,
+    );
+  }
 
   @override
   Map<String, String> get columns => {
@@ -39,6 +59,7 @@ class CategoryModel implements DbModel {
     'name': 'TEXT NOT NULL',
     'description': 'TEXT',
     'icon_url': 'TEXT',
+    'visibility': 'TEXT NOT NULL DEFAULT "public"',
     'created_at': 'TEXT',
     'updated_at': 'TEXT',
   };

@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_popup/flutter_popup.dart';
+import 'package:keep_link/core/extension/colors.dart';
 
 enum _ArrowDirection { top, bottom }
 
@@ -262,7 +263,7 @@ class _PopupRoute extends PopupRoute<void> {
   }) : super(settings: settings, filter: filter, traversalEdgeBehavior: traversalEdgeBehavior);
 
   @override
-  Color? get barrierColor => barriersColor ?? Colors.black.withOpacity(0.1);
+  Color? get barrierColor => barriersColor ?? Colors.black.withOpacityCompat(0.1);
 
   @override
   bool get barrierDismissible => true;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
@@ -5,16 +7,24 @@ import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/local_storage/sql_lite.dart';
 import 'package:keep_link/core/model/item_model.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
+import 'package:keep_link/core/utils/binding/dependency_utils.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/category/application/controller/custom_popup_controller.dart';
 import 'package:keep_link/features/category/data/model/category_model.dart';
 import 'package:keep_link/features/link/application/controller/link_collection_controller.dart';
+import 'package:keep_link/features/security/application/controller/security_method_controller.dart';
 
 class CategoryController extends GetxController {
   final categoryNameController = TextEditingController();
   final CustomPopupController popupController = Get.put(CustomPopupController());
+
+  // State
   final RxList<CategoryModel> categories = <CategoryModel>[].obs;
   final RxString errorMess = "".obs;
+  final Rx<VisibilityStatus> visibility = VisibilityStatus.public.obs;
+
+  // Constants
+  static const int _maxCategories = 30;
 
   @override
   void onInit() {
@@ -23,75 +33,74 @@ class CategoryController extends GetxController {
     fetchCategories();
   }
 
-  /// -----------------------------
-  /// CREATE / INSERT
-  /// -----------------------------
-
-  Future<void> addCategory() async {
-    if (!_validateCategory()) return;
-    CategoryModel? category;
-    try {
-      final now = DateTime.now();
-      category = CategoryModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: categoryNameController.text.trim(),
-        createdAt: now,
-      );
-      await DbHelper.upsert(category);
-    } catch (e, s) {
-      debugPrint('Add category error: $e');
-      debugPrintStack(stackTrace: s);
-      return;
-    }
-    categories.insert(0, category);
-    _updatePopupItems(selectId: category.id);
-    if (!DeepLinkService.isOpenedFromShare) {
-      Get.find<LinkCollectionController>().fetchAllLinks();
-    }
-    _closePopup();
+  @override
+  void onClose() {
+    categoryNameController.dispose();
+    super.onClose();
   }
 
   /// -----------------------------
-  /// READ / GET ALL
+  /// CORE: FETCH & REFRESH (Gộp logic)
   /// -----------------------------
-  Future<void> fetchCategories() async {
+  Future<void> fetchCategories({bool keepSelection = false}) async {
     final res = await DbHelper.getAll(CategoryModel().tableName);
-    // Nếu có dữ liệu -> parse như bình thường
+
+    List<CategoryModel> loadedList = [];
+
     if (res.isNotEmpty) {
-      categories.value = res
-          .map(
-            (e) => CategoryModel(
-              id: e['id'],
-              name: e['name'],
-              description: e['description'],
-              iconUrl: e['icon_url'],
-              createdAt: e['created_at'] != null ? DateTime.tryParse(e['created_at']) : null,
-              updatedAt: e['updated_at'] != null ? DateTime.tryParse(e['updated_at']) : null,
-            ),
-          )
-          .toList();
+      loadedList = res.map((e) => CategoryModel.fromJson(e)).toList();
     } else {
-      // -----------------------------
-      // 👉 KHÔNG CÓ DANH MỤC -> TẠO MỘT DANH MỤC "Mới"
-      // -----------------------------
+      // Tạo danh mục mặc định nếu rỗng
+      final defaultCategory = await _createDefaultCategory();
+      loadedList.add(defaultCategory);
+    }
+    _sortCategories(loadedList);
+    categories.assignAll(loadedList);
+
+    // Giữ lại ID đang chọn nếu refresh, ngược lại reset
+    final currentSelectedId = keepSelection ? popupController.selectedItem.value?.id : null;
+    _updatePopupItems(selectId: currentSelectedId);
+  }
+
+  Future<CategoryModel> _createDefaultCategory() async {
+    final now = DateTime.now();
+    final defaultCategory = CategoryModel(
+      id: now.millisecondsSinceEpoch.toString(),
+      name: "Danh mục",
+      createdAt: now,
+    );
+    await DbHelper.upsert(defaultCategory);
+    return defaultCategory;
+  }
+
+  /// -----------------------------
+  /// CREATE
+  /// -----------------------------
+  Future<void> addCategory() async {
+    if (!_validateCategory()) return;
+
+    try {
       final now = DateTime.now();
-      final defaultCategory = CategoryModel(
+      final category = CategoryModel(
         id: now.millisecondsSinceEpoch.toString(),
-        name: "Danh mục",
+        name: categoryNameController.text.trim(),
         createdAt: now,
+        visibility: visibility.value,
       );
 
-      await DbHelper.upsert(defaultCategory);
-      categories.add(defaultCategory);
+      await DbHelper.upsert(category);
+
+      // Cập nhật UI: Thêm vào đầu danh sách thay vì fetch lại toàn bộ
+      categories.insert(0, category);
+      _updatePopupItems(selectId: category.id);
+
+      if (!DeepLinkService.isOpenedFromShare) {
+        _reloadLinks();
+      }
+      _closePopup();
+    } catch (e, s) {
+      _handleError('Add category error', e, s);
     }
-
-    categories.sort((a, b) {
-      final aTime = a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bTime = b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return bTime.compareTo(aTime);
-    });
-
-    _updatePopupItems();
   }
 
   /// -----------------------------
@@ -99,19 +108,46 @@ class CategoryController extends GetxController {
   /// -----------------------------
   Future<void> updateCategory() async {
     if (!_validateCategory()) return;
+
     final selected = popupController.selectedItem.value;
     if (selected == null || selected.id == 'all') return;
-    final current = categories.firstWhere((e) => e.id == selected.id);
+
+    final index = categories.indexWhere((e) => e.id == selected.id);
+    if (index == -1) return;
+
+    final current = categories[index];
+
+    if (current.visibility == VisibilityStatus.private ||
+        visibility.value == VisibilityStatus.private) {
+      final isAuth = await DependencyUtils.put(() => SecurityMethodController()).verifySecurity();
+      if (!isAuth) {
+        return;
+      }
+    }
+
     final categoryUpdate = CategoryModel(
-      id: selected.id,
-      name: categoryNameController.text,
+      id: current.id,
+      name: categoryNameController.text.trim(),
+      description: current.description,
+      iconUrl: current.iconUrl,
       createdAt: current.createdAt,
+      updatedAt: DateTime.now(),
+      visibility: visibility.value,
     );
-    await DbHelper.upsert(categoryUpdate);
-    final index = categories.indexWhere((e) => e.id == categoryUpdate.id);
-    if (index != -1) categories[index] = categoryUpdate;
-    _updatePopupItems(selectId: categoryUpdate.id);
-    _closePopup();
+
+    try {
+      await DbHelper.upsert(categoryUpdate);
+      Fluttertoast.showToast(msg: "Cập nhật thành công");
+
+      categories[index] = categoryUpdate;
+      _sortCategories(categories);
+      categories.refresh();
+
+      _updatePopupItems(selectId: categoryUpdate.id);
+      _closePopup();
+    } catch (e, s) {
+      _handleError('Update category error', e, s);
+    }
   }
 
   /// -----------------------------
@@ -120,6 +156,7 @@ class CategoryController extends GetxController {
   Future<void> deleteCategory() async {
     final selected = popupController.selectedItem.value;
     if (selected == null || selected.id == 'all') return;
+
     if (Get.find<LinkCollectionController>().listLink.isNotEmpty) {
       Fluttertoast.showToast(msg: "Danh mục có chứa link\nKhông thể xóa!");
       return;
@@ -130,74 +167,59 @@ class CategoryController extends GetxController {
       title: "Xác nhận",
       content: "Bạn có chắn muốn xóa!",
       onConfirm: () async {
-        final id = selected.id ?? "";
-        await DbHelper.delete(CategoryModel().tableName, id);
-        categories.removeWhere((e) => e.id == id);
-        final newSelectedId = categories.isNotEmpty ? categories.first.id : 'all';
-        _updatePopupItems(selectId: newSelectedId);
-        _closePopup();
+        try {
+          final id = selected.id ?? "";
+          await DbHelper.delete(CategoryModel().tableName, id);
 
-        Get.back();
+          categories.removeWhere((e) => e.id == id);
+          final newSelectedId = categories.isNotEmpty ? categories.first.id : 'all';
+          _updatePopupItems(selectId: newSelectedId);
+          _closePopup();
+          Get.back(); // Đóng dialog confirm
+        } catch (e, s) {
+          _handleError('Delete category error', e, s);
+        }
       },
-      onCancel: () {
-        Get.back();
-      },
+      onCancel: () => Get.back(),
     );
   }
 
   /// -----------------------------
-  /// CLEAR TABLE
+  /// HELPERS & UTILS
   /// -----------------------------
-  Future<void> clearAllCategories() async {
-    await DbHelper.clearTable(CategoryModel().tableName);
-    categories.clear();
-    _updatePopupItems();
-  }
 
-  void onChangeDismissError() {
-    if (errorMess.trim().isEmpty) return;
-    errorMess.value = "";
-  }
-
-  Future<void> refreshCategory() async {
-    final selectedId = popupController.selectedItem.value?.id;
-    categories.clear();
-    final res = await DbHelper.getAll(CategoryModel().tableName);
-
-    if (res.isNotEmpty) {
-      categories.value = res
-          .map(
-            (e) => CategoryModel(
-              id: e['id'],
-              name: e['name'],
-              description: e['description'],
-              iconUrl: e['icon_url'],
-              createdAt: e['created_at'] != null ? DateTime.tryParse(e['created_at']) : null,
-              updatedAt: e['updated_at'] != null ? DateTime.tryParse(e['updated_at']) : null,
-            ),
-          )
-          .toList();
-    }
-
-    categories.sort((a, b) {
-      final aTime = a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bTime = b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+  void _sortCategories(List<CategoryModel> list) {
+    list.sort((a, b) {
+      final aTime = a.createdAt ?? a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bTime = b.createdAt ?? b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       return bTime.compareTo(aTime);
     });
-
-    _updatePopupItems(selectId: selectedId);
   }
 
-  /// -----------------------------
-  /// VALIDATION
-  /// -----------------------------
+  void _updatePopupItems({String? selectId}) {
+    final newItems = [
+      ItemModel(id: "all", name: "Tất cả"),
+      ...categories.map((c) => ItemModel(id: c.id, name: c.name, visibility: c.visibility)),
+    ];
+
+    popupController.items.assignAll(newItems);
+
+    if (selectId != null) {
+      final matched = newItems.firstWhere((e) => e.id == selectId, orElse: () => newItems.first);
+      popupController.selectedItem.value = matched;
+    } else {
+      // Nếu không có selectId, ưu tiên giữ cái cũ nếu nó vẫn tồn tại trong list mới
+      // logic cũ của bạn là reset về first, tôi giữ nguyên logic đó.
+      popupController.selectedItem.value ??= newItems.first;
+    }
+  }
+
   bool _validateCategory() {
-    if (categories.length >= 30) {
-      Fluttertoast.showToast(msg: "Tạo được tối đa 30 danh mục");
+    if (categories.length >= _maxCategories) {
+      Fluttertoast.showToast(msg: "Tạo được tối đa $_maxCategories danh mục");
       return false;
     }
-    final name = categoryNameController.text.trim();
-    if (name.isEmpty) {
+    if (categoryNameController.text.trim().isEmpty) {
       errorMess.value = "Tên danh mục không được bỏ trống";
       return false;
     }
@@ -205,35 +227,43 @@ class CategoryController extends GetxController {
     return true;
   }
 
-  /// -----------------------------
-  /// CẬP NHẬT DỮ LIỆU CHO POPUP
-  /// -----------------------------
-  void _updatePopupItems({String? selectId}) {
-    // Tạo danh sách items (thêm Tất cả ở đầu)
-    final newItems = [
-      ItemModel(id: "all", name: "Tất cả"),
-      ...categories.map((c) => ItemModel(id: c.id, name: c.name)),
-    ];
-
-    popupController.items
-      ..clear()
-      ..addAll(newItems);
-
-    if (selectId != null) {
-      final matched = newItems.firstWhere((e) => e.id == selectId, orElse: () => newItems.first);
-      popupController.selectedItem.value = matched;
-    } else {
-      popupController.selectedItem.value ??= newItems.first;
-    }
-
-    popupController.items.refresh();
+  void _handleError(String msg, Object e, StackTrace s) {
+    debugPrint('$msg: $e');
+    debugPrintStack(stackTrace: s);
+    Fluttertoast.showToast(msg: "Có lỗi xảy ra, vui lòng thử lại");
   }
 
-  /// -----------------------------
-  /// ĐÓNG POPUP
-  /// -----------------------------
+  void _reloadLinks() {
+    if (Get.isRegistered<LinkCollectionController>()) {
+      Get.find<LinkCollectionController>().fetchAllLinks();
+    }
+  }
+
   void _closePopup() {
     categoryNameController.clear();
     Get.back();
+  }
+
+  // Public methods gọi từ View
+  void onChangeDismissError() {
+    if (errorMess.value.isNotEmpty) errorMess.value = "";
+  }
+
+  Future<void> refreshCategory() async {
+    // Tái sử dụng fetchCategories với cờ keepSelection
+    await fetchCategories(keepSelection: true);
+  }
+
+  Future<void> clearAllCategories() async {
+    await DbHelper.clearTable(CategoryModel().tableName);
+    categories.clear();
+    _updatePopupItems();
+  }
+
+  void setVisibility(VisibilityStatus value) => visibility.value = value;
+
+  void onSelectedCategory() {
+    visibility.value = popupController.selectedItem.value?.visibility ?? VisibilityStatus.public;
+    _reloadLinks();
   }
 }
