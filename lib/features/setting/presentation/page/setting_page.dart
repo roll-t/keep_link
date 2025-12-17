@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/config/app_text_styles.dart';
+import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/core/ui/appbar/custom_app_bar.dart';
 import 'package:keep_link/features/security/presentation/page/security_method_page.dart';
 import 'package:keep_link/features/setting/presentation/page/warning_page.dart';
 import 'package:keep_link/features/setting/presentation/widget/item_setting.dart';
@@ -15,15 +15,7 @@ class SettingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: GestureDetector(
-          onTap: () {
-            Get.back();
-          },
-          child: Icon(Icons.arrow_back_ios_new_rounded),
-        ),
-        title: TextWidget(text: "Cài đặt", textStyle: AppTextStyle.semiBold20),
-      ),
+      appBar: CustomAppBar(title: "Cài đặt"),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 12).copyWith(top: 16),
         child: Column(
@@ -32,7 +24,7 @@ class SettingPage extends StatelessWidget {
             ItemSetting(
               title: "Bảo mật",
               onTap: () {
-                Get.toNamed(SecurityMethodPage.routeName);
+                Get.toNamed(SecurityMethodPage.routeName, arguments: TypePage.create);
               },
               leadingIcon: AppVectors.icLock.show(
                 size: 18,

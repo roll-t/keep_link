@@ -75,10 +75,10 @@ class CustomPopupWidget extends StatelessWidget {
                     final isSelected = controller.selectedItem.value?.id == item.id;
                     final isLastItem = index == displayItems.length - 1;
                     return GestureDetector(
-                      onTap: () {
-                        controller.selectItem(item);
-                        onSelected?.call();
+                      onTap: () async {
+                        await controller.selectItem(item);
                         Navigator.of(context).pop();
+                        onSelected?.call();
                       },
                       child: Container(
                         height: controller.itemHeight,
@@ -98,7 +98,8 @@ class CustomPopupWidget extends StatelessWidget {
                               maxLines: 1,
                               textStyle: AppTextStyle.semiBold16,
                             ),
-                            if (item.visibility == VisibilityStatus.private)
+                            if (item.visibility == VisibilityStatus.private &&
+                                controller.isEnableSecurity)
                               Icon(Icons.lock, size: 16, color: AppColors.t300),
                           ],
                         ),

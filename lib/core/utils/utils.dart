@@ -1,7 +1,14 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_icons.dart';
+import 'package:keep_link/core/local_storage/app_get_storage.dart';
+import 'package:keep_link/core/service/biometric_service.dart';
+import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class Utils {
@@ -44,6 +51,53 @@ class Utils {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi khi mở URL: $e")));
       }
     }
+  }
+
+  // Hàm này dùng để verify ở các chỗ khác trong app (Ví dụ: trước khi xoá link, mở danh mục...)
+  static Future<bool> verifySecurity() async {
+    // Nếu cả 2 đều tắt -> Return true luôn (hoặc tuỳ logic gọi hàm)
+    if (!AppGetStorage.isSecurityEnabled() && !AppGetStorage.isCategorySecurity()) return true;
+
+    // Ưu tiên check vân tay nếu App Security đang bật và Vân tay đang bật
+    if (AppGetStorage.isSecurityEnabled() && AppGetStorage.isFingerprintEnabled()) {
+      final bioSuccess = await BiometricService.authenticate();
+      if (bioSuccess) return true;
+    }
+
+    // Fallback sang PIN Dialog
+    final completer = Completer<bool>();
+    DialogUtils.showPinDialog(
+      onCompleted: () {
+        if (Get.isDialogOpen ?? false) Get.back();
+        if (!completer.isCompleted) completer.complete(true);
+      },
+      onDismiss: () {
+        if (!completer.isCompleted) completer.complete(false);
+      },
+    );
+    return completer.future;
+  }
+
+  // ✅ 1. SỬA LẠI HÀM NÀY: Phải nhận vào 'assetName' (đường dẫn icon)
+  static Widget showIconsSvg(
+    String assetName, {
+    double? size,
+    double? width,
+    double? height,
+    Color? color,
+    BoxFit fit = BoxFit.contain,
+  }) {
+    return SvgPicture.asset(
+      assetName,
+      width: width ?? size,
+      height: height ?? size,
+      fit: fit,
+      colorFilter: color != null ? ColorFilter.mode(color, BlendMode.srcIn) : null,
+    );
+  }
+
+  static void showToast(String message) {
+    Fluttertoast.showToast(msg: message);
   }
 
   static Widget? getSocialIcon({String? urlSocial, double iconSize = 20}) {
