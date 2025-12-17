@@ -12,11 +12,10 @@ import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/category/application/controller/custom_popup_controller.dart';
 import 'package:keep_link/features/category/data/model/category_model.dart';
 import 'package:keep_link/features/link/application/controller/link_collection_controller.dart';
-import 'package:keep_link/features/security/application/controller/security_method_controller.dart';
 
 class CategoryController extends GetxController {
   final categoryNameController = TextEditingController();
-  final CustomPopupController popupController = Get.put(CustomPopupController());
+  final CustomPopupController popupController = DependencyUtils.put(() => CustomPopupController());
 
   // State
   final RxList<CategoryModel> categories = <CategoryModel>[].obs;
@@ -44,13 +43,10 @@ class CategoryController extends GetxController {
   /// -----------------------------
   Future<void> fetchCategories({bool keepSelection = false}) async {
     final res = await DbHelper.getAll(CategoryModel().tableName);
-
     List<CategoryModel> loadedList = [];
-
     if (res.isNotEmpty) {
       loadedList = res.map((e) => CategoryModel.fromJson(e)).toList();
     } else {
-      // Tạo danh mục mặc định nếu rỗng
       final defaultCategory = await _createDefaultCategory();
       loadedList.add(defaultCategory);
     }
@@ -116,14 +112,6 @@ class CategoryController extends GetxController {
     if (index == -1) return;
 
     final current = categories[index];
-
-    if (current.visibility == VisibilityStatus.private ||
-        visibility.value == VisibilityStatus.private) {
-      final isAuth = await DependencyUtils.put(() => SecurityMethodController()).verifySecurity();
-      if (!isAuth) {
-        return;
-      }
-    }
 
     final categoryUpdate = CategoryModel(
       id: current.id,

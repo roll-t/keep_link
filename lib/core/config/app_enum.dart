@@ -9,3 +9,5 @@ enum TextTransformType { normal, uppercase, lowercase, capitalize, capitalizeWor
 enum Results { success, error, warning }
 
 enum VisibilityStatus { public, private }
+
+enum TypePage { create, use }

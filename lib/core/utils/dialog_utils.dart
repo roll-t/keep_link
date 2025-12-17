@@ -99,19 +99,16 @@ class DialogUtils {
   }
 
   /// Hàm hiển thị Dialog nhập PIN chuẩn hóa
-  static Future<dynamic> showPinDialog({
-    required Function() onCompleted,
-    VoidCallback? onDismiss, // Dùng để xử lý khi user tắt dialog mà chưa nhập xong (cho hàm verify)
-  }) {
+  static Future<dynamic> showPinDialog({required Function() onCompleted, VoidCallback? onDismiss}) {
     return DialogUtils.show(
+      barrierColor: AppColors.black.withOpacityCompat(.8),
       GestureDetector(
         onTap: () {
-          // Logic xử lý keyboard chung cho cả 3 nơi
           final isKeyboardVisible = MediaQuery.of(Get.context!).viewInsets.bottom > 0;
           if (isKeyboardVisible) {
-            Utils.dimissKeyboard(); // Hoặc FocusManager.instance.primaryFocus?.unfocus();
+            Utils.dimissKeyboard();
           } else {
-            Get.back(); // Đóng dialog nếu keyboard đang tắt
+            Get.back();
           }
         },
         child: Scaffold(

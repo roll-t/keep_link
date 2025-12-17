@@ -4,6 +4,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/local_storage/sql_lite.dart';
+import 'package:keep_link/core/utils/binding/dependency_utils.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/category/application/controller/category_controller.dart';
 import 'package:keep_link/features/category/application/controller/custom_popup_controller.dart';
@@ -22,19 +23,52 @@ class LinkCollectionController extends GetxController {
   }
 
   Future<void> fetchAllLinks() async {
-    final CustomPopupController categoryCustomPopup = Get.find<CustomPopupController>();
+    final CustomPopupController categoryPopup = DependencyUtils.put(() => CustomPopupController());
     try {
-      final categoryId = categoryCustomPopup.selectedItem.value?.id;
-      final rows = await DbHelper.getAll('links');
-      final links =
-          (categoryId == 'all' || categoryId == null
-                  ? rows
-                  : rows.where((row) => row['categoryId'] == categoryId))
-              .map((row) => LinkModel.fromJson(Map<String, dynamic>.from(row)))
-              .toList();
-      listLink.assignAll(links);
+      final selectedCategoryId = categoryPopup.selectedItem.value?.id;
+      // ============================================================
+      // FIX: Đảm bảo luôn có danh sách Private ID dù Controller kia chưa load xong
+      // ============================================================
+      Set<String?> privateCategoryIds = {};
+      if (categoryPopup.items.isNotEmpty) {
+        privateCategoryIds = categoryPopup.items
+            .where((item) => item.visibility == VisibilityStatus.private)
+            .map((item) => item.id)
+            .toSet();
+      } else {
+        final catRows = await DbHelper.getAll('categories');
 
-      log('Fetched ${links.length} links for category $categoryId');
+        privateCategoryIds = catRows
+            .where((row) => row['visibility'] == VisibilityStatus.private.name)
+            .map((row) => row['id'] as String?)
+            .toSet();
+      }
+      // ============================================================
+
+      final linkRows = await DbHelper.getAll('links');
+      List<LinkModel> links = [];
+
+      if (selectedCategoryId == 'all' || selectedCategoryId == null) {
+        links = linkRows
+            .where((row) {
+              final linkCatId = row['categoryId'];
+              return !privateCategoryIds.contains(linkCatId);
+            })
+            .map((row) => LinkModel.fromJson(Map<String, dynamic>.from(row)))
+            .toList();
+      } else {
+        links = linkRows
+            .where((row) => row['categoryId'] == selectedCategoryId)
+            .map((row) => LinkModel.fromJson(Map<String, dynamic>.from(row)))
+            .toList();
+      }
+
+      // Đảo ngược list nếu muốn mới nhất lên đầu
+      // links = links.reversed.toList();
+      listLink.assignAll(links);
+      log(
+        'Fetched ${links.length} links. (Filtered private categories: ${privateCategoryIds.length})',
+      );
     } catch (e) {
       log('Error fetching links: $e');
     }
@@ -50,7 +84,7 @@ class LinkCollectionController extends GetxController {
           await DbHelper.delete('links', id);
           listLink.removeWhere((item) => item.id == id);
           Get.back();
-          Get.back();
+          Get.back(); // Đóng dialog confirm
           Fluttertoast.showToast(msg: "Đã xóa");
           log("Deleted link with id: $id");
         },
@@ -64,7 +98,6 @@ class LinkCollectionController extends GetxController {
     }
   }
 
-  /// Xóa list trong controller
   void clearLinks() {
     listLink.clear();
   }

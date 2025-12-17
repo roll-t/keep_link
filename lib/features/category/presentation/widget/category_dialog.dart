@@ -5,6 +5,7 @@ import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/extension/colors.dart';
+import 'package:keep_link/core/local_storage/app_get_storage.dart';
 import 'package:keep_link/core/ui/button/primary_button.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/ui/text_field/simple_input_textfield.dart';
@@ -78,14 +79,16 @@ class CategoryDialog extends GetView<CategoryController> {
                 ),
                 const SizedBox(height: 12),
 
-                TextWidget(
-                  text: "Trạng Thái",
-                  textStyle: AppTextStyle.regular14,
-                  color: AppColors.t300,
-                ),
-                const SizedBox(height: 8),
-                _buildVisibilitySelector(),
-                const SizedBox(height: 12),
+                if (AppGetStorage.isCategorySecurity()) ...[
+                  TextWidget(
+                    text: "Trạng Thái",
+                    textStyle: AppTextStyle.regular14,
+                    color: AppColors.t300,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildVisibilitySelector(),
+                  const SizedBox(height: 12),
+                ],
                 TextWidget(
                   text: "Tên Danh Mục",
                   textStyle: AppTextStyle.regular14,

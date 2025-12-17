@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/config/app_enum.dart';
+import 'package:keep_link/core/local_storage/app_get_storage.dart';
 import 'package:keep_link/core/model/item_model.dart';
+import 'package:keep_link/core/utils/utils.dart';
 
 class CustomPopupController extends GetxController {
   final double itemHeight = 50;
@@ -9,7 +12,19 @@ class CustomPopupController extends GetxController {
   final Rx<ItemModel?> selectedItem = Rx<ItemModel?>(null);
   final ScrollController scrollController = ScrollController();
   final RxBool isOpen = false.obs;
-  void selectItem(ItemModel item) {
+  bool isEnableSecurity = false;
+
+  @override
+  void onInit() {
+    super.onInit();
+    isEnableSecurity = AppGetStorage.isCategorySecurity();
+  }
+
+  Future<void> selectItem(ItemModel item) async {
+    if (item.visibility == VisibilityStatus.private && AppGetStorage.isCategorySecurity()) {
+      final bool isAuth = await Utils.verifySecurity();
+      if (!isAuth) return;
+    }
     selectedItem.value = item;
   }
 
