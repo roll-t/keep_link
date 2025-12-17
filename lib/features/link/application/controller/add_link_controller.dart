@@ -35,10 +35,24 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ===============================================================
   // INIT / WORKERS
   // ===============================================================
+  // ===============================================================
+  // INIT / WORKERS
+  // ===============================================================
   void _setupWorkers() {
     debounce<String>(_queryLink, (link) {
-      if (_isValidUrl(link)) _deepLink.fetchMetaData(link);
+      if (!_isValidUrl(link)) return;
+
+      // === [FIX] ===
+      final isOriginalDeepLink = link == _deepLink.deepLink;
+
+      if (isOriginalDeepLink) {
+        if (_deepLink.isLoading.value) return; // Bên kia đang fetch rồi
+        if (_deepLink.metaData.value?.url == link) return; // Đã có data của link này rồi
+      }
+
+      _deepLink.fetchMetaData(link);
     }, time: const Duration(milliseconds: 150));
+
     ever(_deepLink.metaData, (meta) {
       if (meta != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {

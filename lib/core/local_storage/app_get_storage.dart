@@ -55,7 +55,7 @@ class AppGetStorage {
 
   /// Kiểm tra xem bảo mật danh mục có đang bật không
   /// Mặc định là TRUE (để an toàn, nếu user bật khóa app thì danh mục private cũng nên khóa)
-  static bool isCategorySecurity() => _box.read(_categorySecurityEnabledKey) ?? true;
+  static bool isCategorySecurity() => _box.read(_categorySecurityEnabledKey) ?? false;
 
   /// Helper: Kiểm tra tổng hợp có cần check PIN cho category không
   /// Logic: Phải bật Bảo mật tổng (App Lock) VÀ bật Bảo mật danh mục
