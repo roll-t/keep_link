@@ -6,6 +6,6 @@ enum SortType { newest, oldest }
 
 enum TextTransformType { normal, uppercase, lowercase, capitalize, capitalizeWords }
 
-enum Results { success, error, wraning }
+enum Results { success, error, warning }
 
-enum CategoryVisibility { public, private, shared }
+enum VisibilityStatus { public, private }

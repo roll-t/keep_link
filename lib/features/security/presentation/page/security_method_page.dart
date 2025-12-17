@@ -6,7 +6,6 @@ import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/security/application/controller/security_method_controller.dart';
-import 'package:keep_link/features/security/application/di/pin_verify_binding.dart';
 import 'package:keep_link/features/security/presentation/page/pin_verify_page.dart';
 import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
 
@@ -62,24 +61,16 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
                           ignoring: !controller.isSecurityEnabled.value,
                           child: GestureDetector(
                             onTap: () async {
-                              DialogUtils.show(
-                                Material(
-                                  color: AppColors.transparent,
-                                  child: Center(
-                                    child: PinVerifyForm(
-                                      onCompleted: () async {
-                                        DialogUtils.showProgressDialog();
-                                        await Future.delayed(Durations.medium2);
-                                        Get.back();
-                                        await Get.toNamed(
-                                          PinVerifyPage.routeName,
-                                          arguments: FromType.changePassword,
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                binding: PinVerifyBinding(),
+                              DialogUtils.showPinDialog(
+                                onCompleted: () async {
+                                  DialogUtils.showProgressDialog();
+                                  await Future.delayed(Durations.medium2);
+                                  Get.back();
+                                  await Get.toNamed(
+                                    PinVerifyPage.routeName,
+                                    arguments: FromType.changePassword,
+                                  );
+                                },
                               );
                             },
                             child: Container(

@@ -8,10 +8,8 @@ class CategoryModel implements DbModel {
   String? description;
   String? iconUrl;
 
-  /// 🔐 Quyền hiển thị / bảo mật danh mục
-  CategoryVisibility visibility;
+  VisibilityStatus visibility;
 
-  /// Thời gian tạo và cập nhật
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -20,7 +18,7 @@ class CategoryModel implements DbModel {
     this.name,
     this.description,
     this.iconUrl,
-    this.visibility = CategoryVisibility.private, // ✅ default an toàn
+    this.visibility = VisibilityStatus.public,
     this.createdAt,
     DateTime? updatedAt,
   }) : updatedAt = updatedAt ?? DateTime.now();
@@ -34,7 +32,7 @@ class CategoryModel implements DbModel {
     'name': name,
     'description': description,
     'icon_url': iconUrl,
-    'visibility': visibility.name, // ✅ lưu string
+    'visibility': visibility.name,
     'created_at': createdAt?.toIso8601String(),
     'updated_at': updatedAt?.toIso8601String(),
   };
@@ -46,9 +44,9 @@ class CategoryModel implements DbModel {
       name: json['name'],
       description: json['description'],
       iconUrl: json['icon_url'],
-      visibility: CategoryVisibility.values.firstWhere(
+      visibility: VisibilityStatus.values.firstWhere(
         (e) => e.name == json['visibility'],
-        orElse: () => CategoryVisibility.private,
+        orElse: () => VisibilityStatus.public,
       ),
       createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at']) : null,
@@ -61,7 +59,7 @@ class CategoryModel implements DbModel {
     'name': 'TEXT NOT NULL',
     'description': 'TEXT',
     'icon_url': 'TEXT',
-    'visibility': 'TEXT NOT NULL DEFAULT "private"', // ✅ thêm cột
+    'visibility': 'TEXT NOT NULL DEFAULT "public"',
     'created_at': 'TEXT',
     'updated_at': 'TEXT',
   };

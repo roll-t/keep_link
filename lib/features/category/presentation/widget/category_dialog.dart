@@ -112,7 +112,7 @@ class CategoryDialog extends GetView<CategoryController> {
 
   Widget _buildVisibilitySelector() {
     return Obx(() {
-      final isPublic = controller.visibility.value == CategoryVisibility.public;
+      final isPublic = controller.visibility.value == VisibilityStatus.public;
       return Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(color: AppColors.d300, borderRadius: BorderRadius.circular(24)),
@@ -122,13 +122,13 @@ class CategoryDialog extends GetView<CategoryController> {
               label: "Công khai",
               icon: Icons.public,
               selected: isPublic,
-              onTap: () => controller.setVisibility(CategoryVisibility.public),
+              onTap: () => controller.setVisibility(VisibilityStatus.public),
             ),
             _visibilityItem(
               label: "Riêng tư",
               icon: Icons.lock,
               selected: !isPublic,
-              onTap: () => controller.setVisibility(CategoryVisibility.private),
+              onTap: () => controller.setVisibility(VisibilityStatus.private),
             ),
           ],
         ),

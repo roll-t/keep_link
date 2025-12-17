@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
-import 'package:keep_link/core/utils/binding/dependency_utils.dart';
 import 'package:keep_link/features/category/application/controller/category_controller.dart';
 import 'package:keep_link/features/category/presentation/widget/category_dialog.dart';
 import 'package:keep_link/features/category/presentation/widget/custom_popup_widget.dart';
-import 'package:keep_link/features/link/application/controller/link_collection_controller.dart';
 import 'package:keep_link/features/setting/presentation/page/setting_page.dart';
 
 class HeaderLinkCollection extends GetView<CategoryController> {
@@ -31,9 +29,7 @@ class HeaderLinkCollection extends GetView<CategoryController> {
             ),
             CustomPopupWidget(
               controller: controller.popupController,
-              onSelected: () {
-                DependencyUtils.find<LinkCollectionController>()?.fetchAllLinks();
-              },
+              onSelected: controller.onSelectedCategory,
             ),
             Row(
               children: [

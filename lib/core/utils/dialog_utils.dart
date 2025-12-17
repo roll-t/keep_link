@@ -8,6 +8,9 @@ import 'package:keep_link/core/extension/colors.dart';
 import 'package:keep_link/core/ui/button/primary_button.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/utils/binding/dependency_utils.dart';
+import 'package:keep_link/core/utils/utils.dart';
+import 'package:keep_link/features/security/application/di/pin_verify_binding.dart';
+import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class DialogUtils {
@@ -34,7 +37,7 @@ class DialogUtils {
     final result = await Get.dialog<T>(
       dialog,
       barrierDismissible: barrierDismissible,
-      barrierColor: barrierColor ?? Colors.black.withOpacityCompat(0.4),
+      barrierColor: barrierColor ?? AppColors.black.withOpacityCompat(0.5),
       useSafeArea: useSafeArea,
       transitionDuration: transitionDuration,
       transitionCurve: transitionCurve,
@@ -93,6 +96,35 @@ class DialogUtils {
         );
       },
     );
+  }
+
+  /// Hàm hiển thị Dialog nhập PIN chuẩn hóa
+  static Future<dynamic> showPinDialog({
+    required Function() onCompleted,
+    VoidCallback? onDismiss, // Dùng để xử lý khi user tắt dialog mà chưa nhập xong (cho hàm verify)
+  }) {
+    return DialogUtils.show(
+      GestureDetector(
+        onTap: () {
+          // Logic xử lý keyboard chung cho cả 3 nơi
+          final isKeyboardVisible = MediaQuery.of(Get.context!).viewInsets.bottom > 0;
+          if (isKeyboardVisible) {
+            Utils.dimissKeyboard(); // Hoặc FocusManager.instance.primaryFocus?.unfocus();
+          } else {
+            Get.back(); // Đóng dialog nếu keyboard đang tắt
+          }
+        },
+        child: Scaffold(
+          backgroundColor: AppColors.transparent,
+          body: Center(child: PinVerifyForm(onCompleted: onCompleted)),
+        ),
+      ),
+      binding: PinVerifyBinding(),
+    ).then((value) {
+      // Callback khi dialog đóng hẳn
+      onDismiss?.call();
+      return value;
+    });
   }
 
   static void showAlert({
