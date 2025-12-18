@@ -89,6 +89,8 @@ class DbHelper {
     bool descending = true,
     int? limit,
     int? offset,
+    String? where, // Thêm mới
+    List<dynamic>? whereArgs, // Thêm mới
   }) async {
     final db = await database;
     final pragma = await db.rawQuery("PRAGMA table_info($tableName)");
@@ -103,7 +105,14 @@ class DbHelper {
       orderBy = 'createdAt ${descending ? 'DESC' : 'ASC'}';
     }
 
-    return await db.query(tableName, orderBy: orderBy, limit: limit, offset: offset);
+    return await db.query(
+      tableName,
+      orderBy: orderBy,
+      limit: limit,
+      offset: offset,
+      where: where, // Truyền vào query của sqflite
+      whereArgs: whereArgs, // Truyền vào query của sqflite
+    );
   }
 
   // Get by id

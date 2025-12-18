@@ -37,6 +37,7 @@ class LinkCollectionController extends GetxController {
     super.onClose();
   }
 
+  // Lắng nghe sự kiện cuộn để load thêm dữ liệu
   void _scrollListener() {
     if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
       if (!isLoading.value && !isLoadMore.value && _canLoadMore) {
@@ -45,7 +46,7 @@ class LinkCollectionController extends GetxController {
     }
   }
 
-  /// Hàm Refresh data (gọi khi kéo để làm mới hoặc đổi category)
+  /// Reset toàn bộ dữ liệu (Gọi khi đổi Category hoặc Kéo để làm mới)
   Future<void> refreshData({bool showToast = false}) async {
     _currentPage = 0;
     _canLoadMore = true;
@@ -53,11 +54,11 @@ class LinkCollectionController extends GetxController {
     await fetchAllLinks(isInitial: true);
 
     if (showToast) {
-      Fluttertoast.showToast(msg: "Đã cập nhật dữ liệu");
+      Fluttertoast.showToast(msg: "Đã làm mới");
     }
   }
 
-  /// Hàm chính để lấy dữ liệu từ DB
+  /// Hàm lấy dữ liệu từ DB (Có lọc theo Category và Security)
   Future<void> fetchAllLinks({bool isInitial = false}) async {
     if (!_canLoadMore) return;
 
@@ -71,11 +72,19 @@ class LinkCollectionController extends GetxController {
       }
 
       final selectedCategoryId = categoryPopup.selectedItem.value?.id;
-
       final bool isSecurityEnabled = AppGetStorage.isCategorySecurity();
-      Set<String?> privateCategoryIds = {};
 
-      if (isSecurityEnabled) {
+      // --- PHẦN LOGIC LỌC SQL (QUAN TRỌNG NHẤT) ---
+      String? whereClause;
+      List<dynamic>? whereArgs;
+
+      if (selectedCategoryId != null && selectedCategoryId != 'all') {
+        // 1. Lọc theo danh mục được chọn
+        whereClause = 'categoryId = ?';
+        whereArgs = [selectedCategoryId];
+      } else if (isSecurityEnabled) {
+        // 2. Nếu chọn "Tất cả" nhưng có bật bảo mật -> Ẩn các link thuộc Category Private
+        Set<String?> privateCategoryIds = {};
         if (categoryPopup.items.isNotEmpty) {
           privateCategoryIds = categoryPopup.items
               .where((item) => item.visibility == VisibilityStatus.private)
@@ -88,42 +97,40 @@ class LinkCollectionController extends GetxController {
               .map((row) => row['id'] as String?)
               .toSet();
         }
+
+        if (privateCategoryIds.isNotEmpty) {
+          final placeholders = privateCategoryIds.map((_) => '?').join(', ');
+          whereClause = 'categoryId NOT IN ($placeholders) OR categoryId IS NULL';
+          whereArgs = privateCategoryIds.toList();
+        }
       }
 
+      // --- TRUY VẤN DATABASE ---
       final linkRows = await DbHelper.getAll(
         'links',
         limit: _pageSize,
         offset: _currentPage * _pageSize,
+        where: whereClause,
+        whereArgs: whereArgs,
       );
 
       if (linkRows.isEmpty) {
         _canLoadMore = false;
-        return;
-      }
-
-      List<LinkModel> filteredLinks = [];
-      if (selectedCategoryId == 'all' || selectedCategoryId == null) {
-        filteredLinks = linkRows
-            .where((row) => !privateCategoryIds.contains(row['categoryId']))
-            .map((row) => LinkModel.fromJson(Map<String, dynamic>.from(row)))
-            .toList();
       } else {
-        filteredLinks = linkRows
-            .where((row) => row['categoryId'] == selectedCategoryId)
+        final List<LinkModel> fetchedItems = linkRows
             .map((row) => LinkModel.fromJson(Map<String, dynamic>.from(row)))
             .toList();
-      }
 
-      if (filteredLinks.isNotEmpty) {
-        listLink.addAll(filteredLinks);
+        listLink.addAll(fetchedItems);
         _currentPage++;
+
+        // Nếu số bản ghi lấy ra ít hơn pageSize thì trang sau chắc chắn hết
+        if (linkRows.length < _pageSize) {
+          _canLoadMore = false;
+        }
       }
 
-      if (linkRows.length < _pageSize) {
-        _canLoadMore = false;
-      }
-
-      log('Loaded page ${_currentPage - 1}. Total: ${listLink.length} items.');
+      log('Page ${_currentPage - 1} loaded. Total displayed: ${listLink.length}');
     } catch (e) {
       log('Error fetching links: $e');
     } finally {
@@ -163,7 +170,5 @@ class LinkCollectionController extends GetxController {
     }
   }
 
-  void clearLinks() {
-    listLink.clear();
-  }
+  void clearLinks() => listLink.clear();
 }

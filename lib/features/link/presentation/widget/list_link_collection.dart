@@ -14,7 +14,6 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      // Chỉ hiện Loading trung tâm khi tải lần đầu tiên
       if (controller.isLoading.value && controller.listLink.isEmpty) {
         return const Center(child: CircularProgressIndicator());
       }
@@ -76,7 +75,7 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
           Expanded(
             child: GridView.builder(
               controller: controller.scrollController,
-              padding: const EdgeInsets.only(top: 115, bottom: 20, left: 12, right: 12),
+              padding: const EdgeInsets.only(top: 105, bottom: 20, left: 12, right: 12),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 crossAxisSpacing: 8,
@@ -84,25 +83,8 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
                 childAspectRatio: 1.0,
               ),
               itemCount: listLink.length,
-              itemBuilder: (context, index) {
-                final item = listLink[index];
-                return LinkItem(index: index, item: item);
-              },
+              itemBuilder: (context, index) => LinkItem(index: index, item: listLink[index]),
             ),
-          ),
-
-          Obx(
-            () => controller.isLoadMore.value
-                ? Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    alignment: Alignment.center,
-                    child: const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                    ),
-                  )
-                : const SizedBox.shrink(),
           ),
         ],
       ),

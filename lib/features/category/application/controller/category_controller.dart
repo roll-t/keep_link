@@ -223,7 +223,7 @@ class CategoryController extends GetxController {
 
   void _reloadLinks() {
     if (Get.isRegistered<LinkCollectionController>()) {
-      Get.find<LinkCollectionController>().fetchAllLinks();
+      Get.find<LinkCollectionController>().refreshData();
     }
   }
 

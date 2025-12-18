@@ -156,7 +156,6 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
 
   Future<void> addLink() async {
     if (!validateInput()) return;
-
     try {
       final now = DateTime.now();
       final link = LinkModel(
@@ -167,11 +166,9 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
         updatedAt: now,
         categoryId: _selectedCategoryId(),
       );
-
       await DbHelper.upsert(link);
       Utils.dimissKeyboard();
       _clearAndClose(result: true);
-
       Fluttertoast.showToast(msg: "Thêm thành công");
     } catch (e, s) {
       log("Error add link => $e\n$s");

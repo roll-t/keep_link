@@ -6,6 +6,7 @@ import 'package:keep_link/core/ui/text/text_widget.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
+  final Widget? titleWidget;
   final bool showBackButton;
   final VoidCallback? onBack;
   final List<Widget>? actions;
@@ -15,7 +16,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   const CustomAppBar({
     super.key,
-    required this.title,
+    this.titleWidget,
+    this.title = "",
     this.showBackButton = true,
     this.onBack,
     this.actions,
@@ -38,7 +40,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             )
           : null,
       automaticallyImplyLeading: false,
-      title: TextWidget(text: title, textStyle: titleStyle ?? AppTextStyle.semiBold20),
+      title:
+          titleWidget ?? TextWidget(text: title, textStyle: titleStyle ?? AppTextStyle.semiBold20),
       actions: actions,
     );
   }
