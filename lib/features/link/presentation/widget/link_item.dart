@@ -17,7 +17,7 @@ class LinkItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Get.dialog(LinkDetail(link: item));
+        Get.dialog(LinkDetail(link: item), barrierColor: AppColors.black.withOpacityCompat(.8));
       },
       child: Container(
         alignment: Alignment.center,

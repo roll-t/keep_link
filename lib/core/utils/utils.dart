@@ -78,6 +78,20 @@ class Utils {
     return completer.future;
   }
 
+  // Hàm loại bỏ dấu tiếng Việt và đưa về chữ thường
+  static String removeDiacritics(String str) {
+    var withDiacritics =
+        'àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ';
+    var withoutDiacritics =
+        'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyydAAAAAAAAAAAAAAAAAEEEEEEEEEEEIIIIIOOOOOOOOOOOOOOOOOUUUUUUUUUUUYYYYYD';
+
+    String result = str;
+    for (int i = 0; i < withDiacritics.length; i++) {
+      result = result.replaceAll(withDiacritics[i], withoutDiacritics[i]);
+    }
+    return result.toLowerCase();
+  }
+
   // ✅ 1. SỬA LẠI HÀM NÀY: Phải nhận vào 'assetName' (đường dẫn icon)
   static Widget showIconsSvg(
     String assetName, {

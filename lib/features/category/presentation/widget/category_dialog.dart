@@ -77,24 +77,12 @@ class CategoryDialog extends GetView<CategoryController> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
 
                 if (AppGetStorage.isCategorySecurity()) ...[
-                  TextWidget(
-                    text: "Trạng Thái",
-                    textStyle: AppTextStyle.regular14,
-                    color: AppColors.t300,
-                  ),
-                  const SizedBox(height: 8),
                   _buildVisibilitySelector(),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 28),
                 ],
-                TextWidget(
-                  text: "Tên Danh Mục",
-                  textStyle: AppTextStyle.regular14,
-                  color: AppColors.t300,
-                ),
-                const SizedBox(height: 8),
                 Obx(
                   () => SimpleInputTextField(
                     controller: controller.categoryNameController,

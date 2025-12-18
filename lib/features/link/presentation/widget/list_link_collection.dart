@@ -14,14 +14,15 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      if (controller.isLoading.value) {
-        return Center(child: CircularProgressIndicator());
+      if (controller.isLoading.value && controller.listLink.isEmpty) {
+        return const Center(child: CircularProgressIndicator());
       }
 
       final listLink = controller.listLink;
       if (listLink.isEmpty) {
         return _buildEmptyState();
       }
+
       return _buildLinkGrid(listLink);
     });
   }
@@ -50,12 +51,12 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
               controller.onRefreshData();
             },
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
                 color: AppColors.d100,
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [TextWidget(text: "Reload")],
               ),
@@ -69,19 +70,23 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
   Widget _buildLinkGrid(List<LinkModel> listLink) {
     return RefreshIndicator(
       onRefresh: controller.onRefreshData,
-      child: GridView.builder(
-        padding: const EdgeInsets.only(top: 100, bottom: 30),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: 1.0,
-        ),
-        itemCount: listLink.length,
-        itemBuilder: (context, index) {
-          final item = listLink[index];
-          return LinkItem(index: index, item: item);
-        },
+      child: Column(
+        children: [
+          Expanded(
+            child: GridView.builder(
+              controller: controller.scrollController,
+              padding: const EdgeInsets.only(top: 105, bottom: 20, left: 12, right: 12),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 1.0,
+              ),
+              itemCount: listLink.length,
+              itemBuilder: (context, index) => LinkItem(index: index, item: listLink[index]),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -122,6 +122,8 @@ class SimpleInputTextField extends StatelessWidget {
   /// Action khi nhấn enter
   final TextInputAction? textInputAction;
 
+  final double? radius;
+
   /// Scroll physics
   final ScrollPhysics? scrollPhysics;
   final ScrollController? scrollController;
@@ -153,6 +155,7 @@ class SimpleInputTextField extends StatelessWidget {
     this.textCapitalization = TextCapitalization.none,
     this.showCursor = true,
     this.fontSize = 16.0,
+    this.radius,
     this.maxLine = 1,
     this.textAlignVertical = TextAlignVertical.center,
     this.width = double.infinity,
@@ -185,7 +188,7 @@ class SimpleInputTextField extends StatelessWidget {
           width: width,
           decoration: BoxDecoration(
             color: backgroundColor,
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: BorderRadius.circular(radius ?? 8.0),
           ),
           child: Scrollbar(
             controller: scrollController,
@@ -245,20 +248,20 @@ class SimpleInputTextField extends StatelessWidget {
                 enabledBorder: isShowBorder
                     ? OutlineInputBorder(
                         borderSide: BorderSide(width: enableWidth!, color: enableColor!),
-                        borderRadius: BorderRadius.circular(8.0),
+                        borderRadius: BorderRadius.circular(radius ?? 8.0),
                       )
                     : OutlineInputBorder(
                         borderSide: BorderSide.none,
-                        borderRadius: BorderRadius.circular(8.0),
+                        borderRadius: BorderRadius.circular(radius ?? 8.0),
                       ),
                 focusedBorder: isShowBorder
                     ? OutlineInputBorder(
                         borderSide: BorderSide(width: focusedWidth!, color: focusedColor!),
-                        borderRadius: BorderRadius.circular(8.0),
+                        borderRadius: BorderRadius.circular(radius ?? 8.0),
                       )
                     : OutlineInputBorder(
                         borderSide: BorderSide.none,
-                        borderRadius: BorderRadius.circular(8.0),
+                        borderRadius: BorderRadius.circular(radius ?? 8.0),
                       ),
               ),
             ),

@@ -20,6 +20,9 @@ class AppVectors {
   static const icWarning = _SvgIcon("${_root}ic_warning$_ext");
   static const icCopy = _SvgIcon("${_root}ic_copy$_ext");
   static const icFloatingExtension = _SvgIcon("${_root}ic_floating_extension$_ext");
+  static const icSearch = _SvgIcon("${_root}ic_search$_ext");
+  static const icSearchNotFound = _SvgIcon("${_root}ic_search_not_found$_ext");
+  static const icSearchFile = _SvgIcon("${_root}ic_search_file$_ext");
 }
 
 class _SvgIcon {
