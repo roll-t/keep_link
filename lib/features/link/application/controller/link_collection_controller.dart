@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_enum.dart';
@@ -12,36 +13,75 @@ import 'package:keep_link/features/category/application/controller/custom_popup_
 import 'package:keep_link/features/link/data/model/link_model.dart';
 
 class LinkCollectionController extends GetxController {
+  // --- State Variables ---
   final RxList<LinkModel> listLink = <LinkModel>[].obs;
   final RxBool isLoading = false.obs;
+  final RxBool isLoadMore = false.obs;
+
+  // --- Pagination Variables ---
+  final ScrollController scrollController = ScrollController();
+  int _currentPage = 0;
+  final int _pageSize = 20;
+  bool _canLoadMore = true;
 
   @override
-  onInit() async {
+  void onInit() {
     super.onInit();
-    isLoading.value = true;
-    await fetchAllLinks();
-    isLoading.value = false;
+    scrollController.addListener(_scrollListener);
+    refreshData();
   }
 
-  Future<void> fetchAllLinks() async {
+  @override
+  void onClose() {
+    scrollController.dispose();
+    super.onClose();
+  }
+
+  void _scrollListener() {
+    if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
+      if (!isLoading.value && !isLoadMore.value && _canLoadMore) {
+        loadMore();
+      }
+    }
+  }
+
+  /// Hàm Refresh data (gọi khi kéo để làm mới hoặc đổi category)
+  Future<void> refreshData({bool showToast = false}) async {
+    _currentPage = 0;
+    _canLoadMore = true;
+    listLink.clear();
+    await fetchAllLinks(isInitial: true);
+
+    if (showToast) {
+      Fluttertoast.showToast(msg: "Đã cập nhật dữ liệu");
+    }
+  }
+
+  /// Hàm chính để lấy dữ liệu từ DB
+  Future<void> fetchAllLinks({bool isInitial = false}) async {
+    if (!_canLoadMore) return;
+
     final CustomPopupController categoryPopup = DependencyUtils.put(() => CustomPopupController());
+
     try {
+      if (isInitial) {
+        isLoading.value = true;
+      } else {
+        isLoadMore.value = true;
+      }
+
       final selectedCategoryId = categoryPopup.selectedItem.value?.id;
-      // ============================================================
-      // 1. Check xem có bật bảo mật danh mục không?
-      // ============================================================
+
       final bool isSecurityEnabled = AppGetStorage.isCategorySecurity();
       Set<String?> privateCategoryIds = {};
-      // Chỉ đi tìm danh sách Private ID KHI VÀ CHỈ KHI đang bật bảo mật
+
       if (isSecurityEnabled) {
         if (categoryPopup.items.isNotEmpty) {
-          // Lấy từ Controller nếu có sẵn (nhanh nhất)
           privateCategoryIds = categoryPopup.items
               .where((item) => item.visibility == VisibilityStatus.private)
               .map((item) => item.id)
               .toSet();
         } else {
-          // Fallback: Lấy từ DB nếu Controller chưa kịp load
           final catRows = await DbHelper.getAll('categories');
           privateCategoryIds = catRows
               .where((row) => row['visibility'] == VisibilityStatus.private.name)
@@ -49,36 +89,51 @@ class LinkCollectionController extends GetxController {
               .toSet();
         }
       }
-      // ============================================================
 
-      final linkRows = await DbHelper.getAll('links');
-      List<LinkModel> links = [];
+      final linkRows = await DbHelper.getAll(
+        'links',
+        limit: _pageSize,
+        offset: _currentPage * _pageSize,
+      );
 
+      if (linkRows.isEmpty) {
+        _canLoadMore = false;
+        return;
+      }
+
+      List<LinkModel> filteredLinks = [];
       if (selectedCategoryId == 'all' || selectedCategoryId == null) {
-        links = linkRows
-            .where((row) {
-              // Nếu tắt bảo mật -> privateCategoryIds rỗng -> !contains luôn là true -> Hiện hết.
-              // Nếu bật bảo mật -> privateCategoryIds có dữ liệu -> Ẩn link trùng ID.
-              final linkCatId = row['categoryId'];
-              return !privateCategoryIds.contains(linkCatId);
-            })
+        filteredLinks = linkRows
+            .where((row) => !privateCategoryIds.contains(row['categoryId']))
             .map((row) => LinkModel.fromJson(Map<String, dynamic>.from(row)))
             .toList();
       } else {
-        links = linkRows
+        filteredLinks = linkRows
             .where((row) => row['categoryId'] == selectedCategoryId)
             .map((row) => LinkModel.fromJson(Map<String, dynamic>.from(row)))
             .toList();
       }
 
-      listLink.assignAll(links);
+      if (filteredLinks.isNotEmpty) {
+        listLink.addAll(filteredLinks);
+        _currentPage++;
+      }
 
-      log(
-        'Fetched ${links.length} links. (Security: $isSecurityEnabled - Filtered IDs: ${privateCategoryIds.length})',
-      );
+      if (linkRows.length < _pageSize) {
+        _canLoadMore = false;
+      }
+
+      log('Loaded page ${_currentPage - 1}. Total: ${listLink.length} items.');
     } catch (e) {
       log('Error fetching links: $e');
+    } finally {
+      isLoading.value = false;
+      isLoadMore.value = false;
     }
+  }
+
+  Future<void> loadMore() async {
+    await fetchAllLinks(isInitial: false);
   }
 
   Future<void> onDeleteLink(String id) async {
@@ -91,34 +146,24 @@ class LinkCollectionController extends GetxController {
           await DbHelper.delete('links', id);
           listLink.removeWhere((item) => item.id == id);
           Get.back();
-          Get.back(); // Đóng dialog confirm
-          Fluttertoast.showToast(msg: "Đã xóa");
-          log("Deleted link with id: $id");
-        },
-        onCancel: () {
           Get.back();
+          Fluttertoast.showToast(msg: "Đã xóa");
         },
+        onCancel: () => Get.back(),
       );
     } catch (e) {
       log("Error deleting link: $e");
-      Fluttertoast.showToast(msg: "Delete failed");
+    }
+  }
+
+  Future<void> onRefreshData() async {
+    await refreshData(showToast: true);
+    if (Get.isRegistered<CategoryController>()) {
+      await Get.find<CategoryController>().refreshCategory();
     }
   }
 
   void clearLinks() {
     listLink.clear();
-  }
-
-  Future<void> onRefreshData() async {
-    try {
-      await fetchAllLinks();
-      if (Get.isRegistered<CategoryController>()) {
-        await Get.find<CategoryController>().refreshCategory();
-      }
-      Fluttertoast.showToast(msg: "Refreshed");
-      log('Link data has been refreshed.');
-    } catch (e) {
-      log('Error refreshing data: $e');
-    }
   }
 }

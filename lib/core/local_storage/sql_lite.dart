@@ -87,6 +87,8 @@ class DbHelper {
     String tableName, {
     String? orderByColumn,
     bool descending = true,
+    int? limit,
+    int? offset,
   }) async {
     final db = await database;
     final pragma = await db.rawQuery("PRAGMA table_info($tableName)");
@@ -101,7 +103,7 @@ class DbHelper {
       orderBy = 'createdAt ${descending ? 'DESC' : 'ASC'}';
     }
 
-    return await db.query(tableName, orderBy: orderBy);
+    return await db.query(tableName, orderBy: orderBy, limit: limit, offset: offset);
   }
 
   // Get by id
