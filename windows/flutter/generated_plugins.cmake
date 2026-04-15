@@ -3,7 +3,6 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  connectivity_plus
   flutter_localization
   local_auth_windows
   url_launcher_windows
