@@ -22,7 +22,7 @@ class LinkDetailPage extends StatelessWidget {
       child: Container(
         width: double.infinity,
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * .85,
+          maxHeight: MediaQuery.of(context).size.height * .9,
           minHeight: MediaQuery.of(context).size.height * .5,
         ),
         child: Scaffold(
@@ -31,13 +31,8 @@ class LinkDetailPage extends StatelessWidget {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. PHẦN CỐ ĐỊNH: Nằm sát trên cùng, không bị trượt theo
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: HeroMediaWidget(),
-              ),
+              HeroMediaWidget(),
               const SizedBox(height: 16),
-
               // 2. PHẦN CUỘN: Bọc trong Expanded và SingleChildScrollView
               Expanded(
                 child: SingleChildScrollView(

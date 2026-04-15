@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
@@ -48,9 +49,11 @@ class LinkDetailController extends GetxController {
     webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0x00000000))
+      ..setUserAgent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
-          // ✅ Cập nhật trạng thái mỗi khi trang thay đổi
           onPageStarted: (url) async {
             isWebLoading.value = true;
             currentUrl.value = url;
@@ -60,9 +63,32 @@ class LinkDetailController extends GetxController {
             isWebLoading.value = false;
             currentUrl.value = url;
             await _updateNavState();
+            await webViewController?.runJavaScript('''
+            var meta = document.createElement('meta');
+            meta.name = 'viewport';
+            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+            document.getElementsByTagName('head')[0].appendChild(meta);
+            
+            document.body.style.margin = '0';
+            document.body.style.padding = '0';
+            document.body.style.width = '100%';
+          ''');
           },
           onNavigationRequest: (request) {
-            // ✅ Cho phép tất cả điều hướng trong WebView
+            final url = request.url.toLowerCase();
+
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+              debugPrint("Đã chặn mở app ngoại luồng: $url");
+              return NavigationDecision.prevent;
+            }
+
+            // Chặn chuyển hướng văng ra App Store hoặc Google Play
+            if (url.contains('play.google.com') || url.contains('apps.apple.com')) {
+              debugPrint("Đã chặn văng ra chợ ứng dụng: $url");
+              return NavigationDecision.prevent;
+            }
+
+            // Cho phép các trang web bình thường duyệt tiếp
             return NavigationDecision.navigate;
           },
         ),

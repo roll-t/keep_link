@@ -37,7 +37,6 @@ class LinkCollectionController extends GetxController {
     super.onClose();
   }
 
-  // Lắng nghe sự kiện cuộn để load thêm dữ liệu
   void _scrollListener() {
     if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
       if (!isLoading.value && !isLoadMore.value && _canLoadMore) {

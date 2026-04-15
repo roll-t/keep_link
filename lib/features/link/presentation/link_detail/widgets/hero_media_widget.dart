@@ -117,7 +117,6 @@ class _BaseThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => CacheImageWidget(
-    borderRadius: BorderRadius.circular(16),
     imageUrl: imageUrl,
     height: Get.width * .8,
     width: double.infinity,
@@ -194,9 +193,7 @@ class _WebViewPlayer extends GetView<LinkDetailController> {
 
   @override
   Widget build(BuildContext context) => Obx(
-    () => controller.isExpanded.value
-        ? _ExpandedWebView(ctrl: ctrl) // full screen
-        : _InlineWebView(ctrl: ctrl), // trong bottom sheet
+    () => controller.isExpanded.value ? _ExpandedWebView(ctrl: ctrl) : _InlineWebView(ctrl: ctrl),
   );
 }
 
@@ -211,7 +208,6 @@ class _InlineWebView extends GetView<LinkDetailController> {
       const _WebViewNavigationBar(),
       const SizedBox(height: 8),
       ClipRRect(
-        borderRadius: BorderRadius.circular(16),
         child: SizedBox(
           height: Get.width * .8,
           width: double.infinity,
@@ -221,6 +217,7 @@ class _InlineWebView extends GetView<LinkDetailController> {
                 controller: ctrl,
                 // ✅ THÊM ĐOẠN NÀY ĐỂ ƯU TIÊN CUỘN WEBVIEW
                 gestureRecognizers: {
+                  Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
                   Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
                   Factory<HorizontalDragGestureRecognizer>(() => HorizontalDragGestureRecognizer()),
                 },
@@ -250,6 +247,7 @@ class _ExpandedWebView extends GetView<LinkDetailController> {
             controller: ctrl,
             // ✅ THÊM ĐOẠN NÀY ĐỂ ƯU TIÊN CUỘN WEBVIEW
             gestureRecognizers: {
+              Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
               Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
               Factory<HorizontalDragGestureRecognizer>(() => HorizontalDragGestureRecognizer()),
             },
