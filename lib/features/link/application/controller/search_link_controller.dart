@@ -6,7 +6,7 @@ import 'package:keep_link/core/config/app_enum.dart'; // Nơi chứa VisibilityS
 import 'package:keep_link/core/local_storage/sql_lite.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/data/model/category_model.dart'; // Đổi đường dẫn theo dự án của bạn
-import 'package:keep_link/features/link/data/model/link_model.dart';
+import 'package:keep_link/features/link/application/model/link_model.dart';
 
 class SearchLinkController extends GetxController {
   final RxList<LinkModel> searchResults = <LinkModel>[].obs;

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:keep_link/core/model/db_model.dart';
-import 'package:keep_link/features/link/data/model/meta_data_model.dart';
+import 'package:keep_link/features/link/application/model/meta_data_model.dart';
 
 class LinkModel implements DbModel {
   @override

@@ -9,8 +9,8 @@ import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/core/utils/mixin/argument_handle_mixin_controller.dart';
-import 'package:keep_link/features/link/data/model/meta_data_model.dart';
-import 'package:keep_link/features/link/data/model/tiktok_meta_data.dart';
+import 'package:keep_link/features/link/application/model/meta_data_model.dart';
+import 'package:keep_link/features/link/application/model/tiktok_meta_data.dart';
 import 'package:keep_link/features/splash/presentation/controller/splash_controller.dart';
 import 'package:tiktok_scraper/tiktok_scraper.dart';
 

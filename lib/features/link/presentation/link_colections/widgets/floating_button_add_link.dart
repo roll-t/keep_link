@@ -8,8 +8,8 @@ import 'package:keep_link/core/extension/colors.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/link/application/controller/link_collection_controller.dart';
-import 'package:keep_link/features/link/presentation/page/add_link_page.dart';
-import 'package:keep_link/features/link/presentation/page/search_link_page.dart';
+import 'package:keep_link/features/link/presentation/link_add/page/add_link_page.dart';
+import 'package:keep_link/features/link/presentation/link_search/page/search_link_page.dart';
 
 class FloatingButtonAddLink extends StatelessWidget {
   const FloatingButtonAddLink({super.key});

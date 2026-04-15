@@ -5,7 +5,7 @@ import 'package:keep_link/core/local_storage/sql_lite.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/data/model/category_model.dart';
-import 'package:keep_link/features/link/data/model/link_model.dart';
+import 'package:keep_link/features/link/application/model/link_model.dart';
 
 Future<void> appConfig() async {
   WidgetsFlutterBinding.ensureInitialized();

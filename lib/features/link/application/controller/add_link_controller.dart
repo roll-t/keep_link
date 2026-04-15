@@ -13,7 +13,7 @@ import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/core/utils/mixin/argument_handle_mixin_controller.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/application/controller/custom_popup_controller.dart';
-import 'package:keep_link/features/link/data/model/link_model.dart';
+import 'package:keep_link/features/link/application/model/link_model.dart';
 
 class AddLinkController extends GetxController with ArgumentHandlerMixinController<LinkModel> {
   final DeepLinkController _deepLink = Get.find<DeepLinkController>();
@@ -219,14 +219,26 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
     final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text?.trim();
 
     if (text?.isNotEmpty == true) {
-      linkController.text = text!;
+      final extractedUrl = _extractUrl(text!);
+      linkController.text = extractedUrl;
       errorLinkMess.value = "";
-      // trigger the same flow as typing
-      onChangeLink(text);
+      if (text != extractedUrl && titleController.text.isEmpty && !isEditModel.value) {
+        final remainingText = text.replaceAll(extractedUrl, '').trim();
+        titleController.text = remainingText;
+      }
+
+      onChangeLink(extractedUrl);
       Fluttertoast.showToast(msg: "Đã dán link");
     } else {
       Fluttertoast.showToast(msg: "Bộ nhớ tạm trống");
     }
+  }
+
+  String _extractUrl(String input) {
+    // Regex tìm chuỗi bắt đầu bằng http hoặc https và không chứa khoảng trắng
+    final RegExp urlRegex = RegExp(r'(https?:\/\/[^\s]+)', caseSensitive: false);
+    final match = urlRegex.firstMatch(input);
+    return match?.group(0) ?? input; // Nếu có link thì trả về link, không thì trả về chuỗi gốc
   }
 
   // ===============================================================
@@ -234,6 +246,26 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ===============================================================
   void onChangeLink(String v) {
     if (errorLinkMess.value.isNotEmpty) errorLinkMess.value = "";
+
+    final extractedUrl = _extractUrl(v);
+    if (extractedUrl != v && extractedUrl.startsWith(RegExp(r'http'))) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Gán lại đúng link vào textfield
+        linkController.text = extractedUrl;
+        // Đưa con trỏ nhấp nháy về cuối dòng
+        linkController.selection = TextSelection.fromPosition(
+          TextPosition(offset: extractedUrl.length),
+        );
+
+        // Tự gán title
+        if (titleController.text.isEmpty && !isEditModel.value) {
+          titleController.text = v.replaceAll(extractedUrl, '').trim();
+        }
+      });
+      _queryLink.value = extractedUrl.trim();
+      return;
+    }
+
     _queryLink.value = v.trim();
   }
 

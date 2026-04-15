@@ -7,7 +7,7 @@ import 'package:keep_link/core/ui/appbar/custom_app_bar.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/ui/text_field/simple_input_textfield.dart';
 import 'package:keep_link/features/link/application/controller/search_link_controller.dart';
-import 'package:keep_link/features/link/presentation/widget/link_item.dart';
+import 'package:keep_link/features/link/presentation/link_colections/widgets/link_item.dart';
 
 class SearchLinkPage extends GetView<SearchLinkController> {
   static String routeName = "/SearchLinkPage";

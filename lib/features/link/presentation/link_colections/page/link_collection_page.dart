@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/extension/colors.dart';
-import 'package:keep_link/features/link/presentation/widget/floating_button_add_link.dart';
-import 'package:keep_link/features/link/presentation/widget/header_link_collection.dart';
-import 'package:keep_link/features/link/presentation/widget/list_link_collection.dart';
+import 'package:keep_link/features/link/presentation/link_colections/widgets/floating_button_add_link.dart';
+import 'package:keep_link/features/link/presentation/link_colections/widgets/header_link_collection.dart';
+import 'package:keep_link/features/link/presentation/link_colections/widgets/list_link_collection.dart';
 
 class LinkCollectionPage extends StatelessWidget {
   static const String routeName = "/LinkCollectionPage";

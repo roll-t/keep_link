@@ -10,7 +10,7 @@ import 'package:keep_link/core/utils/binding/dependency_utils.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/category/application/controller/category_controller.dart';
 import 'package:keep_link/features/category/application/controller/custom_popup_controller.dart';
-import 'package:keep_link/features/link/data/model/link_model.dart';
+import 'package:keep_link/features/link/application/model/link_model.dart';
 
 class LinkCollectionController extends GetxController {
   // --- State Variables ---

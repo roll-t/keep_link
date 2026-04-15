@@ -10,7 +10,7 @@ import 'package:keep_link/features/category/application/controller/category_cont
 import 'package:keep_link/features/category/presentation/widget/category_dialog.dart';
 import 'package:keep_link/features/category/presentation/widget/custom_popup_widget.dart';
 import 'package:keep_link/features/link/application/controller/add_link_controller.dart';
-import 'package:keep_link/features/link/presentation/widget/deep_link_preview.dart';
+import 'package:keep_link/features/link/presentation/link_add/widgets/deep_link_preview.dart';
 
 class AddLinkPage extends StatelessWidget {
   static String routeName = "/AddLinkPage";
@@ -91,6 +91,9 @@ class AddLinkPage extends StatelessWidget {
             controller: controller.titleController,
             label: "Tiêu đề",
             hintText: "Nhập tiêu đề",
+            maxLine: 4,
+            height: 80,
+            contentPadding: EdgeInsets.only(top: 12, left: 12, right: 12),
             onChanged: controller.onChangeTitle,
             errorText: controller.errorTitleMess.value,
           ),

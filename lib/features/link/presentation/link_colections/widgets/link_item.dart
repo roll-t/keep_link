@@ -5,8 +5,8 @@ import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/extension/colors.dart';
 import 'package:keep_link/core/ui/image/cache_image.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
-import 'package:keep_link/features/link/data/model/link_model.dart';
-import 'package:keep_link/features/link/presentation/widget/link_detail.dart';
+import 'package:keep_link/features/link/application/model/link_model.dart';
+import 'package:keep_link/features/link/presentation/link_detail/page/link_detail.dart';
 
 class LinkItem extends StatelessWidget {
   final int index;
@@ -17,7 +17,12 @@ class LinkItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Get.dialog(LinkDetail(link: item), barrierColor: AppColors.black.withOpacityCompat(.8));
+        Get.bottomSheet(
+          LinkDetailPage(link: item),
+          barrierColor: AppColors.black.withOpacityCompat(.8),
+          isScrollControlled: true,
+          backgroundColor: AppColors.transparent,
+        );
       },
       child: Container(
         alignment: Alignment.center,

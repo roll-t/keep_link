@@ -5,8 +5,8 @@ import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/features/link/application/controller/link_collection_controller.dart';
-import 'package:keep_link/features/link/data/model/link_model.dart';
-import 'package:keep_link/features/link/presentation/widget/link_item.dart';
+import 'package:keep_link/features/link/application/model/link_model.dart';
+import 'package:keep_link/features/link/presentation/link_colections/widgets/link_item.dart';
 
 class ListLinkCollection extends GetView<LinkCollectionController> {
   const ListLinkCollection({super.key});
