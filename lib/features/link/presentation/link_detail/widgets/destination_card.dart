@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/features/link/application/controller/link_detail_controller.dart';
@@ -17,10 +18,30 @@ class DestinationCard extends GetView<LinkDetailController> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextWidget(
-          text: "ORIGINAL DESTINATION",
-          textStyle: AppTextStyle.bold12,
-          color: Colors.grey,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextWidget(
+              text: "ORIGINAL DESTINATION",
+              textStyle: AppTextStyle.bold12,
+              color: Colors.grey,
+            ),
+
+            GestureDetector(
+              onTap: controller.openInApp,
+              child: Row(
+                children: [
+                  const Icon(Icons.open_in_new, color: AppColors.white, size: 16),
+                  const SizedBox(width: 8),
+                  TextWidget(
+                    text: "Open in App",
+                    textStyle: AppTextStyle.semiBold12,
+                    color: AppColors.white,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Row(
