@@ -43,7 +43,9 @@ class AppGetStorage {
   static bool isSecurityEnabled() => _box.read(_securityEnabledKey) ?? false;
 
   static void setFingerprintEnabled(bool value) => _box.write(_fingerprintEnabledKey, value);
-  static bool isFingerprintEnabled() => false; // Đang đóng tạm thời
+
+  // SỬA DÒNG NÀY: Mở khóa lại và cho phép đọc từ GetStorage
+  static bool isFingerprintEnabled() => _box.read(_fingerprintEnabledKey) ?? false;
 
   static void savePin(String pin) => _box.write(_pinKey, pin);
   static String? getPin() => _box.read(_pinKey);

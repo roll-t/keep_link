@@ -9,7 +9,7 @@ import 'package:keep_link/core/local_storage/app_get_storage.dart';
 import 'package:keep_link/core/ui/button/primary_button.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/ui/text_field/simple_input_textfield.dart';
-import 'package:keep_link/features/category/application/controller/category_controller.dart';
+import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
 
 class CategoryDialog extends GetView<CategoryController> {
   static String routeName = '/category_dialog';

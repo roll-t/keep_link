@@ -54,7 +54,7 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
                 // PHẦN 2: CÁC NÚT TÙY CHỌN LỚN
                 // ==============================
                 SizedBox(
-                  height: Get.height * .65,
+                  height: Get.height * .6,
                   child: Column(
                     children: [
                       // ----- Nút PIN -----

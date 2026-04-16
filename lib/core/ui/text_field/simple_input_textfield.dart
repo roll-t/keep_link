@@ -5,128 +5,51 @@ import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/utils/utils.dart';
 
-class SimpleInputTextField extends StatelessWidget {
-  /// Chiều cao của TextField
+class SimpleInputTextField extends StatefulWidget {
   final double height;
-
-  /// Màu hint text
   final Color? hintColor;
-
-  /// Hint text
   final String? hintText;
-
-  /// Ẩn text (dùng cho password)
   final bool obscureText;
-
-  /// Màu nền
   final Color? backgroundColor;
-
-  /// Màu border khi focus
   final Color? focusedColor;
-
-  /// Độ dày border khi focus
   final double? focusedWidth;
-
-  /// Màu border khi enable
   final Color? enableColor;
-
-  /// Độ dày border khi enable
   final double? enableWidth;
-
-  /// Widget icon bên phải
   final Widget? suffixIcon;
-
-  /// Widget icon bên trái
   final Widget? prefixIcon;
-
-  /// Callback khi thay đổi text
   final ValueChanged<String>? onChanged;
-
-  /// Callback khi hoàn thành (ấn enter)
   final ValueChanged<String>? onCompleted;
-
-  /// Màu text
   final Color? textColor;
-
-  /// Callback khi tap
   final VoidCallback? onTap;
-
-  /// FocusNode
   final FocusNode? focusNode;
-
-  /// Label text
   final String? labelText;
-
-  /// Controller
   final TextEditingController? controller;
-
-  /// Loại bàn phím
   final TextInputType? keyboardType;
-
-  /// Hiển thị border hay không
   final bool isShowBorder;
-
-  /// Cho phép nhập hay không
   final bool enable;
-
-  /// Giới hạn ký tự
   final int? maxLength;
-
-  /// Input formatters
   final List<TextInputFormatter>? inputFormatters;
-
-  /// Kiểu viết hoa
   final TextCapitalization textCapitalization;
-
-  /// Hiển thị con trỏ
   final bool showCursor;
-
-  /// Kích thước font
   final double fontSize;
-
-  /// Chiều rộng
   final double width;
-
-  /// Số dòng tối đa
   final int? maxLine;
-
-  /// Căn chỉnh dọc
   final TextAlignVertical? textAlignVertical;
-
-  /// Căn chỉnh ngang
   final TextAlign textAlign;
-
-  /// Padding trái
   final double contentPaddingLeft;
-
-  /// Padding dưới khi scroll
   final double scrollPaddingBottom;
-
-  /// Font weight
   final FontWeight fontWeight;
-
-  /// Custom content padding
   final EdgeInsetsGeometry? contentPadding;
-
-  /// Custom label style
-  final TextStyle? labelStyle = null;
-
-  /// Custom hint style
+  final TextStyle? labelStyle;
   final TextStyle? hintStyle;
-
-  /// Số dòng tối thiểu
   final int? minLines;
   final String? label;
   final String errorText;
-
-  /// Action khi nhấn enter
   final TextInputAction? textInputAction;
-
   final double? radius;
-
-  /// Scroll physics
   final ScrollPhysics? scrollPhysics;
   final ScrollController? scrollController;
+
   const SimpleInputTextField({
     super.key,
     this.height = 44.0,
@@ -171,108 +94,144 @@ class SimpleInputTextField extends StatelessWidget {
     this.errorText = "",
     this.scrollPhysics,
     this.scrollController,
+    this.labelStyle,
   });
 
   @override
+  State<SimpleInputTextField> createState() => _SimpleInputTextFieldState();
+}
+
+class _SimpleInputTextFieldState extends State<SimpleInputTextField> {
+  // Biến quản lý ScrollController nội bộ
+  ScrollController? _localScrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Nếu ở ngoài không truyền scrollController vào VÀ text field có nhiều dòng, ta tự khởi tạo một cái
+    if (widget.scrollController == null && widget.maxLine != null && widget.maxLine! > 1) {
+      _localScrollController = ScrollController();
+    }
+  }
+
+  @override
+  void dispose() {
+    // Nhớ hủy nó để tránh rò rỉ bộ nhớ
+    _localScrollController?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Sử dụng controller được truyền từ ngoài vào, nếu không có thì dùng cái nội bộ
+    final effectiveScrollController = widget.scrollController ?? _localScrollController;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (label != null)
+        if (widget.label != null)
           Padding(
             padding: const EdgeInsets.only(left: 4.0, bottom: 6),
-            child: TextWidget(text: label!, textStyle: AppTextStyle.bold16),
+            child: TextWidget(text: widget.label!, textStyle: AppTextStyle.bold16),
           ),
         Container(
-          height: height,
-          width: width,
+          height: widget.height,
+          width: widget.width,
           decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(radius ?? 8.0),
+            color: widget.backgroundColor,
+            borderRadius: BorderRadius.circular(widget.radius ?? 8.0),
           ),
           child: Scrollbar(
-            controller: scrollController,
-            thumbVisibility: maxLine != null && maxLine! > 1,
+            // CHỖ SỬA QUAN TRỌNG: Truyền controller dùng chung vào đây
+            controller: effectiveScrollController,
+            thumbVisibility: widget.maxLine != null && widget.maxLine! > 1,
             child: TextField(
-              scrollController: scrollController,
-              scrollPhysics: scrollPhysics,
-              textInputAction: textInputAction,
-              minLines: minLines,
-              scrollPadding: EdgeInsets.only(bottom: scrollPaddingBottom),
-              maxLines: maxLine,
-              textAlign: textAlign,
-              expands: maxLine == null && height > 0,
-              showCursor: showCursor,
-              textCapitalization: textCapitalization,
-              maxLength: maxLength,
-              keyboardType: keyboardType,
-              controller: controller,
-              onChanged: onChanged,
-              onSubmitted: onCompleted,
-              inputFormatters: inputFormatters,
-              obscureText: obscureText,
-              focusNode: focusNode,
-              onTap: onTap,
+              // CHỖ SỬA QUAN TRỌNG: Truyền controller dùng chung vào đây
+              scrollController: effectiveScrollController,
+              scrollPhysics: widget.scrollPhysics,
+              textInputAction: widget.textInputAction,
+              minLines: widget.minLines,
+              scrollPadding: EdgeInsets.only(bottom: widget.scrollPaddingBottom),
+              maxLines: widget.maxLine,
+              textAlign: widget.textAlign,
+              expands: widget.maxLine == null && widget.height > 0,
+              showCursor: widget.showCursor,
+              textCapitalization: widget.textCapitalization,
+              maxLength: widget.maxLength,
+              keyboardType: widget.keyboardType,
+              controller: widget.controller,
+              onChanged: widget.onChanged,
+              onSubmitted: widget.onCompleted,
+              inputFormatters: widget.inputFormatters,
+              obscureText: widget.obscureText,
+              focusNode: widget.focusNode,
+              onTap: widget.onTap,
               onTapOutside: (f) {
                 Utils.dimissKeyboard();
               },
               style: TextStyle(
-                fontSize: fontSize,
-                color: textColor ?? AppColors.n500,
-                fontWeight: fontWeight,
+                fontSize: widget.fontSize,
+                color: widget.textColor ?? AppColors.n500,
+                fontWeight: widget.fontWeight,
               ),
               decoration: InputDecoration(
-                enabled: enable,
+                enabled: widget.enable,
                 alignLabelWithHint: false,
                 counterText: "",
                 border: InputBorder.none,
                 contentPadding:
-                    contentPadding ??
+                    widget.contentPadding ??
                     EdgeInsets.only(
-                      left: textAlign == TextAlign.start ? contentPaddingLeft : 7.0,
-                      top: textAlignVertical == TextAlignVertical.top ? 15 : 0,
+                      left: widget.textAlign == TextAlign.start ? widget.contentPaddingLeft : 7.0,
+                      top: widget.textAlignVertical == TextAlignVertical.top ? 15 : 0,
                       right: 7.0,
                     ),
-                labelText: labelText,
-                labelStyle: labelStyle ?? const TextStyle(color: AppColors.primary, fontSize: 16),
-                suffixIcon: suffixIcon,
-                prefixIcon: prefixIcon,
-                hintText: hintText,
+                labelText: widget.labelText,
+                labelStyle:
+                    widget.labelStyle ?? const TextStyle(color: AppColors.primary, fontSize: 16),
+                suffixIcon: widget.suffixIcon,
+                prefixIcon: widget.prefixIcon,
+                hintText: widget.hintText,
                 hintStyle:
-                    hintStyle ??
+                    widget.hintStyle ??
                     TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: hintColor ?? AppColors.t600,
+                      color: widget.hintColor ?? AppColors.t600,
                     ),
-                enabledBorder: isShowBorder
+                enabledBorder: widget.isShowBorder
                     ? OutlineInputBorder(
-                        borderSide: BorderSide(width: enableWidth!, color: enableColor!),
-                        borderRadius: BorderRadius.circular(radius ?? 8.0),
+                        borderSide: BorderSide(
+                          width: widget.enableWidth!,
+                          color: widget.enableColor!,
+                        ),
+                        borderRadius: BorderRadius.circular(widget.radius ?? 8.0),
                       )
                     : OutlineInputBorder(
                         borderSide: BorderSide.none,
-                        borderRadius: BorderRadius.circular(radius ?? 8.0),
+                        borderRadius: BorderRadius.circular(widget.radius ?? 8.0),
                       ),
-                focusedBorder: isShowBorder
+                focusedBorder: widget.isShowBorder
                     ? OutlineInputBorder(
-                        borderSide: BorderSide(width: focusedWidth!, color: focusedColor!),
-                        borderRadius: BorderRadius.circular(radius ?? 8.0),
+                        borderSide: BorderSide(
+                          width: widget.focusedWidth!,
+                          color: widget.focusedColor!,
+                        ),
+                        borderRadius: BorderRadius.circular(widget.radius ?? 8.0),
                       )
                     : OutlineInputBorder(
                         borderSide: BorderSide.none,
-                        borderRadius: BorderRadius.circular(radius ?? 8.0),
+                        borderRadius: BorderRadius.circular(widget.radius ?? 8.0),
                       ),
               ),
             ),
           ),
         ),
-
-        if (errorText.trim().isNotEmpty) ...[
+        if (widget.errorText.trim().isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: TextWidget(
-              text: " $errorText",
+              text: " ${widget.errorText}",
               textStyle: AppTextStyle.regular12,
               color: AppColors.red,
             ),

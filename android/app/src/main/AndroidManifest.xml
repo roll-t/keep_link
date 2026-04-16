@@ -7,10 +7,8 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-
     <application
-        android:label="App Lưu Link (DEV)"
+        android:label="App Lưu Link"
         android:icon="@mipmap/ic_launcher">
 
         <!-- MAIN ACTIVITY -->
@@ -93,11 +91,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Bubble Service -->
-        <service
-            android:name="io.flutter.plugins.bubble.BubbleService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse" />
         <!-- Flutter embedding -->
         <meta-data
             android:name="flutterEmbedding"
