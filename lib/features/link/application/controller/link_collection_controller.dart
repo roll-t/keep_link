@@ -45,7 +45,6 @@ class LinkCollectionController extends GetxController {
     }
   }
 
-  /// Reset toàn bộ dữ liệu (Gọi khi đổi Category hoặc Kéo để làm mới)
   Future<void> refreshData({bool showToast = false}) async {
     _currentPage = 0;
     _canLoadMore = true;
@@ -57,12 +56,9 @@ class LinkCollectionController extends GetxController {
     }
   }
 
-  /// Hàm lấy dữ liệu từ DB (Có lọc theo Category và Security)
   Future<void> fetchAllLinks({bool isInitial = false}) async {
     if (!_canLoadMore) return;
-
     final CustomPopupController categoryPopup = DependencyUtils.put(() => CustomPopupController());
-
     try {
       if (isInitial) {
         isLoading.value = true;
@@ -72,17 +68,12 @@ class LinkCollectionController extends GetxController {
 
       final selectedCategoryId = categoryPopup.selectedItem.value?.id;
       final bool isSecurityEnabled = AppGetStorage.isCategorySecurity();
-
-      // --- PHẦN LOGIC LỌC SQL (QUAN TRỌNG NHẤT) ---
       String? whereClause;
       List<dynamic>? whereArgs;
-
       if (selectedCategoryId != null && selectedCategoryId != 'all') {
-        // 1. Lọc theo danh mục được chọn
         whereClause = 'categoryId = ?';
         whereArgs = [selectedCategoryId];
       } else if (isSecurityEnabled) {
-        // 2. Nếu chọn "Tất cả" nhưng có bật bảo mật -> Ẩn các link thuộc Category Private
         Set<String?> privateCategoryIds = {};
         if (categoryPopup.items.isNotEmpty) {
           privateCategoryIds = categoryPopup.items
@@ -123,7 +114,6 @@ class LinkCollectionController extends GetxController {
         listLink.addAll(fetchedItems);
         _currentPage++;
 
-        // Nếu số bản ghi lấy ra ít hơn pageSize thì trang sau chắc chắn hết
         if (linkRows.length < _pageSize) {
           _canLoadMore = false;
         }

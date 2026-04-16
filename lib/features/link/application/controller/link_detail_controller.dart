@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
@@ -21,95 +20,105 @@ class LinkDetailController extends GetxController {
   final isWebLoading = false.obs;
   WebViewController? webViewController;
 
+  late final String url = link.metaDataModel?.url ?? '';
   late final LinkType linkType = LinkTypeDetector.detect(url);
 
-  // Getter tiện ích
   bool get isVideo => linkType == LinkType.video;
-
   String get imageUrl => link.metaDataModel?.imageUrl ?? '';
-  String get url => link.metaDataModel?.url ?? '';
   String get title => link.metaDataModel?.title ?? link.name ?? '';
   String get description => link.metaDataModel?.description ?? '';
+  bool get isTikTok => url.contains("tiktok.com");
+
+  // --- WebView Logic ---
 
   void openWebView() {
     if (url.isEmpty) return;
-    _initWebViewController();
+    isExpanded.value = true;
     isPlayingVideo.value = true;
+    _initWebViewController(url);
   }
 
   void playVideo() {
     if (url.isEmpty) return;
-    _initWebViewController();
+    isExpanded.value = true;
     isPlayingVideo.value = true;
+    _initWebViewController(url);
   }
 
-  void _initWebViewController() {
+  void _initWebViewController(String targetUrl) {
     if (webViewController != null) return;
+
+    final userAgent = isTikTok
+        ? "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+        : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
 
     webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0x00000000))
-      ..setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-      )
+      ..setUserAgent(userAgent)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (url) async {
+          onPageStarted: (url) {
             isWebLoading.value = true;
             currentUrl.value = url;
-            await _updateNavState();
+            _updateNavState();
           },
-          onPageFinished: (url) async {
+          onPageFinished: (url) {
             isWebLoading.value = false;
             currentUrl.value = url;
-            await _updateNavState();
-            await webViewController?.runJavaScript('''
-            var meta = document.createElement('meta');
-            meta.name = 'viewport';
-            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-            document.getElementsByTagName('head')[0].appendChild(meta);
-            
-            document.body.style.margin = '0';
-            document.body.style.padding = '0';
-            document.body.style.width = '100%';
-          ''');
+            _updateNavState();
+
+            // 1. Tiêm JS chặn quảng cáo chung cho mọi trang
+            webViewController?.runJavaScript(_adBlockerJS);
+
+            // 2. Tiêm JS tối ưu riêng cho TikTok
+            if (url.contains("tiktok.com")) {
+              webViewController?.runJavaScript(_tiktokJS);
+            }
           },
           onNavigationRequest: (request) {
-            final url = request.url.toLowerCase();
+            final uri = Uri.parse(request.url.toLowerCase());
 
-            if (!url.startsWith('http://') && !url.startsWith('https://')) {
-              debugPrint("Đã chặn mở app ngoại luồng: $url");
+            // --- CHẶN QUẢNG CÁO TẦNG MẠNG ---
+            final adDomains = [
+              'doubleclick.net',
+              'googleadservices.com',
+              'googlesyndication.com',
+              'moatads.com',
+              'taboola.com',
+              'outbrain.com',
+              'adnxs.com',
+            ];
+
+            if (adDomains.any((domain) => uri.host.contains(domain))) {
               return NavigationDecision.prevent;
             }
+            // ---------------------------------
 
-            // Chặn chuyển hướng văng ra App Store hoặc Google Play
-            if (url.contains('play.google.com') || url.contains('apps.apple.com')) {
-              debugPrint("Đã chặn văng ra chợ ứng dụng: $url");
+            if (!uri.scheme.startsWith('http')) return NavigationDecision.prevent;
+
+            if (uri.host.contains('tiktok.com') && uri.path.contains('download')) {
               return NavigationDecision.prevent;
             }
-
-            // Cho phép các trang web bình thường duyệt tiếp
             return NavigationDecision.navigate;
           },
         ),
       )
-      ..loadRequest(Uri.parse(url));
+      ..loadRequest(Uri.parse(targetUrl));
   }
 
   Future<void> _updateNavState() async {
-    canGoBack.value = await webViewController?.canGoBack() ?? false;
-    canGoForward.value = await webViewController?.canGoForward() ?? false;
+    if (webViewController == null) return;
+    final results = await Future.wait([
+      webViewController!.canGoBack(),
+      webViewController!.canGoForward(),
+    ]);
+    canGoBack.value = results[0];
+    canGoForward.value = results[1];
   }
 
-  Future<void> webReload() async {
-    await webViewController?.reload();
-  }
-
-  // Quay về trang gốc (URL ban đầu của link)
-  Future<void> webGoHome() async {
-    await webViewController?.loadRequest(Uri.parse(url));
-  }
-
+  Future<void> webReload() async => await webViewController?.reload();
+  Future<void> webGoHome() async => await webViewController?.loadRequest(Uri.parse(url));
   void toggleExpand() => isExpanded.toggle();
 
   void closeWebView() {
@@ -118,6 +127,7 @@ class LinkDetailController extends GetxController {
     canGoBack.value = false;
     canGoForward.value = false;
     currentUrl.value = '';
+    isWebLoading.value = false;
     webViewController = null;
   }
 
@@ -134,13 +144,48 @@ class LinkDetailController extends GetxController {
   void goToEdit() {
     Get.back();
     Get.toNamed(AddLinkPage.routeName, arguments: link)?.then((success) {
-      if (success is bool && success) {
+      if (success == true) {
         Get.find<LinkCollectionController>().onRefreshData();
       }
     });
   }
 
-  void deleteLink() {
-    Get.find<LinkCollectionController>().onDeleteLink(link.id);
-  }
+  void deleteLink() => Get.find<LinkCollectionController>().onDeleteLink(link.id);
+
+  // --- JAVASCRIPT BLOCKERS ---
+
+  // JS Chặn quảng cáo chung
+  static const String _adBlockerJS = '''
+    (function() {
+      const adSelectors = [
+        '.adsbygoogle', 'ins.adsbygoogle', '[id^="google_ads_"]', 
+        'iframe[src*="doubleclick.net"]', '.ad-box', '.ad-container', '.ad-unit'
+      ];
+      function removeAds() {
+        adSelectors.forEach(s => {
+          document.querySelectorAll(s).forEach(el => el.remove());
+        });
+      }
+      removeAds();
+      setTimeout(removeAds, 2000); // Chạy thêm một lần sau 2s để diệt quảng cáo load chậm
+    })();
+  ''';
+
+  // JS Cho TikTok
+  static const String _tiktokJS = '''
+    window.open = function() { return null; };
+    var meta = document.querySelector('meta[name="viewport"]') || document.createElement('meta');
+    meta.name = 'viewport';
+    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    if (!meta.parentNode) document.getElementsByTagName('head')[0].appendChild(meta);
+
+    function hideAppPrompts() {
+      const badSelectors = ['.tiktok-banner', '.download-wrapper', '.open-app-button', '.css-1q0z0m3-ButtonDownload', '[class*="BannerContainer"]', '#TUX-portal-container', '.css-1176r2e-DivBannerContainer'];
+      badSelectors.forEach(s => document.querySelectorAll(s).forEach(el => el.remove()));
+      document.body.style.overflow = 'auto';
+      document.documentElement.style.overflow = 'auto';
+    }
+    hideAppPrompts();
+    setInterval(hideAppPrompts, 1000);
+  ''';
 }

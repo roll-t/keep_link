@@ -28,6 +28,8 @@ dependencies:
   local_auth: ^3.0.1 
   flutter_markdown_plus: ^1.0.5
   webview_flutter: ^4.13.1
+  connectivity_plus: ^7.1.1
+  flutter_inappwebview: ^6.1.5
 dev_dependencies:
   flutter_test:
     sdk: flutter

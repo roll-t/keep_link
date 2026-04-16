@@ -236,7 +236,7 @@ class _ExpandedWebView extends GetView<LinkDetailController> {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: MediaQuery.of(context).size.height * 0.7,
+    height: MediaQuery.of(context).size.height * 0.81,
     width: double.infinity,
     child: Column(
       children: [
