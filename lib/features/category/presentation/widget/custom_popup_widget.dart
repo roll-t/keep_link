@@ -6,7 +6,7 @@ import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/library/custom_popup.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
-import 'package:keep_link/features/category/application/controller/custom_popup_controller.dart';
+import 'package:keep_link/features/category/presentation/controller/custom_popup_controller.dart';
 
 class CustomPopupWidget extends StatelessWidget {
   final VoidCallback? onSelected;
