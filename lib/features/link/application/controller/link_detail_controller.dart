@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/utils/utils.dart';
@@ -6,7 +7,6 @@ import 'package:keep_link/features/link/application/controller/link_collection_c
 import 'package:keep_link/features/link/application/model/link_model.dart';
 import 'package:keep_link/features/link/application/model/link_type.dart';
 import 'package:keep_link/features/link/presentation/link_add/page/add_link_page.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 class LinkDetailController extends GetxController {
   final LinkModel link;
@@ -18,7 +18,7 @@ class LinkDetailController extends GetxController {
   final canGoForward = false.obs;
   final currentUrl = ''.obs;
   final isWebLoading = false.obs;
-  WebViewController? webViewController;
+  InAppWebViewController? webViewController;
 
   late final String url = link.metaDataModel?.url ?? '';
   late final LinkType linkType = LinkTypeDetector.detect(url);
@@ -35,76 +35,61 @@ class LinkDetailController extends GetxController {
     if (url.isEmpty) return;
     isExpanded.value = true;
     isPlayingVideo.value = true;
-    _initWebViewController(url);
   }
 
   void playVideo() {
     if (url.isEmpty) return;
     isExpanded.value = true;
     isPlayingVideo.value = true;
-    _initWebViewController(url);
   }
 
-  void _initWebViewController(String targetUrl) {
-    if (webViewController != null) return;
+  // CÁC CALLBACK ĐƯỢC DỜI TỪ _initWebViewController ĐỂ UI GỌI
+  void onPageStarted(String? newUrl) {
+    isWebLoading.value = true;
+    currentUrl.value = newUrl ?? '';
+    _updateNavState();
+  }
 
-    final userAgent = isTikTok
-        ? "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
-        : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
+  void onPageFinished(String? newUrl) {
+    isWebLoading.value = false;
+    currentUrl.value = newUrl ?? '';
+    _updateNavState();
 
-    webViewController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
-      ..setUserAgent(userAgent)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageStarted: (url) {
-            isWebLoading.value = true;
-            currentUrl.value = url;
-            _updateNavState();
-          },
-          onPageFinished: (url) {
-            isWebLoading.value = false;
-            currentUrl.value = url;
-            _updateNavState();
+    // 1. Tiêm JS chặn quảng cáo chung cho mọi trang
+    webViewController?.evaluateJavascript(source: _adBlockerJS);
 
-            // 1. Tiêm JS chặn quảng cáo chung cho mọi trang
-            webViewController?.runJavaScript(_adBlockerJS);
+    // 2. Tiêm JS tối ưu riêng cho TikTok
+    if (newUrl != null && newUrl.contains("tiktok.com")) {
+      webViewController?.evaluateJavascript(source: _tiktokJS);
+    }
+  }
 
-            // 2. Tiêm JS tối ưu riêng cho TikTok
-            if (url.contains("tiktok.com")) {
-              webViewController?.runJavaScript(_tiktokJS);
-            }
-          },
-          onNavigationRequest: (request) {
-            final uri = Uri.parse(request.url.toLowerCase());
+  Future<NavigationActionPolicy> shouldOverrideUrlLoading(NavigationAction navigationAction) async {
+    final uri = navigationAction.request.url;
+    if (uri == null) return NavigationActionPolicy.ALLOW;
 
-            // --- CHẶN QUẢNG CÁO TẦNG MẠNG ---
-            final adDomains = [
-              'doubleclick.net',
-              'googleadservices.com',
-              'googlesyndication.com',
-              'moatads.com',
-              'taboola.com',
-              'outbrain.com',
-              'adnxs.com',
-            ];
+    // --- CHẶN QUẢNG CÁO TẦNG MẠNG ---
+    final adDomains = [
+      'doubleclick.net',
+      'googleadservices.com',
+      'googlesyndication.com',
+      'moatads.com',
+      'taboola.com',
+      'outbrain.com',
+      'adnxs.com',
+    ];
 
-            if (adDomains.any((domain) => uri.host.contains(domain))) {
-              return NavigationDecision.prevent;
-            }
-            // ---------------------------------
+    if (adDomains.any((domain) => uri.host.contains(domain))) {
+      return NavigationActionPolicy.CANCEL;
+    }
+    // ---------------------------------
 
-            if (!uri.scheme.startsWith('http')) return NavigationDecision.prevent;
+    if (!uri.scheme.startsWith('http')) return NavigationActionPolicy.CANCEL;
 
-            if (uri.host.contains('tiktok.com') && uri.path.contains('download')) {
-              return NavigationDecision.prevent;
-            }
-            return NavigationDecision.navigate;
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse(targetUrl));
+    if (uri.host.contains('tiktok.com') && uri.path.contains('download')) {
+      return NavigationActionPolicy.CANCEL;
+    }
+    return NavigationActionPolicy.ALLOW;
   }
 
   Future<void> _updateNavState() async {
@@ -118,7 +103,12 @@ class LinkDetailController extends GetxController {
   }
 
   Future<void> webReload() async => await webViewController?.reload();
-  Future<void> webGoHome() async => await webViewController?.loadRequest(Uri.parse(url));
+  Future<void> webGoHome() async {
+    if (url.isNotEmpty) {
+      await webViewController?.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+    }
+  }
+
   void toggleExpand() => isExpanded.toggle();
 
   void closeWebView() {
@@ -134,7 +124,7 @@ class LinkDetailController extends GetxController {
   void copyUrl() {
     if (url.isEmpty) return;
     Clipboard.setData(ClipboardData(text: url));
-    Fluttertoast.showToast(msg: "Đã sao chép");
+    Fluttertoast.showToast(msg: "Chân thành đã sao chép"); // Đã update theo từ vựng bạn quen dùng
   }
 
   void openInApp() {

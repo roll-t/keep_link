@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
@@ -10,7 +11,6 @@ import 'package:keep_link/core/ui/image/full_screen_image_page.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/features/link/application/controller/link_detail_controller.dart';
 import 'package:keep_link/features/link/application/model/link_type.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 class HeroMediaWidget extends GetView<LinkDetailController> {
   const HeroMediaWidget({super.key});
@@ -20,8 +20,9 @@ class HeroMediaWidget extends GetView<LinkDetailController> {
     if (controller.imageUrl.isEmpty) return const SizedBox.shrink();
 
     return Obx(() {
-      if (controller.isPlayingVideo.value && controller.webViewController != null) {
-        return _WebViewPlayer(ctrl: controller.webViewController!);
+      // InAppWebView sẽ tự lấy Controller khi build xong, nên chỉ cần check isPlayingVideo
+      if (controller.isPlayingVideo.value) {
+        return const _WebViewPlayer();
       }
 
       return switch (controller.linkType) {
@@ -188,74 +189,116 @@ class _SavedBadge extends StatelessWidget {
 }
 
 class _WebViewPlayer extends GetView<LinkDetailController> {
-  final WebViewController ctrl;
-  const _WebViewPlayer({required this.ctrl});
+  const _WebViewPlayer();
 
   @override
-  Widget build(BuildContext context) => Obx(
-    () => controller.isExpanded.value ? _ExpandedWebView(ctrl: ctrl) : _InlineWebView(ctrl: ctrl),
-  );
+  Widget build(BuildContext context) =>
+      Obx(() => controller.isExpanded.value ? const _ExpandedWebView() : const _InlineWebView());
 }
 
 // ── Inline (trong bottom sheet) ──────────────────────────
 class _InlineWebView extends GetView<LinkDetailController> {
-  final WebViewController ctrl;
-  const _InlineWebView({required this.ctrl});
+  const _InlineWebView();
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      const _WebViewNavigationBar(),
-      const SizedBox(height: 8),
-      ClipRRect(
-        child: SizedBox(
-          height: Get.width * .8,
-          width: double.infinity,
-          child: Stack(
-            children: [
-              WebViewWidget(
-                controller: ctrl,
-                // ✅ THÊM ĐOẠN NÀY ĐỂ ƯU TIÊN CUỘN WEBVIEW
-                gestureRecognizers: {
-                  Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
-                  Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
-                  Factory<HorizontalDragGestureRecognizer>(() => HorizontalDragGestureRecognizer()),
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    ],
-  );
-}
+  Widget build(BuildContext context) {
+    final userAgent = controller.isTikTok
+        ? "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+        : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
 
-class _ExpandedWebView extends GetView<LinkDetailController> {
-  final WebViewController ctrl;
-  const _ExpandedWebView({required this.ctrl});
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    height: MediaQuery.of(context).size.height * 0.81,
-    width: double.infinity,
-    child: Column(
+    return Column(
       children: [
         const _WebViewNavigationBar(),
         const SizedBox(height: 8),
-        Expanded(
-          child: WebViewWidget(
-            controller: ctrl,
-            // ✅ THÊM ĐOẠN NÀY ĐỂ ƯU TIÊN CUỘN WEBVIEW
-            gestureRecognizers: {
-              Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
-              Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
-              Factory<HorizontalDragGestureRecognizer>(() => HorizontalDragGestureRecognizer()),
-            },
+        ClipRRect(
+          child: SizedBox(
+            height: Get.width * .8,
+            width: double.infinity,
+            child: Stack(
+              children: [
+                InAppWebView(
+                  initialUrlRequest: URLRequest(url: WebUri(controller.url)),
+                  initialSettings: InAppWebViewSettings(
+                    userAgent: userAgent,
+                    transparentBackground: true,
+                    javaScriptEnabled: true,
+                  ),
+                  gestureRecognizers: {
+                    Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
+                    Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
+                    Factory<HorizontalDragGestureRecognizer>(
+                      () => HorizontalDragGestureRecognizer(),
+                    ),
+                  },
+                  onWebViewCreated: (webCtrl) {
+                    controller.webViewController = webCtrl;
+                  },
+                  onLoadStart: (webCtrl, url) {
+                    controller.onPageStarted(url?.toString());
+                  },
+                  onLoadStop: (webCtrl, url) {
+                    controller.onPageFinished(url?.toString());
+                  },
+                  shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
+                    return await controller.shouldOverrideUrlLoading(navigationAction);
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ],
-    ),
-  );
+    );
+  }
+}
+
+class _ExpandedWebView extends GetView<LinkDetailController> {
+  const _ExpandedWebView();
+
+  @override
+  Widget build(BuildContext context) {
+    final userAgent = controller.isTikTok
+        ? "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+        : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
+
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.81,
+      width: double.infinity,
+      child: Column(
+        children: [
+          const _WebViewNavigationBar(),
+          const SizedBox(height: 8),
+          Expanded(
+            child: InAppWebView(
+              initialUrlRequest: URLRequest(url: WebUri(controller.url)),
+              initialSettings: InAppWebViewSettings(
+                userAgent: userAgent,
+                transparentBackground: true,
+                javaScriptEnabled: true,
+              ),
+              gestureRecognizers: {
+                Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
+                Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
+                Factory<HorizontalDragGestureRecognizer>(() => HorizontalDragGestureRecognizer()),
+              },
+              onWebViewCreated: (webCtrl) {
+                controller.webViewController = webCtrl;
+              },
+              onLoadStart: (webCtrl, url) {
+                controller.onPageStarted(url?.toString());
+              },
+              onLoadStop: (webCtrl, url) {
+                controller.onPageFinished(url?.toString());
+              },
+              shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
+                return await controller.shouldOverrideUrlLoading(navigationAction);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _WebViewNavigationBar extends GetView<LinkDetailController> {
