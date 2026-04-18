@@ -28,6 +28,51 @@ class LinkDetailController extends GetxController {
   String get description => link.metaDataModel?.description ?? '';
   bool get isTikTok => url.contains("tiktok.com");
 
+  // ── Shared WebView configuration ────────────────────────────────────────────
+
+  /// Mobile Chrome UA cho trang thông thường.
+  /// TikTok yêu cầu iOS Safari UA để hiển thị đúng mobile layout.
+  String get webViewUserAgent => isTikTok
+      ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) '
+            'AppleWebKit/605.1.15 (KHTML, like Gecko) '
+            'Version/17.0 Mobile/15E148 Safari/604.1'
+      : 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/124.0.0.0 Mobile Safari/537.36';
+
+  /// Cấu hình InAppWebView dùng chung cho cả inline lẫn expanded mode.
+  InAppWebViewSettings get webViewSettings => InAppWebViewSettings(
+    userAgent: webViewUserAgent,
+
+    // ── JavaScript & Storage ─────────────────────────────────────────────
+    javaScriptEnabled: true,
+    domStorageEnabled: true, // localStorage / sessionStorage cho SPA
+    databaseEnabled: true,
+
+    // ── Cache ────────────────────────────────────────────────────────────
+    cacheEnabled: true,
+    // Dùng cache trước, chỉ fetch mạng khi không có — giảm latency.
+    cacheMode: CacheMode.LOAD_CACHE_ELSE_NETWORK,
+
+    // ── Rendering (Android) ──────────────────────────────────────────────
+    // false = SurfaceAndroidWebView (SurfaceView): render trên thread
+    // riêng → scroll mượt hơn, dùng ít CPU hơn TextureView.
+    useHybridComposition: false,
+    transparentBackground: true,
+
+    // ── Media ────────────────────────────────────────────────────────────
+    mediaPlaybackRequiresUserGesture: false, // cho phép autoplay video
+    allowsInlineMediaPlayback: true, // iOS: video inline thay vì fullscreen
+    // ── Scroll / UX ──────────────────────────────────────────────────────
+    overScrollMode: OverScrollMode.NEVER, // tắt bounce cuộn quá đầu/cuối
+    verticalScrollBarEnabled: false,
+    horizontalScrollBarEnabled: false,
+    supportZoom: false, // tắt pinch-to-zoom (link preview không cần)
+    // ── Misc ─────────────────────────────────────────────────────────────
+    disableDefaultErrorPage: true, // tự xử lý trang lỗi nếu cần
+    safeBrowsingEnabled: true, // bảo vệ người dùng khỏi trang độc hại
+  );
+
   // --- WebView Logic ---
 
   void openWebView() {

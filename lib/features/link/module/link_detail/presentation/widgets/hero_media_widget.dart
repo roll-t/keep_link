@@ -224,10 +224,6 @@ class _InlineWebView extends GetView<LinkDetailController> {
 
   @override
   Widget build(BuildContext context) {
-    final userAgent = controller.isTikTok
-        ? "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
-        : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
-
     return Column(
       children: [
         const _WebViewNavigationBar(),
@@ -236,36 +232,26 @@ class _InlineWebView extends GetView<LinkDetailController> {
           child: SizedBox(
             height: Get.width * .8,
             width: double.infinity,
-            child: Stack(
-              children: [
-                InAppWebView(
-                  initialUrlRequest: URLRequest(url: WebUri(controller.url)),
-                  initialSettings: InAppWebViewSettings(
-                    userAgent: userAgent,
-                    transparentBackground: true,
-                    javaScriptEnabled: true,
-                  ),
-                  gestureRecognizers: {
-                    Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
-                    Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
-                    Factory<HorizontalDragGestureRecognizer>(
-                      () => HorizontalDragGestureRecognizer(),
-                    ),
-                  },
-                  onWebViewCreated: (webCtrl) {
-                    controller.webViewController = webCtrl;
-                  },
-                  onLoadStart: (webCtrl, url) {
-                    controller.onPageStarted(url?.toString());
-                  },
-                  onLoadStop: (webCtrl, url) {
-                    controller.onPageFinished(url?.toString());
-                  },
-                  shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
-                    return await controller.shouldOverrideUrlLoading(navigationAction);
-                  },
-                ),
-              ],
+            child: InAppWebView(
+              initialUrlRequest: URLRequest(url: WebUri(controller.url)),
+              initialSettings: controller.webViewSettings,
+              gestureRecognizers: const {
+                Factory<TapGestureRecognizer>(TapGestureRecognizer.new),
+                Factory<VerticalDragGestureRecognizer>(VerticalDragGestureRecognizer.new),
+                Factory<HorizontalDragGestureRecognizer>(HorizontalDragGestureRecognizer.new),
+              },
+              onWebViewCreated: (webCtrl) {
+                controller.webViewController = webCtrl;
+              },
+              onLoadStart: (webCtrl, url) {
+                controller.onPageStarted(url?.toString());
+              },
+              onLoadStop: (webCtrl, url) {
+                controller.onPageFinished(url?.toString());
+              },
+              shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
+                return controller.shouldOverrideUrlLoading(navigationAction);
+              },
             ),
           ),
         ),
@@ -279,10 +265,6 @@ class _ExpandedWebView extends GetView<LinkDetailController> {
 
   @override
   Widget build(BuildContext context) {
-    final userAgent = controller.isTikTok
-        ? "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
-        : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
-
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.81,
       width: double.infinity,
@@ -293,15 +275,11 @@ class _ExpandedWebView extends GetView<LinkDetailController> {
           Expanded(
             child: InAppWebView(
               initialUrlRequest: URLRequest(url: WebUri(controller.url)),
-              initialSettings: InAppWebViewSettings(
-                userAgent: userAgent,
-                transparentBackground: true,
-                javaScriptEnabled: true,
-              ),
-              gestureRecognizers: {
-                Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
-                Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
-                Factory<HorizontalDragGestureRecognizer>(() => HorizontalDragGestureRecognizer()),
+              initialSettings: controller.webViewSettings,
+              gestureRecognizers: const {
+                Factory<TapGestureRecognizer>(TapGestureRecognizer.new),
+                Factory<VerticalDragGestureRecognizer>(VerticalDragGestureRecognizer.new),
+                Factory<HorizontalDragGestureRecognizer>(HorizontalDragGestureRecognizer.new),
               },
               onWebViewCreated: (webCtrl) {
                 controller.webViewController = webCtrl;
@@ -313,7 +291,7 @@ class _ExpandedWebView extends GetView<LinkDetailController> {
                 controller.onPageFinished(url?.toString());
               },
               shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
-                return await controller.shouldOverrideUrlLoading(navigationAction);
+                return controller.shouldOverrideUrlLoading(navigationAction);
               },
             ),
           ),

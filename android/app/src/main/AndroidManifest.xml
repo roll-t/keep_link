@@ -9,7 +9,11 @@
 
     <application
         android:label="App Lưu Link"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        >
 
         <activity
             android:name=".MainActivity"

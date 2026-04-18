@@ -11,7 +11,6 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugins.bubble.BubbleService
 
 object FlutterChannelManager {
-
     private const val CHANNEL_BUBBLE = "keep_link/bubble"
     private const val CHANNEL_PERMISSION = "keep_link/overlay_permission"
 

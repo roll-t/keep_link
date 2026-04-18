@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:keep_link/app_lifecycle_observer.dart';
+import 'package:keep_link/core/cache/sql_lite.dart';
 import 'package:keep_link/core/lang/translation_service.dart';
-import 'package:keep_link/core/local_storage/sql_lite.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
 import 'package:keep_link/core/service/theme_service.dart';
 import 'package:keep_link/core/utils/utils.dart';
@@ -27,5 +27,7 @@ Future<void> appConfig() async {
   Utils.ignoreException();
   WidgetsBinding.instance.addObserver(AppLifecycleHandler());
 
-  // await DbHelper.resetDatabase(); // chỉ dùng khi debug
+  // Debug only — uncomment to wipe DB + cache:
+  // await DbHelper.resetDatabase();
+  // AppCache.invalidateAll();
 }

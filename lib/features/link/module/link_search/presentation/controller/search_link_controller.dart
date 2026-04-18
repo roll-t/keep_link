@@ -2,9 +2,11 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/cache/app_cache.dart';
+import 'package:keep_link/core/cache/app_get_storage.dart';
 import 'package:keep_link/core/config/app_enum.dart';
-import 'package:keep_link/core/local_storage/app_get_storage.dart';
-import 'package:keep_link/core/local_storage/sql_lite.dart';
+import 'package:keep_link/core/repository/category_repository.dart';
+import 'package:keep_link/core/repository/link_repository.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/application/model/category_model.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
@@ -16,8 +18,13 @@ class SearchLinkController extends GetxController {
   final searchTec = TextEditingController();
   final searchText = ''.obs;
   final searchResults = <LinkModel>[].obs;
+
+  /// True only during the initial DB → cache load (first ever open).
+  /// Subsequent opens are instant since the cache is already warm.
   final isLoading = false.obs;
+
   late final bool isSecurityEnabled;
+
   // Category
   final categories = <CategoryModel>[].obs;
   final selectedCategoryId = Rx<String?>(null);
@@ -27,7 +34,7 @@ class SearchLinkController extends GetxController {
 
   final categoryScrollController = ScrollController();
 
-  // Cache private IDs — tránh query lại mỗi lần search
+  // Private category IDs — computed from AppCache, no DB query.
   Set<String> _privateCategoryIds = {};
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -35,17 +42,18 @@ class SearchLinkController extends GetxController {
   void onInit() {
     super.onInit();
     isSecurityEnabled = AppGetStorage.isCategorySecurity();
+
     searchTec.addListener(() {
       searchText.value = searchTec.text;
-      if (searchTec.text.isEmpty) _showAllLinks();
+      if (searchTec.text.isEmpty) _filterAndShow();
     });
 
-    debounce(searchText, (_) => _runSearch(), time: const Duration(milliseconds: 400));
+    // debounce still gives a smooth UX even though the work is now synchronous.
+    debounce(searchText, (_) => _runSearch(), time: const Duration(milliseconds: 300));
 
     ever(selectedCategoryId, (_) => _runSearch());
     ever(selectedSort, (_) => _runSearch());
 
-    // Load dữ liệu ban đầu
     _init();
   }
 
@@ -59,100 +67,57 @@ class SearchLinkController extends GetxController {
   // ── Init ───────────────────────────────────────────────────────────────────
 
   Future<void> _init() async {
-    await Future.wait([_loadPrivateCategoryIds(), _loadCategories()]);
-    await _showAllLinks();
-  }
-
-  Future<void> _loadPrivateCategoryIds() async {
-    try {
-      // Kiểm tra trạng thái bảo mật từ Storage
-
-      if (isSecurityEnabled) {
-        final rows = await DbHelper.getAll('categories');
-        _privateCategoryIds = rows
-            .map((r) => CategoryModel.fromJson(Map<String, dynamic>.from(r)))
-            // Lấy những category KHÔNG phải Public
-            .where((c) => c.visibility != VisibilityStatus.public)
-            .map((c) => c.id ?? '')
-            .toSet();
-      } else {
-        _privateCategoryIds = {};
-      }
-
-      log('Đã cập nhật danh sách ID riêng tư: ${_privateCategoryIds.length} mục');
-    } catch (e) {
-      log('Lỗi load private categories: $e');
-      _privateCategoryIds = {}; // Tránh lỗi null khi search
-    }
-  }
-
-  Future<void> _loadCategories() async {
-    try {
-      final rows = await DbHelper.getAll('categories');
-      final isCategorySecurityEnabled = AppGetStorage.isCategorySecurity();
-      if (isCategorySecurityEnabled) {
-        final list = rows
-            .map((r) => CategoryModel.fromJson(Map<String, dynamic>.from(r)))
-            .where((c) => c.visibility == VisibilityStatus.public)
-            .toList();
-        categories.assignAll(list);
-      } else {
-        categories.assignAll(rows.map((r) => CategoryModel.fromJson(Map<String, dynamic>.from(r))));
-      }
-    } catch (e) {
-      log('Lỗi load categories: $e');
-    }
-  }
-
-  // ── Hiển thị tất cả link khi chưa search ─────────────────────────────────
-
-  Future<void> _showAllLinks() async {
+    // Both calls are no-ops if the cache is already warm (typical after the
+    // first screen load).  Only the very first open hits SQLite.
     isLoading.value = true;
     try {
-      final rows = await DbHelper.getAll('links');
-      final all = rows
-          .map((r) => LinkModel.fromJson(Map<String, dynamic>.from(r)))
-          .where(_passPrivacyFilter)
-          .where(_passCategoryFilter)
-          .toList();
-
-      searchResults.assignAll(_applySorting(all));
+      await Future.wait([CategoryRepository.ensureLoaded(), LinkRepository.ensureLoaded()]);
+      _computePrivateCategoryIds();
+      _populateCategoryList();
+      _filterAndShow();
     } catch (e) {
-      log('Lỗi load all links: $e');
+      log('SearchLinkController init error: $e');
     } finally {
       isLoading.value = false;
     }
   }
 
-  // ── Search ─────────────────────────────────────────────────────────────────
+  // ── Compute helpers (in-memory, no I/O) ───────────────────────────────────
 
-  Future<void> _runSearch() async {
+  void _computePrivateCategoryIds() {
+    _privateCategoryIds = isSecurityEnabled ? AppCache.privateCategoryIds : const {};
+    log('Private category IDs: ${_privateCategoryIds.length}');
+  }
+
+  void _populateCategoryList() {
+    final list = isSecurityEnabled
+        ? AppCache.categories.where((c) => c.visibility == VisibilityStatus.public).toList()
+        : List<CategoryModel>.from(AppCache.categories);
+    categories.assignAll(list);
+  }
+
+  // ── Filter / Search (pure in-memory — no DB query) ────────────────────────
+
+  void _filterAndShow() {
+    final all = AppCache.links.where(_passPrivacyFilter).where(_passCategoryFilter).toList();
+    searchResults.assignAll(_applySorting(all));
+  }
+
+  void _runSearch() {
     final query = searchText.value.trim();
-
-    // Nếu trống thì show all
     if (query.isEmpty) {
-      await _showAllLinks();
+      _filterAndShow();
       return;
     }
 
-    isLoading.value = true;
-    try {
-      final rows = await DbHelper.getAll('links');
-      final searchKey = Utils.removeDiacritics(query).toLowerCase();
+    final searchKey = Utils.removeDiacritics(query).toLowerCase();
+    final filtered = AppCache.links
+        .where(_passPrivacyFilter)
+        .where(_passCategoryFilter)
+        .where((item) => _matchSearch(item, searchKey))
+        .toList();
 
-      final filtered = rows
-          .map((r) => LinkModel.fromJson(Map<String, dynamic>.from(r)))
-          .where(_passPrivacyFilter)
-          .where(_passCategoryFilter)
-          .where((item) => _matchSearch(item, searchKey))
-          .toList();
-
-      searchResults.assignAll(_applySorting(filtered));
-    } catch (e) {
-      log('Lỗi tìm kiếm: $e');
-    } finally {
-      isLoading.value = false;
-    }
+    searchResults.assignAll(_applySorting(filtered));
   }
 
   // ── Filters ────────────────────────────────────────────────────────────────

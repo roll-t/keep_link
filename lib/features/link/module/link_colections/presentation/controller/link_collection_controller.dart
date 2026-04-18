@@ -3,9 +3,11 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/cache/app_cache.dart';
+import 'package:keep_link/core/cache/app_get_storage.dart';
 import 'package:keep_link/core/config/app_enum.dart';
-import 'package:keep_link/core/local_storage/app_get_storage.dart';
-import 'package:keep_link/core/local_storage/sql_lite.dart';
+import 'package:keep_link/core/repository/category_repository.dart';
+import 'package:keep_link/core/repository/link_repository.dart';
 import 'package:keep_link/core/utils/binding/dependency_utils.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
@@ -66,60 +68,35 @@ class LinkCollectionController extends GetxController {
         isLoadMore.value = true;
       }
 
+      // Ensure both caches are populated (DB query only on very first call).
+      await Future.wait([LinkRepository.ensureLoaded(), CategoryRepository.ensureLoaded()]);
+
       final selectedCategoryId = categoryPopup.selectedItem.value?.id;
       final bool isSecurityEnabled = AppGetStorage.isCategorySecurity();
-      String? whereClause;
-      List<dynamic>? whereArgs;
-      if (selectedCategoryId != null && selectedCategoryId != 'all') {
-        whereClause = 'categoryId = ?';
-        whereArgs = [selectedCategoryId];
-      } else if (isSecurityEnabled) {
-        Set<String?> privateCategoryIds = {};
-        if (categoryPopup.items.isNotEmpty) {
-          privateCategoryIds = categoryPopup.items
-              .where((item) => item.visibility == VisibilityStatus.private)
-              .map((item) => item.id)
-              .toSet();
-        } else {
-          final catRows = await DbHelper.getAll('categories');
-          privateCategoryIds = catRows
-              .where((row) => row['visibility'] == VisibilityStatus.private.name)
-              .map((row) => row['id'] as String?)
-              .toSet();
-        }
 
-        if (privateCategoryIds.isNotEmpty) {
-          final placeholders = privateCategoryIds.map((_) => '?').join(', ');
-          whereClause = 'categoryId NOT IN ($placeholders) OR categoryId IS NULL';
-          whereArgs = privateCategoryIds.toList();
-        }
-      }
+      // Compute private IDs from in-memory cache — no DB query.
+      final Set<String> privateCategoryIds = isSecurityEnabled
+          ? AppCache.privateCategoryIds
+          : const {};
 
-      // --- TRUY VẤN DATABASE ---
-      final linkRows = await DbHelper.getAll(
-        'links',
-        limit: _pageSize,
-        offset: _currentPage * _pageSize,
-        where: whereClause,
-        whereArgs: whereArgs,
+      // Page from cache — pure in-memory, no I/O.
+      final page = LinkRepository.getFilteredPage(
+        categoryId: selectedCategoryId,
+        privateCategoryIds: privateCategoryIds,
+        excludePrivate: isSecurityEnabled,
+        page: _currentPage,
+        pageSize: _pageSize,
       );
 
-      if (linkRows.isEmpty) {
+      if (page.isEmpty) {
         _canLoadMore = false;
       } else {
-        final List<LinkModel> fetchedItems = linkRows
-            .map((row) => LinkModel.fromJson(Map<String, dynamic>.from(row)))
-            .toList();
-
-        listLink.addAll(fetchedItems);
+        listLink.addAll(page);
         _currentPage++;
-
-        if (linkRows.length < _pageSize) {
-          _canLoadMore = false;
-        }
+        if (page.length < _pageSize) _canLoadMore = false;
       }
 
-      log('Page ${_currentPage - 1} loaded. Total displayed: ${listLink.length}');
+      log('Page ${_currentPage - 1} loaded (cache). Total displayed: ${listLink.length}');
     } catch (e) {
       log('Error fetching links: $e');
     } finally {
@@ -139,7 +116,7 @@ class LinkCollectionController extends GetxController {
         title: "Xác nhận",
         content: "Bạn chắc chắn muốn xóa link!",
         onConfirm: () async {
-          await DbHelper.delete('links', id);
+          await LinkRepository.delete(id);
           listLink.removeWhere((item) => item.id == id);
           Get.back();
           Get.back();
