@@ -187,7 +187,14 @@ class CategoryController extends GetxController {
   void _updatePopupItems({String? selectId}) {
     final newItems = [
       ItemModel(id: "all", name: "All".tr),
-      ...categories.map((c) => ItemModel(id: c.id, name: c.name, visibility: c.visibility)),
+      ...categories.map(
+        (c) => ItemModel(
+          id: c.id,
+          name: c.name,
+          visibility: c.visibility,
+          chilrenCount: c.chilrenCount,
+        ),
+      ),
     ];
 
     popupController.items.assignAll(newItems);
@@ -204,7 +211,7 @@ class CategoryController extends GetxController {
 
   bool _validateCategory() {
     if (categories.length >= _maxCategories) {
-      Fluttertoast.showToast(msg: "Tạo được tối đa $_maxCategories danh mục");
+      Fluttertoast.showToast(msg: "max_categories_limit".trArgs(["$_maxCategories"]));
       return false;
     }
     if (categoryNameController.text.trim().isEmpty) {
@@ -218,7 +225,7 @@ class CategoryController extends GetxController {
   void _handleError(String msg, Object e, StackTrace s) {
     debugPrint('$msg: $e');
     debugPrintStack(stackTrace: s);
-    Fluttertoast.showToast(msg: "Có lỗi xảy ra, vui lòng thử lại");
+    Fluttertoast.showToast(msg: "An error occurred, please try again".tr);
   }
 
   void _reloadLinks() {

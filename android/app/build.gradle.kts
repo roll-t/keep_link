@@ -25,19 +25,21 @@ android {
         jvmTarget = JavaVersion.VERSION_11.toString() 
     }
 
-    // Load key.properties
+    // Load key.properties (only required for release builds)
     val keystoreProperties = Properties()
     val keystoreFile = file("../key.properties")
-    if (keystoreFile.exists()) {
-        keystoreProperties.load(FileInputStream(keystoreFile))
+    val hasKeystore = keystoreFile.exists().also { exists ->
+        if (exists) keystoreProperties.load(FileInputStream(keystoreFile))
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
+        if (hasKeystore) {
+            create("release") {
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+            }
         }
     }
 
@@ -51,7 +53,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (hasKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

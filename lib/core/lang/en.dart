@@ -39,6 +39,13 @@ Map<String, String> en = {
   "Name A → Z": 'Name A → Z',
   "Name Z → A": 'Name Z → A',
   "Reset filters": 'Reset filters',
+  "Top sources": 'Top sources',
+  "Saved date": 'Saved date',
+  "Clear": 'Clear',
+  "From": 'From',
+  "To": 'To',
+  "Any": 'Any',
+  "No links yet\nAdd your first link!": 'No links yet\nAdd your first link!',
 
   // Collections
   "No links yet": 'No links yet',
@@ -97,4 +104,41 @@ Map<String, String> en = {
 
   // Splash
   "Or": 'Or',
+
+  // Toast - Category
+  "max_categories_limit": 'You can create a maximum of @0 categories',
+  "An error occurred, please try again": 'An error occurred, please try again',
+
+  // Toast - Link
+  "Added successfully": 'Added successfully',
+  "Failed to add, please try again": 'Failed to add, please try again',
+  "Updated successfully": 'Updated successfully',
+  "Failed to update, please try again": 'Failed to update, please try again',
+  "Link pasted": 'Link pasted',
+  "Clipboard is empty": 'Clipboard is empty',
+  "Refreshed": 'Refreshed',
+  "Deleted": 'Deleted',
+
+  // Toast - Security
+  "App security enabled": 'App security enabled',
+  "App security disabled": 'App security disabled',
+  "Category security enabled": 'Category security enabled',
+  "Category security disabled": 'Category security disabled',
+  "Please enable app security first": 'Please enable app security first',
+  "Please set up a PIN first": 'Please set up a PIN first',
+  "Fingerprint login disabled": 'Fingerprint login disabled',
+  "Device does not support fingerprint / Face ID": 'Device does not support fingerprint / Face ID',
+  "Please set up fingerprint in device Settings": 'Please set up fingerprint in device Settings',
+  "Fingerprint verification failed": 'Fingerprint verification failed',
+  "Fingerprint login enabled": 'Fingerprint login enabled',
+
+  // Toast - PIN
+  "PIN confirmation does not match": 'PIN confirmation does not match',
+  "PIN changed successfully": 'PIN changed successfully',
+  "Incorrect PIN": 'Incorrect PIN',
+  "Enter new PIN": 'Enter new PIN',
+  "PIN is correct": 'PIN is correct',
+  "Re-enter PIN to confirm": 'Re-enter PIN to confirm',
+  "PIN has been set": 'PIN has been set',
+  "The two PINs do not match": 'The two PINs do not match',
 };

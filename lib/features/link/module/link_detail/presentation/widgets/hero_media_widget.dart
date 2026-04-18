@@ -17,12 +17,12 @@ class HeroMediaWidget extends GetView<LinkDetailController> {
 
   @override
   Widget build(BuildContext context) {
-    if (controller.imageUrl.isEmpty) return const SizedBox.shrink();
-
     return Obx(() {
       if (controller.isPlayingVideo.value) {
         return const _WebViewPlayer();
       }
+
+      if (controller.imageUrl.isEmpty) return const _FallbackThumbnail();
 
       return switch (controller.linkType) {
         LinkType.video => _ThumbnailWithPlay(),
@@ -415,4 +415,68 @@ class _NavButton extends StatelessWidget {
 class _VerticalDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(width: 1, height: 20, color: Colors.white12);
+}
+
+// Fallback khi link không có thumbnail
+class _FallbackThumbnail extends GetView<LinkDetailController> {
+  const _FallbackThumbnail();
+
+  @override
+  Widget build(BuildContext context) {
+    final host = Uri.tryParse(controller.url)?.host.replaceFirst('www.', '') ?? controller.url;
+
+    return GestureDetector(
+      onTap: controller.openWebView,
+      child: Container(
+        height: Get.width * .5,
+        width: double.infinity,
+        decoration: const BoxDecoration(color: AppColors.surface),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Background pattern
+            Opacity(
+              opacity: 0.06,
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 6,
+                  childAspectRatio: 1,
+                ),
+                itemCount: 48,
+                itemBuilder: (_, __) =>
+                    const Icon(Icons.link_rounded, color: Colors.white, size: 20),
+              ),
+            ),
+            // Center content
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.08),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white24, width: 1.5),
+                  ),
+                  child: const Icon(Icons.language_rounded, color: Colors.white70, size: 36),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  host,
+                  style: const TextStyle(color: Colors.white54, fontSize: 13, letterSpacing: 0.3),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 12),
+                const _ViewNowButton(),
+              ],
+            ),
+            // Saved badge
+            _SavedBadge(savedTime: controller.link.createdAt),
+          ],
+        ),
+      ),
+    );
+  }
 }

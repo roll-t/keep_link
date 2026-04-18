@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
+import 'package:keep_link/core/config/app_icons.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/extension/colors.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
@@ -52,6 +53,7 @@ class _SearchBar extends StatelessWidget {
                 size: 20,
                 color: AppColors.white.withOpacityCompat(0.3),
               ),
+              radius: 1000,
               hintText: 'Search links'.tr,
               controller: ctrl.searchTec,
               backgroundColor: AppColors.d300,
@@ -62,21 +64,29 @@ class _SearchBar extends StatelessWidget {
           const SizedBox(width: 10),
           GestureDetector(
             onTap: () => _showFilterSheet(context, ctrl),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.d300,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.white.withOpacityCompat(0.08)),
-              ),
-              child: Icon(
-                Icons.tune_rounded,
-                color: AppColors.white.withOpacityCompat(0.5),
-                size: 20,
-              ),
-            ),
+            child: Obx(() {
+              final isActive =
+                  ctrl.selectedSource.value != null || ctrl.selectedSort.value != SortOption.newest;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: isActive ? AppColors.primary.withOpacityCompat(0.15) : AppColors.d300,
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(
+                    color: isActive
+                        ? AppColors.primary.withOpacityCompat(0.5)
+                        : AppColors.white.withOpacityCompat(0.08),
+                  ),
+                ),
+                child: Icon(
+                  Icons.tune_rounded,
+                  color: isActive ? AppColors.primary : AppColors.white.withOpacityCompat(0.5),
+                  size: 20,
+                ),
+              );
+            }),
           ),
         ],
       ),
@@ -118,7 +128,9 @@ class _CategorySection extends StatelessWidget {
                       onSelected: () => ctrl.selectCategory(cat.id),
                       child: Obx(
                         () => _CategoryChip(
-                          label: cat.name ?? '',
+                          label: cat.chilrenCount != null
+                              ? '${cat.name ?? ''} (${cat.chilrenCount})'
+                              : (cat.name ?? ''),
                           selected: ctrl.selectedCategoryId.value == cat.id,
                         ),
                       ),
@@ -218,16 +230,11 @@ class _ResultBody extends StatelessWidget {
         );
       }
 
-      return GridView.builder(
+      return ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 1.0,
-        ),
         itemCount: ctrl.searchResults.length,
-        itemBuilder: (_, i) => LinkItem(index: i, item: ctrl.searchResults[i]),
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, i) => LinkListItem(index: i, item: ctrl.searchResults[i]),
       );
     });
   }
@@ -257,13 +264,24 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+// ─── Source icon helper ─────────────────────────────────────────────────────────────
 
+Widget _sourceIcon(String host, {double size = 16}) {
+  if (host.contains('tiktok.com')) return AppIcons.icLogoTiktok.show(size: size);
+  if (host.contains('youtube.com')) return AppIcons.icLogoYoutube.show(size: size);
+  if (host.contains('instagram.com')) return AppIcons.icLogoInstagram.show(size: size);
+  if (host.contains('facebook.com')) return AppIcons.icLogoFacebook.show(size: size);
+  if (host.contains('x.com')) return AppIcons.icLogoTwitter.show(size: size);
+  if (host.contains('google.com')) return AppIcons.icLogoGoogle.show(size: size);
+  return Icon(Icons.language_rounded, size: size, color: AppColors.white.withOpacityCompat(0.6));
+}
 // ─── Filter bottom sheet ──────────────────────────────────────────────────────
 
 void _showFilterSheet(BuildContext context, SearchLinkController ctrl) {
   showModalBottomSheet(
     context: context,
     backgroundColor: AppColors.bg500,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
@@ -278,8 +296,6 @@ class _FilterSheet extends StatelessWidget {
   static const _sortOptions = [
     (SortOption.newest, 'Newest', Icons.arrow_downward_rounded),
     (SortOption.oldest, 'Oldest', Icons.arrow_upward_rounded),
-    (SortOption.nameAZ, 'Name A → Z', Icons.sort_by_alpha_rounded),
-    (SortOption.nameZA, 'Name Z → A', Icons.sort_rounded),
   ];
 
   @override
@@ -287,108 +303,364 @@ class _FilterSheet extends StatelessWidget {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.white.withOpacityCompat(0.2),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            const TextWidget(
-              text: 'Sort by',
-              color: AppColors.white,
-              size: 16,
-              fontWeight: FontWeight.w600,
-            ),
-            const SizedBox(height: 12),
-
-            Obx(
-              () => Column(
-                children: _sortOptions.map((opt) {
-                  final (value, label, icon) = opt;
-                  final selected = ctrl.selectedSort.value == value;
-                  return GestureDetector(
-                    onTap: () {
-                      ctrl.selectSort(value);
-                      Get.back();
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? AppColors.primary.withOpacityCompat(0.15)
-                            : AppColors.white.withOpacityCompat(0.04),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: selected
-                              ? AppColors.primary.withOpacityCompat(0.5)
-                              : Colors.transparent,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            icon,
-                            color: selected
-                                ? AppColors.primary
-                                : AppColors.white.withOpacityCompat(0.5),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          TextWidget(
-                            text: label,
-                            color: selected
-                                ? AppColors.white
-                                : AppColors.white.withOpacityCompat(0.6),
-                            size: 15,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                          ),
-                          const Spacer(),
-                          if (selected)
-                            Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
-                        ],
-                      ),
+        child: SingleChildScrollView(
+          child: SizedBox(
+            height: Get.height * 0.55,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.white.withOpacityCompat(0.2),
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                  );
-                }).toList(),
-              ),
-            ),
+                  ),
+                ),
+                const SizedBox(height: 20),
 
-            // Reset button
-            const SizedBox(height: 4),
-            GestureDetector(
-              onTap: () {
-                ctrl.selectSort(SortOption.newest);
-                ctrl.selectCategory(null);
-                Get.back();
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.white.withOpacityCompat(0.06),
-                  borderRadius: BorderRadius.circular(12),
+                const TextWidget(
+                  text: 'Sort by',
+                  color: AppColors.white,
+                  size: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-                child: const TextWidget(
-                  text: 'Reset filters',
-                  textAlign: TextAlign.center,
-                  color: AppColors.n80,
-                  size: 14,
-                  fontWeight: FontWeight.w500,
+                const SizedBox(height: 12),
+
+                Obx(
+                  () => Column(
+                    children: _sortOptions.map((opt) {
+                      final (value, label, icon) = opt;
+                      final selected = ctrl.selectedSort.value == value;
+                      return GestureDetector(
+                        onTap: () {
+                          ctrl.selectSort(value);
+                          Get.back();
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? AppColors.primary.withOpacityCompat(0.15)
+                                : AppColors.white.withOpacityCompat(0.04),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: selected
+                                  ? AppColors.primary.withOpacityCompat(0.5)
+                                  : Colors.transparent,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                icon,
+                                color: selected
+                                    ? AppColors.primary
+                                    : AppColors.white.withOpacityCompat(0.5),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              TextWidget(
+                                text: label,
+                                color: selected
+                                    ? AppColors.white
+                                    : AppColors.white.withOpacityCompat(0.6),
+                                size: 15,
+                                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                              ),
+                              const Spacer(),
+                              if (selected)
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  color: AppColors.primary,
+                                  size: 18,
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+                // ─ Date range section ────────────────────────────────────────────
+                _DateRangeSection(ctrl: ctrl),
+
+                // ─ Source section ─────────────────────────────────────────────────
+                Obx(() {
+                  final sources = ctrl.topSources;
+                  if (sources.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 20),
+                      const TextWidget(
+                        text: 'Top sources',
+                        color: AppColors.white,
+                        size: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: sources.map((s) {
+                          final selected = ctrl.selectedSource.value == s.host;
+                          return GestureDetector(
+                            onTap: () {
+                              ctrl.selectSource(selected ? null : s.host);
+                              Get.back();
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? AppColors.primary.withOpacityCompat(0.15)
+                                    : AppColors.white.withOpacityCompat(0.04),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: selected
+                                      ? AppColors.primary.withOpacityCompat(0.5)
+                                      : Colors.transparent,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _sourceIcon(s.host, size: 14),
+                                  const SizedBox(width: 6),
+                                  TextWidget(
+                                    text: s.label,
+                                    color: selected
+                                        ? AppColors.white
+                                        : AppColors.white.withOpacityCompat(0.75),
+                                    size: 13,
+                                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: selected
+                                          ? AppColors.primary
+                                          : AppColors.white.withOpacityCompat(0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: TextWidget(
+                                      text: '${s.count}',
+                                      color: AppColors.white,
+                                      size: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  );
+                }),
+
+                // Reset button
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () {
+                    ctrl.selectSort(SortOption.newest);
+                    ctrl.selectCategory(null);
+                    ctrl.selectSource(null);
+                    ctrl.selectDateRange(null, null);
+                    Navigator.of(context).pop();
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.white.withOpacityCompat(0.06),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const TextWidget(
+                      text: 'Reset filters',
+                      textAlign: TextAlign.center,
+                      color: AppColors.n80,
+                      size: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Date range section widget ────────────────────────────────────────────────
+
+class _DateRangeSection extends StatelessWidget {
+  final SearchLinkController ctrl;
+  const _DateRangeSection({required this.ctrl});
+
+  String _fmt(DateTime? d) {
+    if (d == null) return 'Any';
+    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  }
+
+  Future<void> _pickFrom(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: ctrl.dateFrom.value ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: ctrl.dateTo.value ?? DateTime.now(),
+      builder: _darkTheme,
+    );
+    if (picked != null) ctrl.selectDateRange(picked, ctrl.dateTo.value);
+  }
+
+  Future<void> _pickTo(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: ctrl.dateTo.value ?? DateTime.now(),
+      firstDate: ctrl.dateFrom.value ?? DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: _darkTheme,
+    );
+    if (picked != null) ctrl.selectDateRange(ctrl.dateFrom.value, picked);
+  }
+
+  Widget _darkTheme(BuildContext ctx, Widget? child) => Theme(
+    data: ThemeData.dark().copyWith(
+      colorScheme: const ColorScheme.dark(
+        primary: AppColors.primary,
+        onPrimary: AppColors.white,
+        surface: AppColors.bg500,
+        onSurface: AppColors.white,
+      ),
+    ),
+    child: child!,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final from = ctrl.dateFrom.value;
+      final to = ctrl.dateTo.value;
+      final hasDate = from != null || to != null;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              const TextWidget(
+                text: 'Saved date',
+                color: AppColors.white,
+                size: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              if (hasDate) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => ctrl.selectDateRange(null, null),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacityCompat(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const TextWidget(
+                      text: 'Clear',
+                      color: AppColors.primary,
+                      size: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _DateButton(
+                  label: 'From',
+                  value: _fmt(from),
+                  onTap: () => _pickFrom(context),
                 ),
               ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DateButton(label: 'To', value: _fmt(to), onTap: () => _pickTo(context)),
+              ),
+            ],
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class _DateButton extends StatelessWidget {
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+  const _DateButton({required this.label, required this.value, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isSet = value != 'Any';
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSet
+              ? AppColors.primary.withOpacityCompat(0.12)
+              : AppColors.white.withOpacityCompat(0.04),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSet
+                ? AppColors.primary.withOpacityCompat(0.45)
+                : AppColors.white.withOpacityCompat(0.08),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 14,
+              color: isSet ? AppColors.primary : AppColors.white.withOpacityCompat(0.4),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextWidget(
+                  text: label,
+                  size: 11,
+                  color: AppColors.white.withOpacityCompat(0.4),
+                  fontWeight: FontWeight.w400,
+                ),
+                TextWidget(
+                  text: value,
+                  size: 13,
+                  color: isSet ? AppColors.white : AppColors.white.withOpacityCompat(0.55),
+                  fontWeight: isSet ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ],
             ),
           ],
         ),

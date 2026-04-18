@@ -169,10 +169,10 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
       await LinkRepository.insert(link);
       Utils.dimissKeyboard();
       _clearAndClose(result: true);
-      Fluttertoast.showToast(msg: "Thêm thành công");
+      Fluttertoast.showToast(msg: "Added successfully".tr);
     } catch (e, s) {
       log("Error add link => $e\n$s");
-      Fluttertoast.showToast(msg: "Thêm thất bại, vui lòng thử lại");
+      Fluttertoast.showToast(msg: "Failed to add, please try again".tr);
     }
   }
 
@@ -194,10 +194,10 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
       Utils.dimissKeyboard();
       _clearAndClose(result: true);
 
-      Fluttertoast.showToast(msg: "Cập nhật thành công");
+      Fluttertoast.showToast(msg: "Updated successfully".tr);
     } catch (e, s) {
       log("Error updating link => $e\n$s");
-      Fluttertoast.showToast(msg: "Cập nhật thất bại, vui lòng thử lại");
+      Fluttertoast.showToast(msg: "Failed to update, please try again".tr);
     }
   }
 
@@ -228,9 +228,9 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
       }
 
       onChangeLink(extractedUrl);
-      Fluttertoast.showToast(msg: "Đã dán link");
+      Fluttertoast.showToast(msg: "Link pasted".tr);
     } else {
-      Fluttertoast.showToast(msg: "Bộ nhớ tạm trống");
+      Fluttertoast.showToast(msg: "Clipboard is empty".tr);
     }
   }
 

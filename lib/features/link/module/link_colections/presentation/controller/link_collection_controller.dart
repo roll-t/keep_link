@@ -54,7 +54,7 @@ class LinkCollectionController extends GetxController {
     await fetchAllLinks(isInitial: true);
 
     if (showToast) {
-      Fluttertoast.showToast(msg: "Đã làm mới");
+      Fluttertoast.showToast(msg: "Refreshed".tr);
     }
   }
 
@@ -120,7 +120,7 @@ class LinkCollectionController extends GetxController {
           listLink.removeWhere((item) => item.id == id);
           Get.back();
           Get.back();
-          Fluttertoast.showToast(msg: "Đã xóa");
+          Fluttertoast.showToast(msg: "Deleted".tr);
         },
         onCancel: () => Get.back(),
       );

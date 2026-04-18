@@ -4,14 +4,21 @@ class ItemModel {
   String? id;
   String? name;
   VisibilityStatus visibility;
+  int? chilrenCount;
 
-  ItemModel({this.id, this.name, this.visibility = VisibilityStatus.public});
+  ItemModel({
+    this.id,
+    this.name,
+    this.visibility = VisibilityStatus.public,
+    this.chilrenCount,
+  });
 
   // From JSON
   factory ItemModel.fromJson(Map<String, dynamic> json) {
     return ItemModel(
       id: json['id'] as String?,
       name: json['name'] as String?,
+      chilrenCount: json['children_count'] as int?,
       visibility: VisibilityStatus.values.firstWhere(
         (e) => e.name == json['visibility'],
         orElse: () => VisibilityStatus.public,

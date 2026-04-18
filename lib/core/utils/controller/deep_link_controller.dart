@@ -49,7 +49,7 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
 
   Future<void> fetchMetaData(String url) async {
     isLoading.value = true;
-    await Future.delayed(Duration(milliseconds: 50));
+    await Future.delayed(const Duration(milliseconds: 50));
     DialogUtils.showProgressDialog();
     update(["EXTRA_LINK_ID"]);
     try {
@@ -60,6 +60,14 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
       }
     } catch (e) {
       log("Error fetching metadata: $e");
+      metaData.value = MetaDataModel(
+        url: url,
+        title: '',
+        description: '',
+        imageUrl: '',
+        favicon: '',
+        appleIcon: '',
+      );
     } finally {
       isLoading.value = false;
       update(["EXTRA_LINK_ID"]);
@@ -135,10 +143,7 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
 
     bool isJunkDescription(String text) {
       final t = text.toLowerCase();
-      return t.startsWith("nguồn:") ||
-          t.contains("nguồn:") ||
-          t.contains("source:") ||
-          t.length < 10;
+      return t.contains("nguồn:") || t.contains("source:") || t.length < 10;
     }
 
     // ===========================

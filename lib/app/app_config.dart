@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:keep_link/app_lifecycle_observer.dart';
+import 'package:keep_link/app/app_lifecycle_observer.dart';
 import 'package:keep_link/core/cache/sql_lite.dart';
 import 'package:keep_link/core/lang/translation_service.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';

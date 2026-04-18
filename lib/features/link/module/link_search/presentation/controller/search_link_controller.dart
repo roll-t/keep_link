@@ -13,6 +13,14 @@ import 'package:keep_link/features/link/application/model/link_model.dart';
 
 enum SortOption { newest, oldest, nameAZ, nameZA }
 
+/// Thống kê số lượng link theo nguồn (domain).
+class SourceStat {
+  final String host; // normalized key, e.g. "tiktok.com"
+  final String label; // display name, e.g. "TikTok"
+  final int count;
+  const SourceStat({required this.host, required this.label, required this.count});
+}
+
 class SearchLinkController extends GetxController {
   // ── State ──────────────────────────────────────────────────────────────────
   final searchTec = TextEditingController();
@@ -31,6 +39,14 @@ class SearchLinkController extends GetxController {
 
   // Sort
   final selectedSort = SortOption.newest.obs;
+
+  // Source
+  final topSources = <SourceStat>[].obs;
+  final selectedSource = Rx<String?>(null);
+
+  // Date range
+  final dateFrom = Rx<DateTime?>(null);
+  final dateTo = Rx<DateTime?>(null);
 
   final categoryScrollController = ScrollController();
 
@@ -53,6 +69,9 @@ class SearchLinkController extends GetxController {
 
     ever(selectedCategoryId, (_) => _runSearch());
     ever(selectedSort, (_) => _runSearch());
+    ever(selectedSource, (_) => _runSearch());
+    ever(dateFrom, (_) => _runSearch());
+    ever(dateTo, (_) => _runSearch());
 
     _init();
   }
@@ -74,6 +93,7 @@ class SearchLinkController extends GetxController {
       await Future.wait([CategoryRepository.ensureLoaded(), LinkRepository.ensureLoaded()]);
       _computePrivateCategoryIds();
       _populateCategoryList();
+      _computeTopSources();
       _filterAndShow();
     } catch (e) {
       log('SearchLinkController init error: $e');
@@ -99,7 +119,12 @@ class SearchLinkController extends GetxController {
   // ── Filter / Search (pure in-memory — no DB query) ────────────────────────
 
   void _filterAndShow() {
-    final all = AppCache.links.where(_passPrivacyFilter).where(_passCategoryFilter).toList();
+    final all = AppCache.links
+        .where(_passPrivacyFilter)
+        .where(_passCategoryFilter)
+        .where(_passSourceFilter)
+        .where(_passDateFilter)
+        .toList();
     searchResults.assignAll(_applySorting(all));
   }
 
@@ -114,6 +139,8 @@ class SearchLinkController extends GetxController {
     final filtered = AppCache.links
         .where(_passPrivacyFilter)
         .where(_passCategoryFilter)
+        .where(_passSourceFilter)
+        .where(_passDateFilter)
         .where((item) => _matchSearch(item, searchKey))
         .toList();
 
@@ -130,6 +157,22 @@ class SearchLinkController extends GetxController {
   bool _passCategoryFilter(LinkModel item) {
     if (selectedCategoryId.value == null) return true;
     return item.categoryId == selectedCategoryId.value;
+  }
+
+  bool _passSourceFilter(LinkModel item) {
+    if (selectedSource.value == null) return true;
+    return _normalizeHost(item.metaDataModel?.url) == selectedSource.value;
+  }
+
+  bool _passDateFilter(LinkModel item) {
+    final d = item.createdAt;
+    if (d == null) return true;
+    final from = dateFrom.value;
+    final to = dateTo.value;
+    if (from != null && d.isBefore(from)) return false;
+    // include the entire "to" day
+    if (to != null && d.isAfter(DateTime(to.year, to.month, to.day, 23, 59, 59))) return false;
+    return true;
   }
 
   bool _matchSearch(LinkModel item, String searchKey) {
@@ -158,9 +201,62 @@ class SearchLinkController extends GetxController {
 
   void selectCategory(String? id) => selectedCategoryId.value = id;
   void selectSort(SortOption opt) => selectedSort.value = opt;
+  void selectSource(String? host) => selectedSource.value = host;
+  void selectDateRange(DateTime? from, DateTime? to) {
+    dateFrom.value = from;
+    dateTo.value = to;
+  }
 
   void clearSearch() {
     searchTec.clear();
     searchResults.clear();
+  }
+
+  // ── Source helpers ─────────────────────────────────────────────────────────
+
+  /// Normalises a URL to a canonical host key (e.g. "vm.tiktok.com" → "tiktok.com").
+  static String _normalizeHost(String? url) {
+    if (url == null || url.isEmpty) return '';
+    try {
+      final h = Uri.parse(url).host.toLowerCase().replaceFirst('www.', '');
+      if (h.contains('tiktok.com')) return 'tiktok.com';
+      if (h.contains('youtu.be') || h.contains('youtube.com')) return 'youtube.com';
+      if (h.contains('instagram.com')) return 'instagram.com';
+      if (h.contains('facebook.com') || h.contains('fb.com') || h.contains('fb.watch'))
+        return 'facebook.com';
+      if (h.contains('twitter.com') || h.contains('x.com')) return 'x.com';
+      if (h.contains('google.com')) return 'google.com';
+      return h;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static String _labelForHost(String host) {
+    const labels = {
+      'tiktok.com': 'TikTok',
+      'youtube.com': 'YouTube',
+      'instagram.com': 'Instagram',
+      'facebook.com': 'Facebook',
+      'x.com': 'X',
+      'google.com': 'Google',
+    };
+    return labels[host] ?? host;
+  }
+
+  void _computeTopSources() {
+    final counter = <String, int>{};
+    for (final link in AppCache.links) {
+      if (_privateCategoryIds.contains(link.categoryId)) continue;
+      final host = _normalizeHost(link.metaDataModel?.url);
+      if (host.isEmpty) continue;
+      counter[host] = (counter[host] ?? 0) + 1;
+    }
+    final sorted = counter.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    topSources.assignAll(
+      sorted
+          .take(5)
+          .map((e) => SourceStat(host: e.key, label: _labelForHost(e.key), count: e.value)),
+    );
   }
 }
