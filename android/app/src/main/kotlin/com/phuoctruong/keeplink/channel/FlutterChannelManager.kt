@@ -1,5 +1,4 @@
 package com.phamtruong.keeplink.channel
-
 import android.content.Context
 import android.content.Intent
 import android.os.Build

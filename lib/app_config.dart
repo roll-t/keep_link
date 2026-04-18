@@ -18,7 +18,6 @@ Future<void> appConfig() async {
   await DeepLinkService.init();
   await GetStorage.init();
 
-  // Initialize localization service to load saved language preference
   await LocalizationService.initialize();
 
   // Initialize theme service to load saved theme preference
