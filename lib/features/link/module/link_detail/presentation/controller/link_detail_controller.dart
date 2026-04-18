@@ -1,6 +1,5 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
@@ -124,7 +123,6 @@ class LinkDetailController extends GetxController {
   void copyUrl() {
     if (url.isEmpty) return;
     Clipboard.setData(ClipboardData(text: url));
-    Fluttertoast.showToast(msg: "Chân thành đã sao chép");
   }
 
   void openInApp() {

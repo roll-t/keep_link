@@ -25,15 +25,15 @@ class CustomPopupWidget extends StatelessWidget {
     return Container(
       height: 45,
       constraints: BoxConstraints(minWidth: Get.width * .3, maxWidth: Get.width * .45),
-      decoration: BoxDecoration(color: AppColors.d200, borderRadius: BorderRadius.circular(100)),
+      decoration: BoxDecoration(color: AppColors.d300, borderRadius: BorderRadius.circular(100)),
       alignment: Alignment.center,
       child: Obx(() {
         final RxString displayTitle =
             (hasAll
-                    ? controller.selectedItem.value?.name ?? "Chọn danh mục"
+                    ? controller.selectedItem.value?.name ?? "Select Category".tr
                     : (controller.selectedItem.value?.id == 'all'
-                          ? "Chọn danh mục"
-                          : controller.selectedItem.value?.name ?? "Chọn danh mục"))
+                          ? "Select Category".tr
+                          : controller.selectedItem.value?.name ?? "Select Category".tr))
                 .obs;
         return CustomPopup(
           barrierColor: Colors.transparent,

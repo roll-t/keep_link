@@ -23,6 +23,7 @@ class AppVectors {
   static const icSearch = _SvgIcon("${_root}ic_search$_ext");
   static const icSearchNotFound = _SvgIcon("${_root}ic_search_not_found$_ext");
   static const icSearchFile = _SvgIcon("${_root}ic_search_file$_ext");
+  static const iclang = _SvgIcon("${_root}ic_lang$_ext");
 }
 
 class _SvgIcon {

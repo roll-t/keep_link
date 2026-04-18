@@ -1,21 +1,13 @@
 {
+  // --- Flutter & Dart (FVM) ---
   "dart.flutterSdkPath": ".fvm/versions/3.38.3",
-  "editor.formatOnSave": true,
-  "editor.formatOnType": true,
-  "editor.codeActionsOnSave": {
-    "source.organizeImports": "explicit"
-  },
-  "editor.tabSize": 2,
-  "editor.insertSpaces": true,
-  "[dart]": {
-    "editor.defaultFormatter": null,
-    "editor.formatOnSave": true
-  },
-  "[kotlin]": {
-    "editor.defaultFormatter": "esafirm.kotlin-formatter",
-    "editor.formatOnSave": true,
-    "editor.formatOnType": true
-  },
+  "dart.lineLength": 100,
+  "dart.showTodos": true,
+  "dart.flutterHotReloadOnSave": "all", // Hot reload mọi thứ cho chắc
+  "dart.imports.sortMembers": true,
+  "dart.previewFlutterUiGuides": true,
+  "dart.previewFlutterUiGuidesCustomTracking": true,
+  "dart.allowTestsOutsideTestFolder": true,
   "dart.analysisExcludedFolders": [
     "build/",
     ".dart_tool/",
@@ -23,35 +15,69 @@
     "ios/Flutter",
     "android/app/build"
   ],
-  "dart.lineLength": 100,
-  "dart.allowTestsOutsideTestFolder": true,
-  "terminal.integrated.defaultProfile.windows": "PowerShell",
-  "dart.imports.sortMembers": true,
-  "dart.showTodos": true,
-  "dart.flutterHotReloadOnSave": true,
-  "dart.previewFlutterUiGuides": true,
-  "dart.previewFlutterUiGuidesCustomTracking": true,
-  "cSpell.words": [
-    "chép",
-    "Getx",
-    "Rxn",
-    "usecase",
-    "viewmodel",
-    "widget"
-  ],
+  // --- Editor (Formatting & Clean Code) ---
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.formatOnSave": true,
+  "editor.formatOnType": true,
+  "editor.bracketPairColorization.enabled": true, // Đổ màu các cặp ngoặc (Rất quan trọng cho Flutter)
+  "editor.guides.bracketPairs": "active", // Hiển thị đường kẻ nối các cặp ngoặc đang làm việc
+  "editor.stickyScroll.enabled": true, // Giữ tên Class/Function ở trên cùng khi scroll (Cực chuyên nghiệp)
+  "editor.inlineSuggest.enabled": true, // Gợi ý code mờ (AI-friendly)
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit",
+    "source.fixAll": "explicit" // Tự động fix các lỗi lặt vặt (như thêm const) khi save
+  },
+  // --- UI/UX Customization ---
+  "editor.cursorBlinking": "expand", // Hiệu ứng con trỏ nhấp nháy mượt hơn
+  "editor.cursorSmoothCaretAnimation": "on", // Con trỏ di chuyển mượt (smooth)
+  "editor.fontFamily": "'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace", // Font chuyên dụng cho dev
+  "editor.fontLigatures": true, // Bật ký tự đặc biệt (ví dụ => sẽ thành mũi tên đẹp)
+  "editor.minimap.enabled": false, // Tắt minimap cho rộng màn hình nếu không dùng đến
+  "editor.renderWhitespace": "selection", // Chỉ hiện dấu cách khi bôi đen
+  // --- Language Specifics ---
+  "[dart]": {
+    "editor.defaultFormatter": "Dart-Code.dart-code", // Chỉ định rõ formatter của Dart
+    "editor.formatOnSave": true,
+    "editor.selectionHighlight": false,
+    "editor.suggest.snippetsPreventQuickSuggestions": false
+  },
+  "[kotlin]": {
+    "editor.defaultFormatter": "esafirm.kotlin-formatter",
+    "editor.formatOnSave": true
+  },
+  // --- File & Search Management ---
   "files.exclude": {
     "**/.git": true,
-    "**/.svn": true,
-    "**/.hg": true,
     "**/.dart_tool": true,
     "**/.fvm": true,
     "**/build": true,
-    "**/ios/Flutter": true,
-    "**/android/app/build": true
+    "**/.idea": true,
+    "**/.vscode": false // Nên hiện .vscode để check setting dự án
   },
   "search.exclude": {
     "**/.dart_tool": true,
     "**/.fvm": true,
-    "**/build": true
-  }
+    "**/build": true,
+    "**/generated": true
+  },
+  // --- Spell Check (GetX & Clean Arch) ---
+  "cSpell.words": [
+    "Getx",
+    "Rxn",
+    "usecase",
+    "viewmodel",
+    "widget",
+    "obs",
+    "middleware",
+    "binding",
+    "interceptor",
+    "repository",
+    "datasource",
+    "payload"
+  ],
+  // --- Terminal ---
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.copyOnSelection": true, // Tự động copy khi bôi đen trong terminal
+  "terminal.integrated.cursorStyle": "line"
 }

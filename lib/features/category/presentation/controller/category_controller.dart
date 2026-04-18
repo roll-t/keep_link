@@ -62,7 +62,7 @@ class CategoryController extends GetxController {
     final now = DateTime.now();
     final defaultCategory = CategoryModel(
       id: now.millisecondsSinceEpoch.toString(),
-      name: "Danh mục",
+      name: "Category".tr,
       createdAt: now,
     );
     await DbHelper.upsert(defaultCategory);
@@ -125,7 +125,7 @@ class CategoryController extends GetxController {
 
     try {
       await DbHelper.upsert(categoryUpdate);
-      Fluttertoast.showToast(msg: "Cập nhật thành công");
+      Fluttertoast.showToast(msg: "Update successful".tr);
 
       categories[index] = categoryUpdate;
       _sortCategories(categories);
@@ -146,14 +146,14 @@ class CategoryController extends GetxController {
     if (selected == null || selected.id == 'all') return;
 
     if (Get.find<LinkCollectionController>().listLink.isNotEmpty) {
-      Fluttertoast.showToast(msg: "Danh mục có chứa link\nKhông thể xóa!");
+      Fluttertoast.showToast(msg: "Category contains links\nCannot delete!".tr);
       return;
     }
 
     DialogUtils.showConfirm(
       alertType: AlertType.warning,
-      title: "Xác nhận",
-      content: "Bạn có chắn muốn xóa!",
+      title: "Confirm".tr,
+      content: "Are you sure you want to delete!".tr,
       onConfirm: () async {
         try {
           final id = selected.id ?? "";
@@ -186,7 +186,7 @@ class CategoryController extends GetxController {
 
   void _updatePopupItems({String? selectId}) {
     final newItems = [
-      ItemModel(id: "all", name: "Tất cả"),
+      ItemModel(id: "all", name: "All".tr),
       ...categories.map((c) => ItemModel(id: c.id, name: c.name, visibility: c.visibility)),
     ];
 

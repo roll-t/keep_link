@@ -21,7 +21,7 @@ class HeaderLinkCollection extends GetView<CategoryController> {
           children: [
             AppVectors.icSetting.show(
               size: 28,
-              backgroundColor: AppColors.d200,
+              backgroundColor: AppColors.d300,
               padding: const EdgeInsets.all(8),
               onTap: () {
                 Get.toNamed(SettingPage.routeName);
@@ -42,7 +42,7 @@ class HeaderLinkCollection extends GetView<CategoryController> {
                           children: [
                             AppVectors.icEdit.show(
                               size: 28,
-                              backgroundColor: AppColors.d200,
+                              backgroundColor: AppColors.d300,
                               padding: const EdgeInsets.all(8),
                               onTap: () {
                                 Get.dialog(CategoryDialog(isEditMode: true));
@@ -54,7 +54,7 @@ class HeaderLinkCollection extends GetView<CategoryController> {
                 ),
                 AppVectors.icAdd.show(
                   size: 28,
-                  backgroundColor: AppColors.d200,
+                  backgroundColor: AppColors.d300,
                   padding: const EdgeInsets.all(8),
                   onTap: () {
                     // add

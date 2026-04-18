@@ -7,9 +7,7 @@ class CategoryModel implements DbModel {
   String? name;
   String? description;
   String? iconUrl;
-
   VisibilityStatus visibility;
-
   DateTime? createdAt;
   DateTime? updatedAt;
 

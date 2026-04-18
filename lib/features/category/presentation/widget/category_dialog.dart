@@ -31,14 +31,14 @@ class CategoryDialog extends GetView<CategoryController> {
       children: [
         PrimaryButton(
           isMaxParent: true,
-          text: isEditMode ? "Lưu" : "Thêm",
+          text: isEditMode ? "Save".tr : "Add".tr,
           onPressed: isEditMode ? controller.updateCategory : controller.addCategory,
         ),
         if (isEditMode) const SizedBox(height: 8),
         if (isEditMode)
           PrimaryButton(
             isMaxParent: true,
-            text: "Xoá",
+            text: "Delete".tr,
             onPressed: controller.deleteCategory,
             backgroundColor: AppColors.d300,
             color: AppColors.red,
@@ -66,7 +66,7 @@ class CategoryDialog extends GetView<CategoryController> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     TextWidget(
-                      text: isEditMode ? "Chỉnh sửa danh mục" : "Thêm danh mục",
+                      text: isEditMode ? "Edit Category".tr : "Add Category".tr,
                       textStyle: AppTextStyle.medium24,
                       color: AppColors.primary,
                     ),
@@ -86,7 +86,7 @@ class CategoryDialog extends GetView<CategoryController> {
                 Obx(
                   () => SimpleInputTextField(
                     controller: controller.categoryNameController,
-                    hintText: "Nhập tên danh mục",
+                    hintText: "Enter category name".tr,
                     errorText: controller.errorMess.value,
                     onChanged: (_) => controller.onChangeDismissError(),
                   ),
@@ -110,13 +110,13 @@ class CategoryDialog extends GetView<CategoryController> {
         child: Row(
           children: [
             _visibilityItem(
-              label: "Công khai",
+              label: "Public".tr,
               icon: Icons.public,
               selected: isPublic,
               onTap: () => controller.setVisibility(VisibilityStatus.public),
             ),
             _visibilityItem(
-              label: "Riêng tư",
+              label: "Private".tr,
               icon: Icons.lock,
               selected: !isPublic,
               onTap: () => controller.setVisibility(VisibilityStatus.private),

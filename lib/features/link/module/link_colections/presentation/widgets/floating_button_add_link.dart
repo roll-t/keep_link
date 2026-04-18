@@ -50,7 +50,7 @@ class FloatingButtonAddLink extends StatelessWidget {
               children: [
                 _buildItem(
                   icon: AppVectors.icSearch.path,
-                  label: "Tìm kiếm",
+                  label: "Search",
                   onTap: () {
                     Get.toNamed(SearchLinkPage.routeName);
                   },
@@ -77,7 +77,7 @@ class FloatingButtonAddLink extends StatelessWidget {
 
                 _buildItem(
                   icon: AppVectors.icAddLink.path,
-                  label: "Thêm link",
+                  label: "Add Link",
                   onTap: () {
                     HapticFeedback.mediumImpact();
                     Get.toNamed(AddLinkPage.routeName)?.then((success) {

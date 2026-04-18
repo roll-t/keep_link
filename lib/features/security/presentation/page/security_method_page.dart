@@ -17,7 +17,7 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(title: "Phương thức bảo mật"),
+      appBar: CustomAppBar(title: "Security Methods"),
       body: Obx(() {
         final isAppSecOn = controller.isAppSecurityEnabled.value;
         final isCatSecOn = controller.isCategorySecurityEnabled.value;
@@ -29,18 +29,18 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
             child: Column(
               children: [
                 // ==============================
-                // PHẦN 1: CÁC SWITCH CÀI ĐẶT
+                // PART 1: SETTING SWITCHES
                 // ==============================
                 Column(
                   children: [
                     _buildSwitchItem(
-                      title: "Bảo mật ứng dụng",
+                      title: "App Security",
                       value: isAppSecOn,
                       onChanged: (_) => controller.toggleAppSecurity(),
                     ),
                     const SizedBox(height: 16),
                     _buildSwitchItem(
-                      title: "Bảo mật danh mục",
+                      title: "Category Security",
                       value: isCatSecOn,
                       isEnabled: true,
                       onChanged: (_) => controller.toggleCategorySecurity(),
@@ -51,16 +51,16 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
                 const SizedBox(height: 20),
 
                 // ==============================
-                // PHẦN 2: CÁC NÚT TÙY CHỌN LỚN
+                // PART 2: LARGE OPTION BUTTONS
                 // ==============================
                 SizedBox(
                   height: Get.height * .6,
                   child: Column(
                     children: [
-                      // ----- Nút PIN -----
+                      // ----- PIN Button -----
                       Expanded(
                         child: _buildBigOptionCard(
-                          title: "Mã PIN",
+                          title: "PIN Code",
                           iconVector: AppVectors.icPin.path,
                           isEnabled: isPinActive,
                           isActive: isPinActive,
@@ -70,10 +70,10 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
 
                       const SizedBox(height: 20),
 
-                      // ----- Nút Vân tay -----
+                      // ----- Fingerprint Button -----
                       Expanded(
                         child: _buildBigOptionCard(
-                          title: "Vân tay",
+                          title: "Fingerprint",
                           iconVector: AppVectors.icFinger.path,
                           isEnabled: isAppSecOn,
                           isActive: isFingerOn,
@@ -93,7 +93,7 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
     );
   }
 
-  /// Widget con: Dòng Switch bật tắt
+  /// Sub widget: Toggle switch row
   Widget _buildSwitchItem({
     required String title,
     required bool value,
@@ -121,7 +121,7 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
     );
   }
 
-  /// Widget con: Thẻ tùy chọn lớn (PIN / Vân tay)
+  /// Sub widget: Large option card (PIN / Fingerprint)
   Widget _buildBigOptionCard({
     required String title,
     required String iconVector,
