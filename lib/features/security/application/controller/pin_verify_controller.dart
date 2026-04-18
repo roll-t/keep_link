@@ -7,12 +7,15 @@ import 'package:keep_link/features/security/presentation/widget/pin_verify_form.
 class PinVerifyController extends GetxController {
   // PIN cũ (xác thực)
   final TextEditingController pinController = TextEditingController();
+  final FocusNode focusNode = FocusNode();
 
   // PIN mới
   final TextEditingController newPinController = TextEditingController();
+  final FocusNode newPinFocus = FocusNode();
 
   // Xác nhận PIN mới
   final TextEditingController confirmPinController = TextEditingController();
+  final FocusNode confirmPinFocus = FocusNode();
   final Rx<FromType> mode = FromType.create.obs;
   bool isPINCorrect = false;
   final firstPin = "".obs;
@@ -36,8 +39,13 @@ class PinVerifyController extends GetxController {
   @override
   void onClose() {
     pinController.dispose();
+    focusNode.dispose();
+
     newPinController.dispose();
+    newPinFocus.dispose();
+
     confirmPinController.dispose();
+    confirmPinFocus.dispose();
     super.onClose();
   }
 
@@ -45,10 +53,18 @@ class PinVerifyController extends GetxController {
   // XỬ LÝ USER Nhập Đủ 4 số
   // ========================================================
   void onCompleted(String pin) {
-    if (mode.value == FromType.create) {
-      _handleCreatePin(pin);
-    } else {
-      _verifyOldPin(pin);
+    switch (mode.value) {
+      case FromType.create:
+        _handleCreatePin(pin);
+        break;
+
+      case FromType.confirm:
+        _verifyOldPin(pin);
+        break;
+
+      case FromType.changePassword:
+        _verifyOldPin(pin);
+        break;
     }
   }
 
@@ -60,13 +76,14 @@ class PinVerifyController extends GetxController {
   // Khi xác nhận PIN mới (đổi PIN)
   void onCompletedConfirmPin(String pin) {
     if (pin != firstPin.value) {
-      _toast("PIN confirmation does not match".tr);
+      _toast("PIN xác nhận không khớp");
       confirmPinController.clear();
+      confirmPinFocus.requestFocus();
       return;
     }
 
     AppGetStorage.savePin(pin);
-    _toast("PIN changed successfully".tr);
+    _toast("Đổi PIN thành công");
     Get.back(result: true);
   }
 
@@ -76,12 +93,23 @@ class PinVerifyController extends GetxController {
   void _verifyOldPin(String pin) {
     final savedPin = AppGetStorage.getPin();
     if (pin != savedPin) {
-      _toast("Incorrect PIN".tr);
+      _toast("PIN không đúng");
       _resetAllInput();
       isPINCorrect = false;
       return;
     }
 
+    // Nếu đang đổi PIN → qua bước nhập PIN mới
+    if (mode.value == FromType.changePassword) {
+      mode.value = FromType.create; // Sang bước tạo PIN mới
+      firstPin.value = "";
+      _resetAllInput();
+      _toast("Nhập PIN mới");
+      return;
+    }
+
+    // Dùng cho xác thực mở khóa
+    _toast("PIN chính xác");
     isPINCorrect = true;
     Get.back(result: true);
   }
@@ -93,7 +121,7 @@ class PinVerifyController extends GetxController {
     // Lần 1
     if (firstPin.value.isEmpty) {
       firstPin.value = pin;
-      _toast("Re-enter PIN to confirm".tr);
+      _toast("Nhập lại PIN để xác nhận");
       pinController.clear();
       return;
     }
@@ -102,13 +130,13 @@ class PinVerifyController extends GetxController {
     if (pin == firstPin.value) {
       AppGetStorage.savePin(pin);
 
-      _toast("PIN has been set".tr);
+      _toast("PIN đã được thiết lập");
       Get.back(result: pin);
       return;
     }
 
     // Không khớp
-    _toast("The two PINs do not match".tr);
+    _toast("Hai lần nhập không khớp");
     firstPin.value = "";
     pinController.clear();
   }

@@ -24,11 +24,9 @@ class PinVerifyPage extends GetView<PinVerifyController> {
           ),
         ),
       ),
-      body: Obx(
-        () => Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [PinVerifyForm(fromType: controller.mode.value)],
-        ),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [PinVerifyForm(fromType: controller.mode.value)],
       ),
     );
   }

@@ -103,7 +103,7 @@ class SecurityMethodController extends GetxController {
 
       isAppSecurityEnabled.value = true;
       AppGetStorage.setSecurityEnabled(true);
-      Utils.showToast('App security enabled'.tr);
+      Utils.showToast('Đã bật bảo mật ứng dụng');
     } else {
       await _verifyThenRun(() async {
         isAppSecurityEnabled.value = false;
@@ -115,7 +115,7 @@ class SecurityMethodController extends GetxController {
           AppGetStorage.setFingerprintEnabled(false);
         }
 
-        Utils.showToast('App security disabled'.tr);
+        Utils.showToast('Đã tắt bảo mật ứng dụng');
       });
     }
   }
@@ -129,13 +129,13 @@ class SecurityMethodController extends GetxController {
 
       isCategorySecurityEnabled.value = true;
       AppGetStorage.setCategorySecurity(true);
-      Utils.showToast('Category security enabled'.tr);
+      Utils.showToast('Đã bật bảo mật danh mục');
       _refreshCustomPopup();
     } else {
       await _verifyThenRun(() async {
         isCategorySecurityEnabled.value = false;
         AppGetStorage.setCategorySecurity(false);
-        Utils.showToast('Category security disabled'.tr);
+        Utils.showToast('Đã tắt bảo mật danh mục');
         _refreshCustomPopup();
       });
     }
@@ -150,13 +150,13 @@ class SecurityMethodController extends GetxController {
 
   Future<void> toggleFingerprint() async {
     if (!isAppSecurityEnabled.value) {
-      Utils.showToast('Please enable app security first'.tr);
+      Utils.showToast('Vui lòng bật bảo mật ứng dụng trước');
       return;
     }
 
     final savedPin = AppGetStorage.getPin();
     if (savedPin == null || savedPin.isEmpty) {
-      Utils.showToast('Please set up a PIN first'.tr);
+      Utils.showToast('Vui lòng thiết lập mã PIN trước');
       return;
     }
 
@@ -164,27 +164,27 @@ class SecurityMethodController extends GetxController {
     if (isFingerprintEnabled.value) {
       isFingerprintEnabled.value = false;
       AppGetStorage.setFingerprintEnabled(false);
-      Utils.showToast('Fingerprint login disabled'.tr);
+      Utils.showToast('Đã tắt đăng nhập bằng vân tay');
       return;
     }
 
     // Bật vân tay — kiểm tra thiết bị trước
     if (!await BiometricService.isSupported()) {
-      Utils.showToast('Device does not support fingerprint / Face ID'.tr);
+      Utils.showToast('Thiết bị không hỗ trợ vân tay / Face ID');
       return;
     }
     if (!await BiometricService.canCheck()) {
-      Utils.showToast('Please set up fingerprint in device Settings'.tr);
+      Utils.showToast('Vui lòng cài đặt vân tay trong Cài đặt máy');
       return;
     }
     if (!await BiometricService.authenticate()) {
-      Utils.showToast('Fingerprint verification failed'.tr);
+      Utils.showToast('Xác nhận vân tay thất bại');
       return;
     }
 
     isFingerprintEnabled.value = true;
     AppGetStorage.setFingerprintEnabled(true);
-    Utils.showToast('Fingerprint login enabled'.tr);
+    Utils.showToast('Đã bật đăng nhập bằng vân tay');
   }
 
   // ─── 4. ĐỔI MÃ PIN ──────────────────────────────────────────────────────────
@@ -200,6 +200,10 @@ class SecurityMethodController extends GetxController {
 
     // Đã có PIN → xác thực trước khi đổi
     await _verifyThenRun(() async {
+      DialogUtils.showProgressDialog();
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (Get.isDialogOpen ?? false) Get.back();
+
       await Get.toNamed(PinVerifyPage.routeName, arguments: FromType.changePassword);
     });
   }

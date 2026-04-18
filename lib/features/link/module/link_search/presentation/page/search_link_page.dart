@@ -303,53 +303,121 @@ class _FilterSheet extends StatelessWidget {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        child: SingleChildScrollView(
-          child: SizedBox(
-            height: Get.height * 0.55,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Handle bar
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.white.withOpacityCompat(0.2),
-                      borderRadius: BorderRadius.circular(2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.white.withOpacityCompat(0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            const TextWidget(
+              text: 'Sort by',
+              color: AppColors.white,
+              size: 16,
+              fontWeight: FontWeight.w600,
+            ),
+            const SizedBox(height: 12),
+
+            Obx(
+              () => Column(
+                children: _sortOptions.map((opt) {
+                  final (value, label, icon) = opt;
+                  final selected = ctrl.selectedSort.value == value;
+                  return GestureDetector(
+                    onTap: () {
+                      ctrl.selectSort(value);
+                      Get.back();
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? AppColors.primary.withOpacityCompat(0.15)
+                            : AppColors.white.withOpacityCompat(0.04),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: selected
+                              ? AppColors.primary.withOpacityCompat(0.5)
+                              : Colors.transparent,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            icon,
+                            color: selected
+                                ? AppColors.primary
+                                : AppColors.white.withOpacityCompat(0.5),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          TextWidget(
+                            text: label,
+                            color: selected
+                                ? AppColors.white
+                                : AppColors.white.withOpacityCompat(0.6),
+                            size: 15,
+                            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                          const Spacer(),
+                          if (selected)
+                            Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+                        ],
+                      ),
                     ),
+                  );
+                }).toList(),
+              ),
+            ),
+
+            // ─ Date range section ────────────────────────────────────────────
+            _DateRangeSection(ctrl: ctrl),
+
+            // ─ Source section ─────────────────────────────────────────────────
+            Obx(() {
+              final sources = ctrl.topSources;
+              if (sources.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  const TextWidget(
+                    text: 'Top sources',
+                    color: AppColors.white,
+                    size: 16,
+                    fontWeight: FontWeight.w600,
                   ),
-                ),
-                const SizedBox(height: 20),
-
-                const TextWidget(
-                  text: 'Sort by',
-                  color: AppColors.white,
-                  size: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-                const SizedBox(height: 12),
-
-                Obx(
-                  () => Column(
-                    children: _sortOptions.map((opt) {
-                      final (value, label, icon) = opt;
-                      final selected = ctrl.selectedSort.value == value;
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: sources.map((s) {
+                      final selected = ctrl.selectedSource.value == s.host;
                       return GestureDetector(
                         onTap: () {
-                          ctrl.selectSort(value);
+                          ctrl.selectSource(selected ? null : s.host);
                           Get.back();
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: selected
                                 ? AppColors.primary.withOpacityCompat(0.15)
                                 : AppColors.white.withOpacityCompat(0.04),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: selected
                                   ? AppColors.primary.withOpacityCompat(0.5)
@@ -357,148 +425,71 @@ class _FilterSheet extends StatelessWidget {
                             ),
                           ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                icon,
-                                color: selected
-                                    ? AppColors.primary
-                                    : AppColors.white.withOpacityCompat(0.5),
-                                size: 20,
-                              ),
-                              const SizedBox(width: 12),
+                              _sourceIcon(s.host, size: 14),
+                              const SizedBox(width: 6),
                               TextWidget(
-                                text: label,
+                                text: s.label,
                                 color: selected
                                     ? AppColors.white
-                                    : AppColors.white.withOpacityCompat(0.6),
-                                size: 15,
+                                    : AppColors.white.withOpacityCompat(0.75),
+                                size: 13,
                                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                               ),
-                              const Spacer(),
-                              if (selected)
-                                Icon(
-                                  Icons.check_circle_rounded,
-                                  color: AppColors.primary,
-                                  size: 18,
+                              const SizedBox(width: 5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? AppColors.primary
+                                      : AppColors.white.withOpacityCompat(0.12),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
+                                child: TextWidget(
+                                  text: '${s.count}',
+                                  color: AppColors.white,
+                                  size: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ],
                           ),
                         ),
                       );
                     }).toList(),
                   ),
+                ],
+              );
+            }),
+
+            // Reset button
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () {
+                ctrl.selectSort(SortOption.newest);
+                ctrl.selectCategory(null);
+                ctrl.selectSource(null);
+                ctrl.selectDateRange(null, null);
+                Navigator.of(context).pop();
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.white.withOpacityCompat(0.06),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-
-                // ─ Date range section ────────────────────────────────────────────
-                _DateRangeSection(ctrl: ctrl),
-
-                // ─ Source section ─────────────────────────────────────────────────
-                Obx(() {
-                  final sources = ctrl.topSources;
-                  if (sources.isEmpty) return const SizedBox.shrink();
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 20),
-                      const TextWidget(
-                        text: 'Top sources',
-                        color: AppColors.white,
-                        size: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: sources.map((s) {
-                          final selected = ctrl.selectedSource.value == s.host;
-                          return GestureDetector(
-                            onTap: () {
-                              ctrl.selectSource(selected ? null : s.host);
-                              Get.back();
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? AppColors.primary.withOpacityCompat(0.15)
-                                    : AppColors.white.withOpacityCompat(0.04),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: selected
-                                      ? AppColors.primary.withOpacityCompat(0.5)
-                                      : Colors.transparent,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _sourceIcon(s.host, size: 14),
-                                  const SizedBox(width: 6),
-                                  TextWidget(
-                                    text: s.label,
-                                    color: selected
-                                        ? AppColors.white
-                                        : AppColors.white.withOpacityCompat(0.75),
-                                    size: 13,
-                                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                    decoration: BoxDecoration(
-                                      color: selected
-                                          ? AppColors.primary
-                                          : AppColors.white.withOpacityCompat(0.12),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: TextWidget(
-                                      text: '${s.count}',
-                                      color: AppColors.white,
-                                      size: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  );
-                }),
-
-                // Reset button
-                const SizedBox(height: 16),
-                GestureDetector(
-                  onTap: () {
-                    ctrl.selectSort(SortOption.newest);
-                    ctrl.selectCategory(null);
-                    ctrl.selectSource(null);
-                    ctrl.selectDateRange(null, null);
-                    Navigator.of(context).pop();
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.white.withOpacityCompat(0.06),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const TextWidget(
-                      text: 'Reset filters',
-                      textAlign: TextAlign.center,
-                      color: AppColors.n80,
-                      size: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                child: const TextWidget(
+                  text: 'Reset filters',
+                  textAlign: TextAlign.center,
+                  color: AppColors.n80,
+                  size: 14,
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

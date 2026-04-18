@@ -9,7 +9,7 @@ import 'package:pinput/pinput.dart';
 
 enum FromType { confirm, create, changePassword }
 
-class PinVerifyForm extends StatefulWidget {
+class PinVerifyForm extends StatelessWidget {
   final VoidCallback? onCompleted;
   final FromType fromType;
   final Color? background;
@@ -30,40 +30,21 @@ class PinVerifyForm extends StatefulWidget {
   });
 
   @override
-  State<PinVerifyForm> createState() => _PinVerifyFormState();
-}
-
-class _PinVerifyFormState extends State<PinVerifyForm> {
-  // FocusNodes live with the widget — disposed when widget unmounts,
-  // not when the GetX controller is deleted.
-  final FocusNode _focusNode = FocusNode();
-  final FocusNode _newPinFocus = FocusNode();
-  final FocusNode _confirmPinFocus = FocusNode();
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    _newPinFocus.dispose();
-    _confirmPinFocus.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return GetBuilder<PinVerifyController>(
       builder: (controller) {
         final defaultPinTheme = _buildDefaultPinTheme();
         return Container(
-          width: widget.width ?? Get.width,
-          margin: widget.margin ?? const EdgeInsets.symmetric(horizontal: 40),
+          width: width ?? Get.width,
+          margin: margin ?? const EdgeInsets.symmetric(horizontal: 40),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: widget.background ?? AppColors.d300,
+            color: background ?? AppColors.d300,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Obx(() {
             final isConfirmStep = controller.firstPin.value.isNotEmpty;
-            if (widget.fromType == FromType.changePassword) {
+            if (fromType == FromType.changePassword) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -72,18 +53,14 @@ class _PinVerifyFormState extends State<PinVerifyForm> {
 
                   // PIN mới
                   Pinput(
-                    autofocus: true,
                     onTapOutside: (event) {
                       Utils.dimissKeyboard();
                     },
                     length: 4,
                     controller: controller.newPinController,
-                    focusNode: _newPinFocus,
+                    focusNode: controller.newPinFocus,
                     defaultPinTheme: defaultPinTheme,
-                    onCompleted: (pin) {
-                      controller.onCompletedNewPin(pin);
-                      _confirmPinFocus.requestFocus();
-                    },
+                    onCompleted: (pin) => controller.onCompletedNewPin(pin),
                   ),
 
                   const SizedBox(height: 28),
@@ -95,7 +72,7 @@ class _PinVerifyFormState extends State<PinVerifyForm> {
                   Pinput(
                     length: 4,
                     controller: controller.confirmPinController,
-                    focusNode: _confirmPinFocus,
+                    focusNode: controller.confirmPinFocus,
                     defaultPinTheme: defaultPinTheme,
                     onCompleted: (pin) => controller.onCompletedConfirmPin(pin),
                   ),
@@ -106,8 +83,8 @@ class _PinVerifyFormState extends State<PinVerifyForm> {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ...(widget.title != null
-                    ? [widget.title!]
+                ...(title != null
+                    ? [title!]
                     : [
                         TextWidget(
                           text: (isConfirmStep ? "Confirm PIN" : "Enter PIN"),
@@ -117,10 +94,9 @@ class _PinVerifyFormState extends State<PinVerifyForm> {
                       ]),
 
                 Pinput(
-                  autofocus: true,
                   length: 4,
                   controller: controller.pinController,
-                  focusNode: _focusNode,
+                  focusNode: controller.focusNode,
                   defaultPinTheme: defaultPinTheme,
                   focusedPinTheme: defaultPinTheme.copyWith(
                     decoration: defaultPinTheme.decoration!.copyWith(
@@ -140,7 +116,7 @@ class _PinVerifyFormState extends State<PinVerifyForm> {
                   onCompleted: (pin) {
                     controller.onCompleted(pin);
                     if (controller.isPINCorrect) {
-                      widget.onCompleted?.call();
+                      onCompleted?.call();
                     }
                   },
                 ),
