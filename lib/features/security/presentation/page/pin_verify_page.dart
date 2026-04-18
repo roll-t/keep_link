@@ -19,7 +19,7 @@ class PinVerifyPage extends GetView<PinVerifyController> {
         ),
         title: Obx(
           () => TextWidget(
-            text: controller.mode.value == FromType.changePassword ? "Đổi PIN" : "Đặt PIN",
+            text: controller.mode.value == FromType.changePassword ? "Change PIN" : "Set PIN",
             textStyle: AppTextStyle.semiBold20,
           ),
         ),

@@ -1,21 +1,12 @@
 {
+  // --- Flutter & Dart (FVM) ---
   "dart.flutterSdkPath": ".fvm/versions/3.38.3",
-  "editor.formatOnSave": true,
-  "editor.formatOnType": true,
-  "editor.codeActionsOnSave": {
-    "source.organizeImports": "explicit"
-  },
-  "editor.tabSize": 2,
-  "editor.insertSpaces": true,
-  "[dart]": {
-    "editor.defaultFormatter": null,
-    "editor.formatOnSave": true
-  },
-  "[kotlin]": {
-    "editor.defaultFormatter": "esafirm.kotlin-formatter",
-    "editor.formatOnSave": true,
-    "editor.formatOnType": true
-  },
+  "dart.lineLength": 100,
+  "dart.showTodos": true,
+  "dart.flutterHotReloadOnSave": "all",
+  "dart.previewFlutterUiGuides": true,
+  "dart.previewFlutterUiGuidesCustomTracking": true,
+  "dart.allowTestsOutsideTestFolder": true,
   "dart.analysisExcludedFolders": [
     "build/",
     ".dart_tool/",
@@ -23,35 +14,66 @@
     "ios/Flutter",
     "android/app/build"
   ],
-  "dart.lineLength": 100,
-  "dart.allowTestsOutsideTestFolder": true,
-  "terminal.integrated.defaultProfile.windows": "PowerShell",
-  "dart.imports.sortMembers": true,
-  "dart.showTodos": true,
-  "dart.flutterHotReloadOnSave": true,
-  "dart.previewFlutterUiGuides": true,
-  "dart.previewFlutterUiGuidesCustomTracking": true,
-  "cSpell.words": [
-    "chép",
-    "Getx",
-    "Rxn",
-    "usecase",
-    "viewmodel",
-    "widget"
-  ],
+  // --- Editor ---
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.formatOnSave": true,
+  "editor.formatOnType": true,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": false,
+  "editor.stickyScroll.enabled": true,
+  "editor.inlineSuggest.enabled": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  // --- UI / UX ---
+  "editor.cursorBlinking": "expand",
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.fontLigatures": false,
+  "editor.minimap.enabled": false,
+  "editor.renderWhitespace": "selection",
+  // --- Language Specifics ---
+  "[dart]": {
+    "editor.defaultFormatter": "Dart-Code.dart-code",
+    "editor.formatOnSave": true,
+    "editor.selectionHighlight": false,
+    "editor.suggest.snippetsPreventQuickSuggestions": false
+  },
+  "[kotlin]": {
+    "editor.formatOnSave": true
+  },
+  // --- File & Search Management ---
   "files.exclude": {
     "**/.git": true,
-    "**/.svn": true,
-    "**/.hg": true,
     "**/.dart_tool": true,
     "**/.fvm": true,
     "**/build": true,
-    "**/ios/Flutter": true,
-    "**/android/app/build": true
+    "**/.idea": true,
+    "**/.vscode": false
   },
   "search.exclude": {
     "**/.dart_tool": true,
     "**/.fvm": true,
-    "**/build": true
-  }
+    "**/build": true,
+    "**/generated": true
+  },
+  // --- Spell Check ---
+  "cSpell.words": [
+    "Getx",
+    "Rxn",
+    "usecase",
+    "viewmodel",
+    "widget",
+    "obs",
+    "middleware",
+    "binding",
+    "interceptor",
+    "repository",
+    "datasource",
+    "payload"
+  ],
+  // --- Terminal ---
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.copyOnSelection": true,
+  "terminal.integrated.cursorStyle": "line",
 }

@@ -14,7 +14,7 @@ class WarningPage extends GetView<WarningController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const TextWidget(text: "Lưu ý", textStyle: AppTextStyle.semiBold20),
+        title: const TextWidget(text: "Warnings", textStyle: AppTextStyle.semiBold20),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -37,19 +37,19 @@ class WarningPage extends GetView<WarningController> {
               if (!await launchUrl(uri)) {
                 ScaffoldMessenger.of(
                   context,
-                ).showSnackBar(const SnackBar(content: Text("Không thể mở email")));
+                ).showSnackBar(const SnackBar(content: Text("Unable to open email")));
               }
             } else if (uri.scheme == 'zalo') {
               if (!await launchUrl(uri)) {
                 ScaffoldMessenger.of(
                   context,
-                ).showSnackBar(const SnackBar(content: Text("Không thể mở Zalo")));
+                ).showSnackBar(const SnackBar(content: Text("Unable to open Zalo")));
               }
             } else {
               if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
                 ScaffoldMessenger.of(
                   context,
-                ).showSnackBar(const SnackBar(content: Text("Không thể mở link")));
+                ).showSnackBar(const SnackBar(content: Text("Unable to open link")));
               }
             }
           },

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+
+    <!--
+        Chỉ tin tưởng CA của hệ thống (không trust user-installed certs).
+        Đây là mặc định của Android 7+, khai báo tường minh để rõ ràng.
+    -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!--
+        Cho phép debug (Charles Proxy / Wireshark) trên debug build.
+        Release build KHÔNG có block này → an toàn.
+    -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+
+</network-security-config>

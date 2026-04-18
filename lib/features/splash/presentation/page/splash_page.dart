@@ -12,7 +12,6 @@ import 'package:keep_link/features/splash/presentation/controller/splash_control
 class SplashPage extends StatelessWidget {
   static const String routeName = "/SplashPage";
   const SplashPage({super.key});
-
   @override
   Widget build(BuildContext context) {
     final controller = DependencyUtils.find<SplashController>();
@@ -56,7 +55,7 @@ class SplashPage extends StatelessWidget {
                           if (controller?.isFingerprintEnabled.value ?? false) ...[
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: TextWidget(text: "Hoặc"),
+                              child: TextWidget(text: "Or".tr),
                             ),
                             AppVectors.icFinger.show(
                               size: 60,

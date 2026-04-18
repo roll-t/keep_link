@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_enum.dart';
-import 'package:keep_link/core/local_storage/sql_lite.dart';
 import 'package:keep_link/core/model/item_model.dart';
+import 'package:keep_link/core/repository/category_repository.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
 import 'package:keep_link/core/utils/binding/dependency_utils.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
@@ -42,18 +42,17 @@ class CategoryController extends GetxController {
   /// CORE: FETCH & REFRESH (Gộp logic)
   /// -----------------------------
   Future<void> fetchCategories({bool keepSelection = false}) async {
-    final res = await DbHelper.getAll(CategoryModel().tableName);
-    List<CategoryModel> loadedList = [];
-    if (res.isNotEmpty) {
-      loadedList = res.map((e) => CategoryModel.fromJson(e)).toList();
-    } else {
+    // Load from cache (no DB hit if already loaded).
+    await CategoryRepository.ensureLoaded();
+    List<CategoryModel> loadedList = CategoryRepository.getAll().toList();
+
+    if (loadedList.isEmpty) {
       final defaultCategory = await _createDefaultCategory();
       loadedList.add(defaultCategory);
     }
     _sortCategories(loadedList);
     categories.assignAll(loadedList);
 
-    // Giữ lại ID đang chọn nếu refresh, ngược lại reset
     final currentSelectedId = keepSelection ? popupController.selectedItem.value?.id : null;
     _updatePopupItems(selectId: currentSelectedId);
   }
@@ -62,10 +61,10 @@ class CategoryController extends GetxController {
     final now = DateTime.now();
     final defaultCategory = CategoryModel(
       id: now.millisecondsSinceEpoch.toString(),
-      name: "Danh mục",
+      name: "Category".tr,
       createdAt: now,
     );
-    await DbHelper.upsert(defaultCategory);
+    await CategoryRepository.insert(defaultCategory);
     return defaultCategory;
   }
 
@@ -84,9 +83,10 @@ class CategoryController extends GetxController {
         visibility: visibility.value,
       );
 
-      await DbHelper.upsert(category);
+      await CategoryRepository.insert(category);
 
-      // Cập nhật UI: Thêm vào đầu danh sách thay vì fetch lại toàn bộ
+      // Write-through: cache already updated inside CategoryRepository.insert.
+      // Just sync the local UI list.
       categories.insert(0, category);
       _updatePopupItems(selectId: category.id);
 
@@ -124,8 +124,8 @@ class CategoryController extends GetxController {
     );
 
     try {
-      await DbHelper.upsert(categoryUpdate);
-      Fluttertoast.showToast(msg: "Cập nhật thành công");
+      await CategoryRepository.update(categoryUpdate);
+      Fluttertoast.showToast(msg: "Update successful".tr);
 
       categories[index] = categoryUpdate;
       _sortCategories(categories);
@@ -146,18 +146,18 @@ class CategoryController extends GetxController {
     if (selected == null || selected.id == 'all') return;
 
     if (Get.find<LinkCollectionController>().listLink.isNotEmpty) {
-      Fluttertoast.showToast(msg: "Danh mục có chứa link\nKhông thể xóa!");
+      Fluttertoast.showToast(msg: "Category contains links\nCannot delete!".tr);
       return;
     }
 
     DialogUtils.showConfirm(
       alertType: AlertType.warning,
-      title: "Xác nhận",
-      content: "Bạn có chắn muốn xóa!",
+      title: "Confirm".tr,
+      content: "Are you sure you want to delete!".tr,
       onConfirm: () async {
         try {
           final id = selected.id ?? "";
-          await DbHelper.delete(CategoryModel().tableName, id);
+          await CategoryRepository.delete(id);
 
           categories.removeWhere((e) => e.id == id);
           final newSelectedId = categories.isNotEmpty ? categories.first.id : 'all';
@@ -186,7 +186,7 @@ class CategoryController extends GetxController {
 
   void _updatePopupItems({String? selectId}) {
     final newItems = [
-      ItemModel(id: "all", name: "Tất cả"),
+      ItemModel(id: "all", name: "All".tr),
       ...categories.map((c) => ItemModel(id: c.id, name: c.name, visibility: c.visibility)),
     ];
 
@@ -243,7 +243,7 @@ class CategoryController extends GetxController {
   }
 
   Future<void> clearAllCategories() async {
-    await DbHelper.clearTable(CategoryModel().tableName);
+    await CategoryRepository.clearAll();
     categories.clear();
     _updatePopupItems();
   }

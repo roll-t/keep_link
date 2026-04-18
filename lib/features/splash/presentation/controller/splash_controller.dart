@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-import 'package:keep_link/core/local_storage/app_get_storage.dart';
+import 'package:keep_link/core/cache/app_get_storage.dart';
 import 'package:keep_link/core/service/biometric_service.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
 import 'package:keep_link/features/link/module/link_add/presentation/page/add_link_page.dart';

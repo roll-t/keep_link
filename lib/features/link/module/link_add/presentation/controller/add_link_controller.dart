@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_enum.dart';
-import 'package:keep_link/core/local_storage/sql_lite.dart';
+import 'package:keep_link/core/repository/link_repository.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
 import 'package:keep_link/core/utils/controller/deep_link_controller.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
@@ -166,7 +166,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
         updatedAt: now,
         categoryId: _selectedCategoryId(),
       );
-      await DbHelper.upsert(link);
+      await LinkRepository.insert(link);
       Utils.dimissKeyboard();
       _clearAndClose(result: true);
       Fluttertoast.showToast(msg: "Thêm thành công");
@@ -190,7 +190,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
         categoryId: popup.selectedItem.value?.id?.trim(),
       );
 
-      await DbHelper.update('links', link.id, link.toJson());
+      await LinkRepository.update(link);
       Utils.dimissKeyboard();
       _clearAndClose(result: true);
 

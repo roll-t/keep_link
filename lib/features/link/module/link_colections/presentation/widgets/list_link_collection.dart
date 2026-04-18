@@ -35,13 +35,13 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
           AppVectors.icEmpty.show(color: AppColors.d100, size: Get.width * .3),
           const SizedBox(height: 18),
           const TextWidget(
-            text: "Chưa có link nào",
+            text: "No links yet",
             color: AppColors.t100,
             textStyle: AppTextStyle.medium18,
           ),
           const SizedBox(height: 6),
           const TextWidget(
-            text: "Hãy lưu những link bạn yêu thích",
+            text: "Save your favorite links",
             color: AppColors.t400,
             textStyle: AppTextStyle.medium14,
           ),

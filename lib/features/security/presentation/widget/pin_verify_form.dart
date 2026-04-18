@@ -48,7 +48,7 @@ class PinVerifyForm extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  TextWidget(text: "Nhập PIN mới", textStyle: AppTextStyle.semiBold20),
+                  TextWidget(text: "Enter New PIN", textStyle: AppTextStyle.semiBold20),
                   const SizedBox(height: 12),
 
                   // PIN mới
@@ -65,7 +65,7 @@ class PinVerifyForm extends StatelessWidget {
 
                   const SizedBox(height: 28),
 
-                  TextWidget(text: "Xác nhận PIN", textStyle: AppTextStyle.semiBold20),
+                  TextWidget(text: "Confirm PIN", textStyle: AppTextStyle.semiBold20),
                   const SizedBox(height: 12),
 
                   // Xác nhận PIN
@@ -87,7 +87,7 @@ class PinVerifyForm extends StatelessWidget {
                     ? [title!]
                     : [
                         TextWidget(
-                          text: (isConfirmStep ? "Xác nhận PIN" : "Nhập PIN"),
+                          text: (isConfirmStep ? "Confirm PIN" : "Enter PIN"),
                           textStyle: AppTextStyle.semiBold20,
                         ),
                         SizedBox(height: 20),
@@ -129,7 +129,7 @@ class PinVerifyForm extends StatelessWidget {
   }
 
   /// -----------------------
-  /// Build Default Pin Theme
+  /// Build Default PIN Theme
   /// -----------------------
   PinTheme _buildDefaultPinTheme() {
     return PinTheme(
