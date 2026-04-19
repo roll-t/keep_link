@@ -7,6 +7,7 @@ class CategoryModel implements DbModel {
   String? name;
   String? description;
   String? iconUrl;
+  int? chilrenCount;
   VisibilityStatus visibility;
   DateTime? createdAt;
   DateTime? updatedAt;
@@ -16,6 +17,7 @@ class CategoryModel implements DbModel {
     this.name,
     this.description,
     this.iconUrl,
+    this.chilrenCount,
     this.visibility = VisibilityStatus.public,
     this.createdAt,
     DateTime? updatedAt,
@@ -42,6 +44,7 @@ class CategoryModel implements DbModel {
       name: json['name'],
       description: json['description'],
       iconUrl: json['icon_url'],
+      chilrenCount: json['children_count'] as int?,
       visibility: VisibilityStatus.values.firstWhere(
         (e) => e.name == json['visibility'],
         orElse: () => VisibilityStatus.public,

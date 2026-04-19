@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/extension/colors.dart';
 import 'package:keep_link/features/link/module/link_add/presentation/page/add_link_page.dart';
+import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
 import 'package:keep_link/features/link/module/link_search/presentation/page/search_link_page.dart';
 
 // ─── Controller (Giữ nguyên) ───────────────────────────────────────────────────
@@ -77,7 +78,14 @@ class GlassBottomBar extends StatelessWidget {
             // Nút Add nằm ở vị trí cao hơn hẳn
             Positioned(
               top: 0, // Đưa lên sát đỉnh của SizedBox
-              child: _AddButton(ctrl: ctrl, onTap: () => Get.toNamed(AddLinkPage.routeName)),
+              child: _AddButton(
+                ctrl: ctrl,
+                onTap: () => Get.toNamed(AddLinkPage.routeName)?.then((success) {
+                  if (success is bool && success) {
+                    Get.find<LinkCollectionController>().refreshData();
+                  }
+                }),
+              ),
             ),
           ],
         ),

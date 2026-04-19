@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/app_binding.dart';
+import 'package:keep_link/app/app_binding.dart';
 import 'package:keep_link/core/config/app_theme.dart';
 import 'package:keep_link/core/lang/theme.dart';
 import 'package:keep_link/core/lang/translation_service.dart';

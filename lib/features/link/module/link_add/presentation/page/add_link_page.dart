@@ -78,10 +78,18 @@ class AddLinkPage extends StatelessWidget {
             controller: controller.linkController,
             errorText: controller.errorLinkMess.value,
             onChanged: controller.onChangeLink,
-            suffixIcon: AppVectors.icClipBoard.show(
-              padding: const EdgeInsets.all(10),
-              onTap: controller.onPasteClipboard,
-            ),
+            suffixIcon: controller.linkText.value.isNotEmpty
+                ? AppVectors.icClose.show(
+                    padding: const EdgeInsets.all(12),
+                    onTap: () {
+                      controller.linkController.clear();
+                      controller.onChangeLink('');
+                    },
+                  )
+                : AppVectors.icClipBoard.show(
+                    padding: const EdgeInsets.all(12),
+                    onTap: controller.onPasteClipboard,
+                  ),
           ),
         ),
         const SizedBox(height: 20),

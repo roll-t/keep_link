@@ -39,6 +39,13 @@ Map<String, String> vi = {
   "Name A → Z": 'Tên A → Z',
   "Name Z → A": 'Tên Z → A',
   "Reset filters": 'Đặt lại bộ lọc',
+  "Top sources": 'Nguồn phổ biến',
+  "Saved date": 'Ngày lưu',
+  "Clear": 'Xoá bộ lọc',
+  "From": 'Từ ngày',
+  "To": 'Đến ngày',
+  "Any": 'Bất kỳ',
+  "No links yet\nAdd your first link!": 'Chưa có link nào\nThêm link đầu tiên!',
 
   // Collections
   "No links yet": 'Chưa có link nào',
@@ -65,4 +72,59 @@ Map<String, String> vi = {
 
   // Splash
   "Or": 'Hoặc',
+
+  // Toast - Category
+  "max_categories_limit": 'Bạn chỉ có thể tạo tối đa @0 danh mục',
+  "An error occurred, please try again": 'Có lỗi xảy ra, vui lòng thử lại',
+
+  // Link Detail
+  "Original Destination": 'Nguồn gốc',
+  "Open in App": 'Mở trong ứng dụng',
+  "View Now": 'Xem ngay',
+  "Back to origin": 'Về trang gốc',
+  "Edit Entry": 'Chỉnh sửa',
+  "Remove from Library": 'Xóa khỏi thư viện',
+  "Recently": 'Gần đây',
+  "Just now": 'Vừa xong',
+
+  // Utils
+  "Invalid URL": 'URL không hợp lệ',
+  "Unable to open URL": 'Không thể mở URL',
+  "Error opening URL": 'Lỗi khi mở URL',
+  "@0 mins ago": '@0 phút trước',
+  "@0 hours ago": '@0 giờ trước',
+  "@0 days ago": '@0 ngày trước',
+
+  // Toast - Link
+  "Added successfully": 'Thêm thành công',
+  "Failed to add, please try again": 'Thêm thất bại, vui lòng thử lại',
+  "Updated successfully": 'Cập nhật thành công',
+  "Failed to update, please try again": 'Cập nhật thất bại, vui lòng thử lại',
+  "Link pasted": 'Đã dán link',
+  "Clipboard is empty": 'Bộ nhớ tạm trống',
+  "Refreshed": 'Đã làm mới',
+  "Deleted": 'Đã xóa',
+
+  // Toast - Security
+  "App security enabled": 'Đã bật bảo mật ứng dụng',
+  "App security disabled": 'Đã tắt bảo mật ứng dụng',
+  "Category security enabled": 'Đã bật bảo mật danh mục',
+  "Category security disabled": 'Đã tắt bảo mật danh mục',
+  "Please enable app security first": 'Vui lòng bật bảo mật ứng dụng trước',
+  "Please set up a PIN first": 'Vui lòng thiết lập mã PIN trước',
+  "Fingerprint login disabled": 'Đã tắt đăng nhập bằng vân tay',
+  "Device does not support fingerprint / Face ID": 'Thiết bị không hỗ trợ vân tay / Face ID',
+  "Please set up fingerprint in device Settings": 'Vui lòng cài đặt vân tay trong Cài đặt máy',
+  "Fingerprint verification failed": 'Xác nhận vân tay thất bại',
+  "Fingerprint login enabled": 'Đã bật đăng nhập bằng vân tay',
+
+  // Toast - PIN
+  "PIN confirmation does not match": 'PIN xác nhận không khớp',
+  "PIN changed successfully": 'Đổi PIN thành công',
+  "Incorrect PIN": 'PIN không đúng',
+  "Enter new PIN": 'Nhập PIN mới',
+  "PIN is correct": 'PIN chính xác',
+  "Re-enter PIN to confirm": 'Nhập lại PIN để xác nhận',
+  "PIN has been set": 'PIN đã được thiết lập',
+  "The two PINs do not match": 'Hai lần nhập không khớp',
 };

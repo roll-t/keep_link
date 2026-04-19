@@ -30,9 +30,7 @@ class Utils {
     final Uri uri = Uri.tryParse(url) ?? Uri();
     if (uri.toString().isEmpty) {
       if (context != null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("URL không hợp lệ")));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Invalid URL".tr)));
       }
       return;
     }
@@ -43,12 +41,14 @@ class Utils {
         if (context != null) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text("Không thể mở URL")));
+          ).showSnackBar(SnackBar(content: Text("Unable to open URL".tr)));
         }
       }
     } catch (e) {
       if (context != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi khi mở URL: $e")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("${'Error opening URL'.tr}: $e")));
       }
     }
   }
@@ -133,5 +133,26 @@ class Utils {
     }
 
     return AppIcons.icLogoGoogle.show(size: iconSize);
+  }
+
+  static String getTimeAgo(DateTime? time) {
+    if (time == null) return "Recently".tr;
+
+    final now = DateTime.now();
+    final difference = now.difference(time);
+
+    if (difference.inSeconds < 60) {
+      return "Just now".tr;
+    } else if (difference.inMinutes < 60) {
+      return "@0 mins ago".trParams({'0': '${difference.inMinutes}'});
+    } else if (difference.inHours < 24) {
+      return "@0 hours ago".trParams({'0': '${difference.inHours}'});
+    } else if (difference.inDays < 7) {
+      return "@0 days ago".trParams({'0': '${difference.inDays}'});
+    } else {
+      final day = time.day.toString().padLeft(2, '0');
+      final month = time.month.toString().padLeft(2, '0');
+      return "$day/$month/${time.year}";
+    }
   }
 }

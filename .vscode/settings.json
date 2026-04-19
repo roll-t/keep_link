@@ -24,14 +24,12 @@
   "editor.stickyScroll.enabled": true,
   "editor.inlineSuggest.enabled": true,
   "editor.codeActionsOnSave": {
-    "source.organizeImports": "explicit",
-    "source.fixAll": "explicit"
+    "source.organizeImports": "explicit"
   },
   // --- UI / UX ---
   "editor.cursorBlinking": "expand",
   "editor.cursorSmoothCaretAnimation": "on",
-  "editor.fontFamily": "'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace",
-  "editor.fontLigatures": true,
+  "editor.fontLigatures": false,
   "editor.minimap.enabled": false,
   "editor.renderWhitespace": "selection",
   // --- Language Specifics ---

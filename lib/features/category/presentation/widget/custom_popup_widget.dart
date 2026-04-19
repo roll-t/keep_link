@@ -5,6 +5,7 @@ import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/library/custom_popup.dart';
+import 'package:keep_link/core/model/item_model.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/features/category/presentation/controller/custom_popup_controller.dart';
 
@@ -28,12 +29,20 @@ class CustomPopupWidget extends StatelessWidget {
       decoration: BoxDecoration(color: AppColors.d300, borderRadius: BorderRadius.circular(100)),
       alignment: Alignment.center,
       child: Obx(() {
+        String nameWithCount(ItemModel? item, String fallback) {
+          if (item == null) return fallback;
+          final base = item.name ?? fallback;
+          if (item.id == 'all') return base;
+          final count = item.chilrenCount;
+          return count != null ? '$base ($count)' : base;
+        }
+
         final RxString displayTitle =
             (hasAll
-                    ? controller.selectedItem.value?.name ?? "Select Category".tr
+                    ? nameWithCount(controller.selectedItem.value, "Select Category".tr)
                     : (controller.selectedItem.value?.id == 'all'
                           ? "Select Category".tr
-                          : controller.selectedItem.value?.name ?? "Select Category".tr))
+                          : nameWithCount(controller.selectedItem.value, "Select Category".tr)))
                 .obs;
         return CustomPopup(
           barrierColor: Colors.transparent,
@@ -94,7 +103,11 @@ class CustomPopupWidget extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             TextWidget(
-                              text: item.name ?? "",
+                              text: item.id == 'all'
+                                  ? (item.name ?? '')
+                                  : (item.chilrenCount != null
+                                        ? '${item.name ?? ''} (${item.chilrenCount})'
+                                        : (item.name ?? '')),
                               maxLines: 1,
                               textStyle: AppTextStyle.semiBold16,
                             ),

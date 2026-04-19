@@ -25,19 +25,21 @@ android {
         jvmTarget = JavaVersion.VERSION_11.toString() 
     }
 
-    // Load key.properties
+    // Load key.properties (only required for release builds)
     val keystoreProperties = Properties()
     val keystoreFile = file("../key.properties")
-    if (keystoreFile.exists()) {
-        keystoreProperties.load(FileInputStream(keystoreFile))
+    val hasKeystore = keystoreFile.exists().also { exists ->
+        if (exists) keystoreProperties.load(FileInputStream(keystoreFile))
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
+        if (hasKeystore) {
+            create("release") {
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+            }
         }
     }
 
@@ -51,7 +53,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (hasKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -62,7 +64,22 @@ android {
         debug {
             isMinifyEnabled = false
             isShrinkResources = false
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
         }
+    }
+
+    // Đặt tên file APK/AAB theo buildType để debug và release không ghi đè nhau
+    applicationVariants.all {
+        val variant = this
+        variant.outputs
+            .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
+            .forEach { output ->
+                val appName = "keep_link"
+                val buildType = variant.buildType.name
+                val versionName = variant.versionName
+                output.outputFileName = "${appName}-${buildType}-${versionName}.apk"
+            }
     }
 }
 

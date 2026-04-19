@@ -16,11 +16,14 @@ class CategoryRepository {
   static Future<void> ensureLoaded() async {
     if (AppCache.categoriesLoaded) return;
 
-    final rows = await DbHelper.getAll(
-      CategoryModel().tableName,
-      orderByColumn: 'created_at',
-      descending: true,
-    );
+    final db = await DbHelper.database;
+    final rows = await db.rawQuery('''
+      SELECT c.*, COUNT(l.id) AS children_count
+      FROM categories c
+      LEFT JOIN links l ON l.categoryId = c.id
+      GROUP BY c.id
+      ORDER BY c.created_at DESC
+    ''');
     final list = rows.map((r) => CategoryModel.fromJson(Map<String, dynamic>.from(r))).toList();
     AppCache.setCategories(list);
   }

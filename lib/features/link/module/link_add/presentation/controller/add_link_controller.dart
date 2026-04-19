@@ -23,6 +23,8 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   final errorLinkMess = "".obs;
   final errorTitleMess = "".obs;
   final _queryLink = "".obs;
+  final linkText = "".obs;
+  final titleText = "".obs;
   final isEditModel = false.obs;
 
   @override
@@ -58,6 +60,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!isEditModel.value) {
             titleController.text = meta.title;
+            titleText.value = meta.title;
           }
         });
         if ((meta.title).isNotEmpty) errorTitleMess.value = "";
@@ -87,9 +90,11 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
         // set link & title fallback
         linkController.text = argsData!.metaDataModel?.url.trim() ?? "";
         _queryLink.value = linkController.text;
+        linkText.value = linkController.text;
 
         if (titleController.text.isEmpty) {
           titleController.text = argsData!.name ?? "";
+          titleText.value = titleController.text;
         }
       });
     }
@@ -98,6 +103,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
     final sharedLink = _deepLink.deepLink;
     if (sharedLink != null && sharedLink.isNotEmpty) {
       linkController.text = sharedLink;
+      linkText.value = sharedLink;
       onChangeLink(sharedLink);
     }
   }
@@ -169,10 +175,10 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
       await LinkRepository.insert(link);
       Utils.dimissKeyboard();
       _clearAndClose(result: true);
-      Fluttertoast.showToast(msg: "Thêm thành công");
+      Fluttertoast.showToast(msg: "Added successfully".tr);
     } catch (e, s) {
       log("Error add link => $e\n$s");
-      Fluttertoast.showToast(msg: "Thêm thất bại, vui lòng thử lại");
+      Fluttertoast.showToast(msg: "Failed to add, please try again".tr);
     }
   }
 
@@ -194,10 +200,10 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
       Utils.dimissKeyboard();
       _clearAndClose(result: true);
 
-      Fluttertoast.showToast(msg: "Cập nhật thành công");
+      Fluttertoast.showToast(msg: "Updated successfully".tr);
     } catch (e, s) {
       log("Error updating link => $e\n$s");
-      Fluttertoast.showToast(msg: "Cập nhật thất bại, vui lòng thử lại");
+      Fluttertoast.showToast(msg: "Failed to update, please try again".tr);
     }
   }
 
@@ -210,6 +216,8 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
     linkController.clear();
     titleController.clear();
     _queryLink.value = "";
+    linkText.value = "";
+    titleText.value = "";
   }
 
   // ===============================================================
@@ -225,12 +233,13 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
       if (text != extractedUrl && titleController.text.isEmpty && !isEditModel.value) {
         final remainingText = text.replaceAll(extractedUrl, '').trim();
         titleController.text = remainingText;
+        titleText.value = remainingText;
       }
 
       onChangeLink(extractedUrl);
-      Fluttertoast.showToast(msg: "Đã dán link");
+      Fluttertoast.showToast(msg: "Link pasted".tr);
     } else {
-      Fluttertoast.showToast(msg: "Bộ nhớ tạm trống");
+      Fluttertoast.showToast(msg: "Clipboard is empty".tr);
     }
   }
 
@@ -246,12 +255,14 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ===============================================================
   void onChangeLink(String v) {
     if (errorLinkMess.value.isNotEmpty) errorLinkMess.value = "";
+    linkText.value = v;
 
     final extractedUrl = _extractUrl(v);
     if (extractedUrl != v && extractedUrl.startsWith(RegExp(r'http'))) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         // Gán lại đúng link vào textfield
         linkController.text = extractedUrl;
+        linkText.value = extractedUrl;
         // Đưa con trỏ nhấp nháy về cuối dòng
         linkController.selection = TextSelection.fromPosition(
           TextPosition(offset: extractedUrl.length),
@@ -260,6 +271,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
         // Tự gán title
         if (titleController.text.isEmpty && !isEditModel.value) {
           titleController.text = v.replaceAll(extractedUrl, '').trim();
+          titleText.value = titleController.text;
         }
       });
       _queryLink.value = extractedUrl.trim();
@@ -270,6 +282,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   }
 
   void onChangeTitle(String v) {
+    titleText.value = v;
     if (errorTitleMess.value.isNotEmpty) errorTitleMess.value = "";
   }
 

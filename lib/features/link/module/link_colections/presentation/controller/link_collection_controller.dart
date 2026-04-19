@@ -54,7 +54,7 @@ class LinkCollectionController extends GetxController {
     await fetchAllLinks(isInitial: true);
 
     if (showToast) {
-      Fluttertoast.showToast(msg: "Đã làm mới");
+      Fluttertoast.showToast(msg: "Refreshed".tr);
     }
   }
 
@@ -80,10 +80,14 @@ class LinkCollectionController extends GetxController {
           : const {};
 
       // Page from cache — pure in-memory, no I/O.
+      // Only exclude private categories when browsing "All" — if the user has
+      // explicitly selected a specific (private) category they already passed
+      // the PIN/biometric check, so their links must be shown.
+      final bool isAllCategory = selectedCategoryId == null || selectedCategoryId == 'all';
       final page = LinkRepository.getFilteredPage(
         categoryId: selectedCategoryId,
         privateCategoryIds: privateCategoryIds,
-        excludePrivate: isSecurityEnabled,
+        excludePrivate: isSecurityEnabled && isAllCategory,
         page: _currentPage,
         pageSize: _pageSize,
       );
@@ -120,7 +124,7 @@ class LinkCollectionController extends GetxController {
           listLink.removeWhere((item) => item.id == id);
           Get.back();
           Get.back();
-          Fluttertoast.showToast(msg: "Đã xóa");
+          Fluttertoast.showToast(msg: "Deleted".tr);
         },
         onCancel: () => Get.back(),
       );

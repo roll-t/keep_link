@@ -22,7 +22,7 @@ class DestinationCard extends GetView<LinkDetailController> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             TextWidget(
-              text: "ORIGINAL DESTINATION",
+              text: "Original Destination".tr,
               textStyle: AppTextStyle.bold12,
               color: Colors.grey,
             ),
@@ -34,7 +34,7 @@ class DestinationCard extends GetView<LinkDetailController> {
                   const Icon(Icons.open_in_new, color: AppColors.white, size: 16),
                   const SizedBox(width: 8),
                   TextWidget(
-                    text: "Open in App",
+                    text: "Open in App".tr,
                     textStyle: AppTextStyle.semiBold12,
                     color: AppColors.white,
                   ),

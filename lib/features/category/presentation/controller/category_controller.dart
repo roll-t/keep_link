@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/cache/app_cache.dart';
 import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/model/item_model.dart';
 import 'package:keep_link/core/repository/category_repository.dart';
@@ -30,6 +31,7 @@ class CategoryController extends GetxController {
     super.onInit();
     categoryNameController.clear();
     fetchCategories();
+    ever(AppCache.links, (_) => _recomputeChildrenCounts());
   }
 
   @override
@@ -184,10 +186,30 @@ class CategoryController extends GetxController {
     });
   }
 
+  void _recomputeChildrenCounts() {
+    final counts = <String, int>{};
+    for (final link in AppCache.links) {
+      final cid = link.categoryId;
+      if (cid == null || cid.isEmpty) continue;
+      counts[cid] = (counts[cid] ?? 0) + 1;
+    }
+    for (final cat in categories) {
+      cat.chilrenCount = counts[cat.id] ?? 0;
+    }
+    _updatePopupItems(selectId: popupController.selectedItem.value?.id);
+  }
+
   void _updatePopupItems({String? selectId}) {
     final newItems = [
       ItemModel(id: "all", name: "All".tr),
-      ...categories.map((c) => ItemModel(id: c.id, name: c.name, visibility: c.visibility)),
+      ...categories.map(
+        (c) => ItemModel(
+          id: c.id,
+          name: c.name,
+          visibility: c.visibility,
+          chilrenCount: c.chilrenCount,
+        ),
+      ),
     ];
 
     popupController.items.assignAll(newItems);
@@ -204,7 +226,7 @@ class CategoryController extends GetxController {
 
   bool _validateCategory() {
     if (categories.length >= _maxCategories) {
-      Fluttertoast.showToast(msg: "Tạo được tối đa $_maxCategories danh mục");
+      Fluttertoast.showToast(msg: "max_categories_limit".trArgs(["$_maxCategories"]));
       return false;
     }
     if (categoryNameController.text.trim().isEmpty) {
@@ -218,7 +240,7 @@ class CategoryController extends GetxController {
   void _handleError(String msg, Object e, StackTrace s) {
     debugPrint('$msg: $e');
     debugPrintStack(stackTrace: s);
-    Fluttertoast.showToast(msg: "Có lỗi xảy ra, vui lòng thử lại");
+    Fluttertoast.showToast(msg: "An error occurred, please try again".tr);
   }
 
   void _reloadLinks() {

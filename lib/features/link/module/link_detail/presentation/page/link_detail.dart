@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/config/app_text_styles.dart';
+import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/core/extension/colors.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
@@ -76,46 +77,62 @@ class LinkDetailPage extends StatelessWidget {
       leading: const CloseButton(color: Colors.white),
       title: _DragHandle(),
       centerTitle: true,
-      actions: [_MoreMenu(controller: controller)], // Giữ nguyên popup menu của bạn
+      actions: [
+        AppVectors.icDelete.show(
+          backgroundColor: AppColors.bg500,
+          padding: EdgeInsets.all(8),
+          color: AppColors.red,
+          onTap: controller.deleteLink,
+        ),
+
+        SizedBox(width: 12),
+        AppVectors.icEdit.show(
+          backgroundColor: AppColors.bg500,
+          padding: EdgeInsets.all(8),
+          onTap: controller.goToEdit,
+        ),
+        SizedBox(width: 16),
+        // _MoreMenu(controller: controller)
+      ], // Giữ nguyên popup menu của bạn
     );
   }
 }
 
-class _MoreMenu extends StatelessWidget {
-  final LinkDetailController controller;
-  const _MoreMenu({required this.controller});
+// class _MoreMenu extends StatelessWidget {
+//   final LinkDetailController controller;
+//   const _MoreMenu({required this.controller});
 
-  @override
-  Widget build(BuildContext context) {
-    return Theme(
-      data: Theme.of(
-        context,
-      ).copyWith(splashColor: Colors.transparent, highlightColor: Colors.transparent),
-      child: PopupMenuButton<_MenuAction>(
-        icon: const Icon(Icons.more_vert_outlined, color: Colors.white),
-        color: const Color(0xFF1E1E1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        position: PopupMenuPosition.under,
-        onSelected: (action) => action.execute(controller),
-        itemBuilder: (_) => const [
-          PopupMenuItem(
-            value: _MenuAction.open,
-            child: _MenuRow(Icons.open_in_new, "Open in App", AppColors.white),
-          ),
-          PopupMenuItem(
-            value: _MenuAction.edit,
-            child: _MenuRow(Icons.edit, "Edit Link", Colors.white),
-          ),
-          PopupMenuDivider(),
-          PopupMenuItem(
-            value: _MenuAction.delete,
-            child: _MenuRow(Icons.delete_outline, "Remove Link", AppColors.red),
-          ),
-        ],
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Theme(
+//       data: Theme.of(
+//         context,
+//       ).copyWith(splashColor: Colors.transparent, highlightColor: Colors.transparent),
+//       child: PopupMenuButton<_MenuAction>(
+//         icon: const Icon(Icons.more_vert_outlined, color: Colors.white),
+//         color: const Color(0xFF1E1E1E),
+//         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+//         position: PopupMenuPosition.under,
+//         onSelected: (action) => action.execute(controller),
+//         itemBuilder: (_) => const [
+//           PopupMenuItem(
+//             value: _MenuAction.open,
+//             child: _MenuRow(Icons.open_in_new, "Open in App", AppColors.white),
+//           ),
+//           PopupMenuItem(
+//             value: _MenuAction.edit,
+//             child: _MenuRow(Icons.edit, "Edit Link", Colors.white),
+//           ),
+//           PopupMenuDivider(),
+//           PopupMenuItem(
+//             value: _MenuAction.delete,
+//             child: _MenuRow(Icons.delete_outline, "Remove Link", AppColors.red),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
 
 enum _MenuAction {
   open,
