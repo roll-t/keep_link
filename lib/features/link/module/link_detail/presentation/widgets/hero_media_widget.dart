@@ -311,7 +311,11 @@ class _WebViewNavigationBar extends GetView<LinkDetailController> {
             tooltip: "Back to origin".tr,
           ),
 
-          _NavButton(icon: Icons.refresh_rounded, enable: true, onTap: controller.webReload),
+          _NavButton(
+            icon: Icons.arrow_back_ios_rounded,
+            enable: controller.canGoBack.value,
+            onTap: () => controller.webViewController?.goBack(),
+          ),
 
           const SizedBox(width: 4),
           _VerticalDivider(),
@@ -319,7 +323,7 @@ class _WebViewNavigationBar extends GetView<LinkDetailController> {
           // ── URL hiện tại ──
           Expanded(
             child: GestureDetector(
-              onTap: controller.webGoHome, // tap URL → về trang gốc
+              onTap: controller.webGoHome,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Row(
