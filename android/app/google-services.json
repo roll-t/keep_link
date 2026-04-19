@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "536130567578",
+    "project_id": "linkcapture-13a10",
+    "storage_bucket": "linkcapture-13a10.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536130567578:android:f16fa9bf43154ce3364e23",
+        "android_client_info": {
+          "package_name": "com.phamtruong.keeplink"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "536130567578-qsvkimu8vk93502gtu49gnnkbufjtd7j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.phamtruong.keeplink",
+            "certificate_hash": "8f149e2733b685abd3c7f4093691bf9ef69f0ebb"
+          }
+        },
+        {
+          "client_id": "536130567578-uhh21qcggi403ruophngt1h2to548oks.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.phamtruong.keeplink",
+            "certificate_hash": "1a2d060e4b4bca56e6350784eae61bcfb820e73f"
+          }
+        },
+        {
+          "client_id": "536130567578-89d6m95ktv83j20h569rflc14uv7uk4s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3ujaqfKmnGhg0K3VcEE1XK2hPVjZAKks"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "536130567578-89d6m95ktv83j20h569rflc14uv7uk4s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
