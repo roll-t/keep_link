@@ -27,6 +27,14 @@
 -dontwarn okio.**
 -keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase
 
+# ── Google Play Core (deferred components / split installs) ───────────────────
+# Flutter references these classes for Play Store dynamic delivery, but they are
+# not present when building outside the Play Store pipeline. Suppress R8 errors.
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.splitcompat.** { *; }
+-keep class com.google.android.play.core.splitinstall.** { *; }
+-keep class com.google.android.play.core.tasks.** { *; }
+
 # ── Suppress warnings from library internals we don't control ─────────────────
 -dontwarn sun.misc.**
 -dontwarn java.lang.invoke.**
