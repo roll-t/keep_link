@@ -24,6 +24,7 @@ class SourceStat {
 class SearchLinkController extends GetxController {
   // ── State ──────────────────────────────────────────────────────────────────
   final searchTec = TextEditingController();
+  final searchFocusNode = FocusNode();
   final searchText = ''.obs;
   final searchResults = <LinkModel>[].obs;
 
@@ -50,6 +51,11 @@ class SearchLinkController extends GetxController {
 
   final categoryScrollController = ScrollController();
 
+  // Search history & suggestions
+  final searchHistory = <String>[].obs;
+  final suggestions = <String>[].obs;
+  final isFieldFocused = false.obs;
+
   // Private category IDs — computed from AppCache, no DB query.
   Set<String> _privateCategoryIds = {};
 
@@ -59,13 +65,32 @@ class SearchLinkController extends GetxController {
     super.onInit();
     isSecurityEnabled = AppGetStorage.isCategorySecurity();
 
+    // Load search history from storage
+    searchHistory.assignAll(AppGetStorage.getSearchHistory());
+
+    searchFocusNode.addListener(() {
+      if (searchFocusNode.hasFocus) {
+        isFieldFocused.value = true;
+      } else {
+        // Delay 150ms so suggestion/history tile tap gesture (pointer up) completes
+        // before the panel is removed from the widget tree.
+        Future.delayed(const Duration(milliseconds: 150), () {
+          if (!searchFocusNode.hasFocus) {
+            isFieldFocused.value = false;
+          }
+        });
+      }
+    });
+
     searchTec.addListener(() {
       searchText.value = searchTec.text;
       if (searchTec.text.isEmpty) _filterAndShow();
     });
 
-    // debounce still gives a smooth UX even though the work is now synchronous.
-    debounce(searchText, (_) => _runSearch(), time: const Duration(milliseconds: 300));
+    debounce(searchText, (q) {
+      _runSearch();
+      _computeSuggestions(q);
+    }, time: const Duration(milliseconds: 300));
 
     ever(selectedCategoryId, (_) => _runSearch());
     ever(selectedSort, (_) => _runSearch());
@@ -83,6 +108,7 @@ class SearchLinkController extends GetxController {
   @override
   void onClose() {
     searchTec.dispose();
+    searchFocusNode.dispose();
     categoryScrollController.dispose();
     super.onClose();
   }
@@ -233,6 +259,66 @@ class SearchLinkController extends GetxController {
     searchResults.clear();
   }
 
+  // ── History / Suggestions ──────────────────────────────────────────────────
+
+  void _computeSuggestions(String query) {
+    if (query.trim().isEmpty) {
+      suggestions.clear();
+      return;
+    }
+    final key = Utils.removeDiacritics(query.trim()).toLowerCase();
+    final seen = <String>{};
+    final result = <String>[];
+    for (final link in AppCache.links) {
+      if (_privateCategoryIds.contains(link.categoryId)) continue;
+      for (final text in [link.name ?? '', link.metaDataModel?.title ?? '']) {
+        if (text.isEmpty) continue;
+        final normalized = Utils.removeDiacritics(text).toLowerCase();
+        if (normalized.contains(key) && seen.add(text)) {
+          result.add(text);
+          if (result.length >= 6) break;
+        }
+      }
+      if (result.length >= 6) break;
+    }
+    suggestions.assignAll(result);
+  }
+
+  void _saveToHistory(String query) {
+    final q = query.trim();
+    if (q.isEmpty || q.length < 2) return;
+    final list = List<String>.from(searchHistory);
+    list.remove(q);
+    list.insert(0, q);
+    if (list.length > AppGetStorage.maxSearchHistory) list.removeLast();
+    searchHistory.assignAll(list);
+    AppGetStorage.saveSearchHistory(list);
+  }
+
+  void removeFromHistory(String query) {
+    searchHistory.remove(query);
+    AppGetStorage.saveSearchHistory(List<String>.from(searchHistory));
+  }
+
+  void clearAllHistory() {
+    searchHistory.clear();
+    AppGetStorage.clearSearchHistory();
+  }
+
+  /// Tap on a suggestion or history item — fill field + run search + save.
+  void applyQuery(String text) {
+    searchTec.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.fromPosition(TextPosition(offset: text.length)),
+    );
+    searchText.value = text;
+    _saveToHistory(text);
+    _runSearch();
+    suggestions.clear();
+    isFieldFocused.value = false;
+    searchFocusNode.unfocus();
+  }
+
   // ── Source helpers ─────────────────────────────────────────────────────────
 
   /// Normalises a URL to a canonical host key (e.g. "vm.tiktok.com" → "tiktok.com").
@@ -243,8 +329,9 @@ class SearchLinkController extends GetxController {
       if (h.contains('tiktok.com')) return 'tiktok.com';
       if (h.contains('youtu.be') || h.contains('youtube.com')) return 'youtube.com';
       if (h.contains('instagram.com')) return 'instagram.com';
-      if (h.contains('facebook.com') || h.contains('fb.com') || h.contains('fb.watch'))
+      if (h.contains('facebook.com') || h.contains('fb.com') || h.contains('fb.watch')) {
         return 'facebook.com';
+      }
       if (h.contains('twitter.com') || h.contains('x.com')) return 'x.com';
       if (h.contains('google.com')) return 'google.com';
       return h;

@@ -23,9 +23,20 @@ class SearchLinkPage extends GetView<SearchLinkController> {
             const SizedBox(height: 16),
             _SearchBar(ctrl: controller),
             const SizedBox(height: 12),
-            _CategorySection(ctrl: controller),
-            const SizedBox(height: 20),
-            Expanded(child: _ResultBody(ctrl: controller)),
+            Expanded(
+              child: Obx(() {
+                if (controller.isFieldFocused.value) {
+                  return _SuggestionPanel(ctrl: controller);
+                }
+                return Column(
+                  children: [
+                    _CategorySection(ctrl: controller),
+                    const SizedBox(height: 20),
+                    Expanded(child: _ResultBody(ctrl: controller)),
+                  ],
+                );
+              }),
+            ),
           ],
         ),
       ),
@@ -56,9 +67,27 @@ class _SearchBar extends StatelessWidget {
               radius: 1000,
               hintText: 'Search links'.tr,
               controller: ctrl.searchTec,
+              focusNode: ctrl.searchFocusNode,
               backgroundColor: AppColors.d300,
               enableColor: AppColors.white.withOpacityCompat(0.08),
               focusedColor: AppColors.primary.withOpacityCompat(0.3),
+              suffixIcon: Obx(() {
+                if (ctrl.searchText.value.isEmpty) return const SizedBox.shrink();
+                return GestureDetector(
+                  onTap: () {
+                    ctrl.searchTec.clear();
+                    ctrl.searchText.value = '';
+                    ctrl.suggestions.clear();
+                    ctrl.isFieldFocused.value = false;
+                    ctrl.searchFocusNode.unfocus();
+                  },
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: AppColors.white.withOpacityCompat(0.3),
+                  ),
+                );
+              }),
             ),
           ),
           const SizedBox(width: 10),
@@ -264,7 +293,176 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
-// ─── Source icon helper ─────────────────────────────────────────────────────────────
+// ─── Suggestion / History panel ──────────────────────────────────────────────
+
+class _SuggestionPanel extends StatelessWidget {
+  final SearchLinkController ctrl;
+  const _SuggestionPanel({required this.ctrl});
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final query = ctrl.searchText.value.trim();
+      final hasQuery = query.isNotEmpty;
+      if (!hasQuery && ctrl.searchHistory.isEmpty) {
+        // Nothing to show
+        return const SizedBox.shrink();
+      }
+
+      return ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          if (!hasQuery) ...[
+            // ── Recent searches ─────────────────────────────────────────────
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextWidget(
+                  text: 'Recent searches'.tr,
+                  size: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.white.withOpacityCompat(0.5),
+                ),
+                GestureDetector(
+                  onTap: ctrl.clearAllHistory,
+                  child: TextWidget(text: 'Clear all'.tr, size: 13, color: AppColors.primary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...ctrl.searchHistory.map(
+              (item) => _HistoryTile(
+                query: item,
+                onTap: () => ctrl.applyQuery(item),
+                onRemove: () => ctrl.removeFromHistory(item),
+              ),
+            ),
+          ] else ...[
+            // ── Autocomplete suggestions ─────────────────────────────────────
+            if (ctrl.suggestions.isNotEmpty) ...[
+              TextWidget(
+                text: 'Suggestions'.tr,
+                size: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.white.withOpacityCompat(0.5),
+              ),
+              const SizedBox(height: 10),
+              ...ctrl.suggestions.map(
+                (item) =>
+                    _SuggestionTile(text: item, query: query, onTap: () => ctrl.applyQuery(item)),
+              ),
+            ],
+          ],
+        ],
+      );
+    });
+  }
+}
+
+class _HistoryTile extends StatelessWidget {
+  final String query;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+  const _HistoryTile({required this.query, required this.onTap, required this.onRemove});
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.history_rounded, size: 18, color: AppColors.white.withOpacityCompat(0.4)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextWidget(
+                text: query,
+                size: 14,
+                color: AppColors.white.withOpacityCompat(0.8),
+              ),
+            ),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onRemove,
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: AppColors.white.withOpacityCompat(0.35),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SuggestionTile extends StatelessWidget {
+  final String text;
+  final String query;
+  final VoidCallback onTap;
+
+  const _SuggestionTile({required this.text, required this.query, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    // Highlight the matching portion
+    final lower = text.toLowerCase();
+    final qLower = query.toLowerCase();
+    final idx = lower.indexOf(qLower);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.search_rounded, size: 18, color: AppColors.white.withOpacityCompat(0.4)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: idx >= 0
+                  ? RichText(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      text: TextSpan(
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.white.withOpacityCompat(0.8),
+                          fontWeight: FontWeight.w400,
+                        ),
+                        children: [
+                          if (idx > 0) TextSpan(text: text.substring(0, idx)),
+                          TextSpan(
+                            text: text.substring(idx, idx + query.length),
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (idx + query.length < text.length)
+                            TextSpan(text: text.substring(idx + query.length)),
+                        ],
+                      ),
+                    )
+                  : TextWidget(text: text, size: 14, color: AppColors.white.withOpacityCompat(0.8)),
+            ),
+            Icon(
+              Icons.north_west_rounded,
+              size: 14,
+              color: AppColors.white.withOpacityCompat(0.25),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Source icon helper ──────────────────────────────────────────────────────
 
 Widget _sourceIcon(String host, {double size = 16}) {
   if (host.contains('tiktok.com')) return AppIcons.icLogoTiktok.show(size: size);

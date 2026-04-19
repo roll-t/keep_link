@@ -84,6 +84,26 @@ class AppGetStorage {
     return _box.read(_selectedLanguageKey) ?? 'English';
   }
 
+  // ========== Search History ========== //
+  static const String _searchHistoryKey = 'search_history';
+  static const int _maxSearchHistory = 20;
+
+  static List<String> getSearchHistory() {
+    final raw = _box.read<List>(_searchHistoryKey);
+    if (raw == null) return [];
+    return raw.cast<String>();
+  }
+
+  static void saveSearchHistory(List<String> history) {
+    _box.write(_searchHistoryKey, history);
+  }
+
+  static void clearSearchHistory() {
+    _box.remove(_searchHistoryKey);
+  }
+
+  static int get maxSearchHistory => _maxSearchHistory;
+
   // ========== Custom Data ========== //
   static void write<T>(String key, T value) => _box.write(key, value);
   static T? read<T>(String key) => _box.read<T>(key);
