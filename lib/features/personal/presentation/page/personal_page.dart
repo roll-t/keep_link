@@ -12,6 +12,7 @@ import 'package:keep_link/features/personal/presentation/page/terms_page.dart';
 
 class PersonalPage extends GetView<PersonalController> {
   static const routeName = '/PersonalPage';
+
   const PersonalPage({super.key});
 
   @override
