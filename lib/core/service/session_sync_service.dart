@@ -3,6 +3,8 @@ import 'dart:developer';
 
 import 'package:get_storage/get_storage.dart';
 import 'package:keep_link/core/cache/app_cache.dart';
+import 'package:keep_link/core/cache/app_get_storage.dart';
+import 'package:keep_link/core/cache/sql_lite.dart';
 import 'package:keep_link/core/repository/category_repository.dart';
 import 'package:keep_link/core/repository/link_repository.dart';
 import 'package:keep_link/core/service/firebase_service.dart';
@@ -200,6 +202,42 @@ class SessionSyncService {
     _box.remove(_storageKey);
   }
 
+  /// Called on sign-out. Clears queue and last-reconcile stamp so the next
+  /// sign-in triggers a full push + pull immediately (no 24h throttle).
+  void clearOnSignOut() {
+    _clearInMemory();
+    _box.remove(_storageKey);
+    _box.remove(_lastReconciledKey);
+  }
+
+  /// Push all in-memory mutations from the current session to Firebase.
+  /// Used right before signing out so changes made since the last
+  /// background/close are not lost.
+  Future<void> flushCurrentSession(String userId) async {
+    if (!hasPendingChanges) return;
+
+    final updates = <String, dynamic>{};
+    _pendingLinkUpserts.forEach((id, data) => updates['links/$id'] = data);
+    for (final id in _pendingLinkDeletes) {
+      updates['links/$id'] = null;
+    }
+    _pendingCategoryUpserts.forEach((id, data) => updates['categories/$id'] = data);
+    for (final id in _pendingCategoryDeletes) {
+      updates['categories/$id'] = null;
+    }
+
+    if (updates.isEmpty) return;
+
+    try {
+      await FirebaseService.applyUserDelta(userId, updates);
+      log('Pre-signout flush: ${updates.length} paths pushed to Firebase.');
+    } catch (e) {
+      log('Pre-signout flush failed: $e');
+      // Persist so it can be retried on the next launch.
+      persistQueue();
+    }
+  }
+
   // ── Post-login sync ───────────────────────────────────────────────────────
 
   /// Called immediately after a user signs in for the first time in a session.
@@ -249,6 +287,26 @@ class SessionSyncService {
       final remoteLinks = Map<String, dynamic>.from(remoteData?['links'] as Map? ?? {});
       final remoteCategories = Map<String, dynamic>.from(remoteData?['categories'] as Map? ?? {});
 
+      // ── Guest-default category guard ──────────────────────────────────────
+      // The default "Danh Mục" category is auto-created for guests.
+      // • New account (no remote categories) → push it as-is (first-time switch).
+      // • Returning/different account (has remote categories) → exclude it from
+      //   the push, remap its links to uncategorized, and delete it locally.
+      final guestDefaultCatId = AppGetStorage.guestDefaultCategoryId;
+      final excludeGuestDefault = guestDefaultCatId != null && remoteCategories.isNotEmpty;
+
+      if (excludeGuestDefault) {
+        categoryUpserts.remove(guestDefaultCatId);
+        // Remap any links belonging to this category to uncategorized.
+        for (final id in linkUpserts.keys.toList()) {
+          final data = Map<String, dynamic>.from(linkUpserts[id] as Map);
+          if (data['categoryId'] == guestDefaultCatId) {
+            data['categoryId'] = null;
+            linkUpserts[id] = data;
+          }
+        }
+      }
+
       for (final link in AppCache.links) {
         if (!linkUpserts.containsKey(link.id) && !remoteLinks.containsKey(link.id)) {
           linkUpserts[link.id] = link.toJson();
@@ -257,6 +315,9 @@ class SessionSyncService {
       for (final cat in AppCache.categories) {
         final id = cat.id;
         if (id == null || id.isEmpty) continue;
+        // Never push the guest default category to an account that already has
+        // its own categories.
+        if (id == guestDefaultCatId && excludeGuestDefault) continue;
         if (!categoryUpserts.containsKey(id) && !remoteCategories.containsKey(id)) {
           categoryUpserts[id] = cat.toJson();
         }
@@ -274,6 +335,79 @@ class SessionSyncService {
         log('Post-login sync: pushed ${updates.length} paths to Firebase.');
       } else {
         log('Post-login sync: already in sync.');
+      }
+
+      // ── Local cleanup for excluded guest default category ─────────────────
+      if (excludeGuestDefault) {
+        // Delete the default category from local SQLite.
+        await DbHelper.delete(CategoryModel().tableName, guestDefaultCatId!);
+        // Remap links that belonged to it → uncategorized in local SQLite.
+        final affectedLinks = AppCache.links
+            .where((l) => l.categoryId == guestDefaultCatId)
+            .toList();
+        for (final link in affectedLinks) {
+          await DbHelper.update(LinkModel(id: '').tableName, link.id, {'categoryId': null});
+        }
+        log(
+          'Guest default category removed locally. '
+          'Remapped ${affectedLinks.length} link(s) to uncategorized.',
+        );
+      }
+      // Always clear the guest key — it is no longer needed after login.
+      AppGetStorage.clearGuestDefaultCategoryId();
+
+      // ── PULL: download Firebase items that are not in local SQLite ──────────
+      final localLinkIds = AppCache.links.map((l) => l.id).toSet();
+      final localCategoryIds = AppCache.categories
+          .map((c) => c.id)
+          .where((id) => id != null && id.isNotEmpty)
+          .toSet();
+
+      final categoriesToInsert = <CategoryModel>[];
+      for (final entry in remoteCategories.entries) {
+        if (!localCategoryIds.contains(entry.key)) {
+          try {
+            final data = Map<String, dynamic>.from(entry.value as Map)..['id'] = entry.key;
+            categoriesToInsert.add(CategoryModel.fromJson(data));
+          } catch (e) {
+            log('Post-login sync: failed to parse remote category ${entry.key}: $e');
+          }
+        }
+      }
+
+      final linksToInsert = <LinkModel>[];
+      for (final entry in remoteLinks.entries) {
+        if (!localLinkIds.contains(entry.key)) {
+          try {
+            final data = Map<String, dynamic>.from(entry.value as Map);
+            linksToInsert.add(LinkModel.fromJson(data, id: entry.key));
+          } catch (e) {
+            log('Post-login sync: failed to parse remote link ${entry.key}: $e');
+          }
+        }
+      }
+
+      // Insert categories first (links reference categories via FK).
+      if (categoriesToInsert.isNotEmpty) {
+        await DbHelper.upsertAll(categoriesToInsert);
+      }
+
+      if (linksToInsert.isNotEmpty) {
+        await DbHelper.upsertAll(linksToInsert);
+      }
+
+      log(
+        'Post-login sync: pulled ${linksToInsert.length} links, '
+        '${categoriesToInsert.length} categories from Firebase.',
+      );
+
+      // Reload AppCache from SQLite so it's an exact, duplicate-free mirror of
+      // the DB after all upserts. Incremental AppCache.add* calls are avoided
+      // because they have no duplicate guard and can race with UI loads.
+      if (categoriesToInsert.isNotEmpty || linksToInsert.isNotEmpty || excludeGuestDefault) {
+        AppCache.invalidateAll();
+        await CategoryRepository.ensureLoaded();
+        await LinkRepository.ensureLoaded();
       }
 
       // Clear queue and stamp the reconcile time so the 24h pass is skipped.

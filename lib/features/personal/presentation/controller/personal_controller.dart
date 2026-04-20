@@ -6,11 +6,14 @@ import 'package:get/get.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:keep_link/core/cache/app_cache.dart';
 import 'package:keep_link/core/cache/app_get_storage.dart';
+import 'package:keep_link/core/cache/sql_lite.dart';
 import 'package:keep_link/core/service/firebase_service.dart';
 import 'package:keep_link/core/service/session_sync_service.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/utils.dart';
+import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
+import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
 import 'package:keep_link/features/personal/di/feedback_binding.dart';
 import 'package:keep_link/features/personal/presentation/controller/feedback_controller.dart';
 import 'package:keep_link/features/personal/presentation/page/feedback_page.dart';
@@ -103,7 +106,9 @@ class PersonalController extends GetxController {
         );
         final uid = result.user?.uid;
         if (uid != null) {
-          unawaited(SessionSyncService.instance.syncAfterLogin(uid));
+          SessionSyncService.instance.syncAfterLogin(uid).then((_) {
+            _refreshDataControllers();
+          });
         }
       }
     } finally {
@@ -115,7 +120,17 @@ class PersonalController extends GetxController {
     if (isLoading.value) return;
     isLoading.value = true;
     try {
+      // Push any in-session mutations before signing out so data is not lost.
+      final uid = FirebaseService.currentUserId;
+      if (uid != null) {
+        await SessionSyncService.instance.flushCurrentSession(uid);
+      }
       await FirebaseService.signOut();
+      // Clear all local data so the next guest/account session starts fresh.
+      SessionSyncService.instance.clearOnSignOut();
+      await DbHelper.resetDatabase();
+      AppCache.invalidateAll();
+      _refreshDataControllers();
       AppToast.showToast(
         'Signed out successfully'.tr,
         Icons.logout_rounded,
@@ -123,6 +138,16 @@ class PersonalController extends GetxController {
       );
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// Refresh [LinkCollectionController] and [CategoryController] if they are
+  void _refreshDataControllers() {
+    if (Get.isRegistered<LinkCollectionController>()) {
+      Get.find<LinkCollectionController>().refreshData();
+    }
+    if (Get.isRegistered<CategoryController>()) {
+      Get.find<CategoryController>().fetchCategories();
     }
   }
 
@@ -143,18 +168,19 @@ class PersonalController extends GetxController {
   }
 
   Future<void> rateApp() async {
-    if (AppGetStorage.hasRatedApp()) {
-      AppToast.showToast('You have already rated this app.\nThank you!'.tr, Icons.star_rounded);
-      return;
-    }
-
     final inAppReview = InAppReview.instance;
     if (await inAppReview.isAvailable()) {
       await inAppReview.requestReview();
+      AppToast.showToast(
+        'Review request sent. Google Play may decide not to show the dialog every time.'.tr,
+        Icons.info_outline_rounded,
+        color: Colors.orange,
+      );
     } else {
       await inAppReview.openStoreListing(appStoreId: 'com.phamtruong.keeplink');
+      final uid = FirebaseService.currentUserId;
+      AppGetStorage.setHasRatedApp(userId: uid);
     }
-    AppGetStorage.setHasRatedApp();
   }
 
   Future<void> showEditNameDialog() async {

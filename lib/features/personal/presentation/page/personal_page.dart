@@ -102,6 +102,33 @@ class PersonalPage extends GetView<PersonalController> {
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 20),
+
+                // ── Sign in / out ─────────────────────────────────────────────
+                ElevatedButton.icon(
+                  onPressed: loading
+                      ? null
+                      : (isLoggedIn ? controller.signOut : controller.signInWithGoogle),
+                  icon: loading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(isLoggedIn ? Icons.logout_rounded : Icons.login_rounded),
+                  label: TextWidget(
+                    text: loading
+                        ? 'Please wait...'.tr
+                        : (isLoggedIn ? 'Sign Out'.tr : 'Sign In with Google'.tr),
+                    color: Colors.white,
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                  ),
+                ),
                 const SizedBox(height: 16),
 
                 // ── Stats ─────────────────────────────────────────────────────
@@ -150,32 +177,7 @@ class PersonalPage extends GetView<PersonalController> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
 
-                // ── Sign in / out ─────────────────────────────────────────────
-                ElevatedButton.icon(
-                  onPressed: loading
-                      ? null
-                      : (isLoggedIn ? controller.signOut : controller.signInWithGoogle),
-                  icon: loading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(isLoggedIn ? Icons.logout_rounded : Icons.login_rounded),
-                  label: TextWidget(
-                    text: loading
-                        ? 'Please wait...'.tr
-                        : (isLoggedIn ? 'Sign Out'.tr : 'Sign In with Google'.tr),
-                    color: Colors.white,
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 48),
-                  ),
-                ),
                 const SizedBox(height: 24),
 
                 // ── Support ───────────────────────────────────────────────────

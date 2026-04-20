@@ -98,11 +98,32 @@ class AppGetStorage {
     _box.write(_searchHistoryKey, history);
   }
 
+  // ========== Guest Default Category ========== //
+  static const String _guestDefaultCategoryKey = 'guest_default_category_id';
+
+  /// ID of the auto-created default category for guest users.
+  /// Null once the user has signed in and the category has been handled.
+  static String? get guestDefaultCategoryId => _box.read<String>(_guestDefaultCategoryKey);
+
+  static void setGuestDefaultCategoryId(String id) => _box.write(_guestDefaultCategoryKey, id);
+
+  static void clearGuestDefaultCategoryId() => _box.remove(_guestDefaultCategoryKey);
+
   // ========== App Review ========== //
   static const String _hasRatedAppKey = 'has_rated_app';
 
-  static bool hasRatedApp() => _box.read<bool>(_hasRatedAppKey) ?? false;
-  static void setHasRatedApp() => _box.write(_hasRatedAppKey, true);
+  static String _ratedAppKeyForUser(String? userId) {
+    if (userId == null || userId.trim().isEmpty) return _hasRatedAppKey;
+    return '${_hasRatedAppKey}_${userId.trim()}';
+  }
+
+  static bool hasRatedApp({String? userId}) {
+    return _box.read<bool>(_ratedAppKeyForUser(userId)) ?? false;
+  }
+
+  static void setHasRatedApp({String? userId}) {
+    _box.write(_ratedAppKeyForUser(userId), true);
+  }
 
   static void clearSearchHistory() {
     _box.remove(_searchHistoryKey);
