@@ -30,7 +30,12 @@ class CacheImageWidget extends StatelessWidget {
       height: height,
       fit: fit,
       placeholder: (context, url) =>
-          placeholder ?? const Center(child: CircularProgressIndicator()),
+          placeholder ??
+          SizedBox(
+            width: width,
+            height: height,
+            child: const Center(child: CircularProgressIndicator(strokeWidth: 1)),
+          ),
       errorWidget: (context, url, error) =>
           errorWidget ?? const Icon(Icons.broken_image, color: AppColors.t400),
     );

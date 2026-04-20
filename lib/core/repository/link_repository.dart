@@ -90,6 +90,7 @@ class LinkRepository {
     await DbHelper.update(_table, link.id, link.toJson());
     AppCache.updateLink(link);
     SessionSyncService.instance.trackLinkUpsert(link);
+    SessionSyncService.instance.pushNow();
   }
 
   /// Delete a link by id.  Removes from DB then from cache.
@@ -97,5 +98,6 @@ class LinkRepository {
     await DbHelper.delete(_table, id);
     AppCache.removeLink(id);
     SessionSyncService.instance.trackLinkDelete(id);
+    SessionSyncService.instance.pushNow();
   }
 }

@@ -60,6 +60,18 @@ class FirebaseService {
     }
   }
 
+  /// Update the photo URL of the currently signed-in user.
+  static Future<void> updatePhotoURL(String photoUrl) async {
+    try {
+      await _auth.currentUser?.updatePhotoURL(photoUrl);
+      await _auth.currentUser?.reload();
+      log('Photo URL updated: $photoUrl');
+    } catch (e) {
+      log('Update photo URL error: $e');
+      rethrow;
+    }
+  }
+
   static User? get currentUser => _auth.currentUser;
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
   static String? get currentUserId => _auth.currentUser?.uid;

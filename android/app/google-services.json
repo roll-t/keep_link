@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "536130567578",
+    "firebase_url": "https://linkcapture-13a10-default-rtdb.firebaseio.com",
     "project_id": "linkcapture-13a10",
     "storage_bucket": "linkcapture-13a10.firebasestorage.app"
   },
@@ -14,11 +15,27 @@
       },
       "oauth_client": [
         {
+          "client_id": "536130567578-1qufk4lj235usm7n8i4sfdp65k7ner55.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.phamtruong.keeplink",
+            "certificate_hash": "ee966d90a9ab95fdeaa8c4ee36aeeaf16429966a"
+          }
+        },
+        {
           "client_id": "536130567578-qsvkimu8vk93502gtu49gnnkbufjtd7j.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.phamtruong.keeplink",
             "certificate_hash": "8f149e2733b685abd3c7f4093691bf9ef69f0ebb"
+          }
+        },
+        {
+          "client_id": "536130567578-taig1u9a372tfola82pere11347u6f61.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.phamtruong.keeplink",
+            "certificate_hash": "74cedb3b9e15520ee4bfafede908ffec26f28cd1"
           }
         },
         {

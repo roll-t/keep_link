@@ -125,6 +125,51 @@ class AppGetStorage {
     _box.write(_ratedAppKeyForUser(userId), true);
   }
 
+  // ========== Avatar fingerprint ========== //
+  static const String _avatarFingerprintKey = 'avatar_fingerprint';
+
+  static String _avatarFingerprintKeyForUser(String uid) => '${_avatarFingerprintKey}_$uid';
+
+  static int? getAvatarFingerprint(String uid) {
+    return _box.read<int>(_avatarFingerprintKeyForUser(uid));
+  }
+
+  static void setAvatarFingerprint(String uid, int fingerprint) {
+    _box.write(_avatarFingerprintKeyForUser(uid), fingerprint);
+  }
+
+  // ========== Avatar change limit (2/day) ========== //
+  static const String _avatarChangeDateKey = 'avatar_change_date';
+  static const String _avatarChangeCountKey = 'avatar_change_count';
+  static const int maxAvatarChangesPerDay = 2;
+
+  static String _avatarChangeDateKeyForUser(String uid) => '${_avatarChangeDateKey}_$uid';
+  static String _avatarChangeCountKeyForUser(String uid) => '${_avatarChangeCountKey}_$uid';
+
+  static int _todayDateInt() {
+    final now = DateTime.now();
+    return now.year * 10000 + now.month * 100 + now.day;
+  }
+
+  /// Returns how many avatar changes remain today (0 means limit reached).
+  static int avatarChangesRemainingToday(String uid) {
+    final savedDate = _box.read<int>(_avatarChangeDateKeyForUser(uid));
+    final today = _todayDateInt();
+    if (savedDate != today) return maxAvatarChangesPerDay;
+    final count = _box.read<int>(_avatarChangeCountKeyForUser(uid)) ?? 0;
+    final remaining = maxAvatarChangesPerDay - count;
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  /// Call this after a successful avatar upload.
+  static void recordAvatarChange(String uid) {
+    final today = _todayDateInt();
+    final savedDate = _box.read<int>(_avatarChangeDateKeyForUser(uid));
+    final count = savedDate == today ? (_box.read<int>(_avatarChangeCountKeyForUser(uid)) ?? 0) : 0;
+    _box.write(_avatarChangeDateKeyForUser(uid), today);
+    _box.write(_avatarChangeCountKeyForUser(uid), count + 1);
+  }
+
   static void clearSearchHistory() {
     _box.remove(_searchHistoryKey);
   }

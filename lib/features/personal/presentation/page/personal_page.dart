@@ -42,24 +42,69 @@ class PersonalPage extends GetView<PersonalController> {
                   ),
                   child: Column(
                     children: [
-                      CacheImageWidget(
-                        imageUrl: isLoggedIn && (currentUser.photoURL?.isNotEmpty == true)
-                            ? currentUser.photoURL!
-                            : '',
-                        width: 68,
-                        height: 68,
-                        fit: BoxFit.cover,
-                        borderRadius: BorderRadius.circular(34),
-                        errorWidget: Container(
-                          width: 68,
-                          height: 68,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacityCompat(0.2),
-                            shape: BoxShape.circle,
+                      // ── Avatar ──────────────────────────────────────────
+                      Obx(() {
+                        final uploading = controller.isUploadingAvatar.value;
+                        return GestureDetector(
+                          onTap: isLoggedIn && !uploading ? controller.changeAvatar : null,
+                          child: Stack(
+                            children: [
+                              CacheImageWidget(
+                                imageUrl: isLoggedIn && (currentUser.photoURL?.isNotEmpty == true)
+                                    ? currentUser.photoURL!
+                                    : '',
+                                width: 68,
+                                height: 68,
+                                fit: BoxFit.cover,
+                                borderRadius: BorderRadius.circular(34),
+                                errorWidget: Container(
+                                  width: 68,
+                                  height: 68,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withOpacityCompat(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.person, size: 34, color: AppColors.white),
+                                ),
+                              ),
+                              if (uploading)
+                                Container(
+                                  width: 68,
+                                  height: 68,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacityCompat(0.5),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.white,
+                                    ),
+                                  ),
+                                ),
+                              if (isLoggedIn && !uploading)
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: AppColors.d500, width: 1.5),
+                                    ),
+                                    child: const Icon(
+                                      Icons.edit_rounded,
+                                      size: 11,
+                                      color: AppColors.white,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
-                          child: const Icon(Icons.person, size: 34, color: AppColors.white),
-                        ),
-                      ),
+                        );
+                      }),
                       const SizedBox(height: 12),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,

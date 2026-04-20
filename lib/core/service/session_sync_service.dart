@@ -238,6 +238,32 @@ class SessionSyncService {
     }
   }
 
+  // ── Immediate push (fire-and-forget) ─────────────────────────────────────
+
+  /// Pushes all current in-memory pending changes to Firebase immediately.
+  ///
+  /// Call this after any user-initiated delete or update so changes are
+  /// reflected in Firebase right away instead of waiting for the next
+  /// app launch or logout.
+  ///
+  /// - Does nothing if the user is not authenticated (guest mode).
+  /// - Does nothing if there are no pending changes.
+  /// - Skips if a flush is already in progress.
+  /// - On success, clears the in-memory queue (changes are safe in Firebase).
+  /// - On failure, leaves the queue intact so it will be retried via the
+  ///   normal persist-on-close → flush-on-launch path.
+  void pushNow() {
+    final userId = FirebaseService.currentUserId;
+    if (userId == null || userId.isEmpty) return;
+    if (!hasPendingChanges) return;
+    if (_isFlushing) return;
+
+    // Fire-and-forget — caller does not need to await.
+    flushCurrentSession(userId).catchError((e) {
+      log('pushNow failed (will retry on next launch): $e');
+    });
+  }
+
   // ── Post-login sync ───────────────────────────────────────────────────────
 
   /// Called immediately after a user signs in for the first time in a session.

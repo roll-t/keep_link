@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:keep_link/core/cache/app_cache.dart';
 import 'package:keep_link/core/cache/app_get_storage.dart';
 import 'package:keep_link/core/cache/sql_lite.dart';
 import 'package:keep_link/core/service/firebase_service.dart';
+import 'package:keep_link/core/service/image_kit_service.dart';
 import 'package:keep_link/core/service/session_sync_service.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
@@ -22,6 +25,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 class PersonalController extends GetxController {
   final user = Rxn<User>();
   final isLoading = false.obs;
+  final isUploadingAvatar = false.obs;
   final appVersion = ''.obs;
   StreamSubscription<User?>? _authSub;
 
@@ -190,6 +194,81 @@ class PersonalController extends GetxController {
     if (saved == true) {
       user.value = FirebaseService.currentUser;
       AppToast.showToast('Username updated successfully'.tr, Icons.edit_rounded);
+    }
+  }
+
+  Future<void> changeAvatar() async {
+    if (user.value == null) {
+      AppToast.showToast(
+        'Please sign in to change avatar'.tr,
+        Icons.login_rounded,
+        color: Colors.orange,
+      );
+      return;
+    }
+
+    final uid = user.value!.uid;
+
+    // Check daily limit before opening picker
+    if (AppGetStorage.avatarChangesRemainingToday(uid) <= 0) {
+      AppToast.showToast(
+        'You can only change your avatar 2 times per day'.tr,
+        Icons.block_rounded,
+        color: Colors.red,
+      );
+      return;
+    }
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 512,
+      maxHeight: 512,
+    );
+    if (picked == null) return;
+
+    final pickedFile = File(picked.path);
+    final pickedSize = await pickedFile.length();
+    final lastFingerprint = AppGetStorage.getAvatarFingerprint(uid);
+
+    if (lastFingerprint != null && lastFingerprint == pickedSize) {
+      AppToast.showToast(
+        'This is already your current avatar'.tr,
+        Icons.image_rounded,
+        color: Colors.orange,
+      );
+      return;
+    }
+
+    isUploadingAvatar.value = true;
+    try {
+      final url = await ImageKitService.uploadFile(
+        file: pickedFile,
+        folder: '/avatars/$uid',
+        fileName: 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+      if (url == null) {
+        AppToast.showToast(
+          'Upload failed. Please try again.'.tr,
+          Icons.error_outline_rounded,
+          color: Colors.red,
+        );
+        return;
+      }
+      AppGetStorage.setAvatarFingerprint(uid, pickedSize);
+      AppGetStorage.recordAvatarChange(uid);
+      await FirebaseService.updatePhotoURL(url);
+      user.value = FirebaseService.currentUser;
+      AppToast.showToast(
+        'Avatar updated successfully'.tr,
+        Icons.check_circle_rounded,
+        color: Colors.green,
+      );
+    } catch (e) {
+      AppToast.showToast('Something went wrong'.tr, Icons.error_outline_rounded, color: Colors.red);
+    } finally {
+      isUploadingAvatar.value = false;
     }
   }
 }
