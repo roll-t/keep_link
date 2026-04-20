@@ -127,4 +127,15 @@ Map<String, String> vi = {
   "Re-enter PIN to confirm": 'Nhập lại PIN để xác nhận',
   "PIN has been set": 'PIN đã được thiết lập',
   "The two PINs do not match": 'Hai lần nhập không khớp',
+
+  // Personal Page
+  "Personal": 'Cá nhân',
+  "Guest User": 'Khách',
+  "Not signed in": 'Chưa đăng nhập',
+  "No display name": 'Chưa có tên hiển thị',
+  "No email": 'Chưa có email',
+  "Sign In with Google": 'Đăng nhập bằng Google',
+  "Sign Out": 'Đăng xuất',
+  "Please wait...": 'Vui lòng chờ...',
+  "UID: @0": 'UID: @0',
 };

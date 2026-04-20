@@ -1,5 +1,6 @@
 import 'package:keep_link/core/cache/app_cache.dart';
 import 'package:keep_link/core/cache/sql_lite.dart';
+import 'package:keep_link/core/service/session_sync_service.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 
 /// Data-access layer for [LinkModel].
@@ -81,17 +82,20 @@ class LinkRepository {
   static Future<void> insert(LinkModel link) async {
     await DbHelper.upsert(link);
     AppCache.addLink(link);
+    SessionSyncService.instance.trackLinkUpsert(link);
   }
 
   /// Update an existing link.  Writes to DB then updates cache in-place.
   static Future<void> update(LinkModel link) async {
     await DbHelper.update(_table, link.id, link.toJson());
     AppCache.updateLink(link);
+    SessionSyncService.instance.trackLinkUpsert(link);
   }
 
   /// Delete a link by id.  Removes from DB then from cache.
   static Future<void> delete(String id) async {
     await DbHelper.delete(_table, id);
     AppCache.removeLink(id);
+    SessionSyncService.instance.trackLinkDelete(id);
   }
 }

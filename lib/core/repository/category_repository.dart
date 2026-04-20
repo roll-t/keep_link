@@ -1,5 +1,6 @@
 import 'package:keep_link/core/cache/app_cache.dart';
 import 'package:keep_link/core/cache/sql_lite.dart';
+import 'package:keep_link/core/service/session_sync_service.dart';
 import 'package:keep_link/features/category/application/model/category_model.dart';
 
 /// Data-access layer for [CategoryModel].
@@ -39,18 +40,21 @@ class CategoryRepository {
   static Future<void> insert(CategoryModel category) async {
     await DbHelper.upsert(category);
     AppCache.addCategory(category);
+    SessionSyncService.instance.trackCategoryUpsert(category);
   }
 
   /// Update an existing category.  Writes to DB then updates cache in-place.
   static Future<void> update(CategoryModel category) async {
     await DbHelper.upsert(category);
     AppCache.updateCategory(category);
+    SessionSyncService.instance.trackCategoryUpsert(category);
   }
 
   /// Delete a category by id.  Removes from DB then from cache.
   static Future<void> delete(String id) async {
     await DbHelper.delete(CategoryModel().tableName, id);
     AppCache.removeCategory(id);
+    SessionSyncService.instance.trackCategoryDelete(id);
   }
 
   /// Clear all categories (used during debug/reset flows).

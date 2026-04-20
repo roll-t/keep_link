@@ -55,9 +55,8 @@ class LinkDetailController extends GetxController {
     cacheMode: CacheMode.LOAD_CACHE_ELSE_NETWORK,
 
     // ── Rendering (Android) ──────────────────────────────────────────────
-    // false = SurfaceAndroidWebView (SurfaceView): render trên thread
-    // riêng → scroll mượt hơn, dùng ít CPU hơn TextureView.
-    useHybridComposition: false,
+    // Dùng HybridComposition để giảm lỗi/log BLASTBufferQueue trên một số máy.
+    useHybridComposition: true,
     transparentBackground: true,
 
     // ── Media ────────────────────────────────────────────────────────────
@@ -219,6 +218,12 @@ class LinkDetailController extends GetxController {
       document.documentElement.style.overflow = 'auto';
     }
     hideAppPrompts();
-    setInterval(hideAppPrompts, 1000);
+
+    // Theo dõi thay đổi DOM thay vì polling mỗi giây để tránh chạy liên tục.
+    const observer = new MutationObserver(() => hideAppPrompts());
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+
+    // Dọn observer sau 15s để không giữ task chạy mãi.
+    setTimeout(() => observer.disconnect(), 15000);
   ''';
 }

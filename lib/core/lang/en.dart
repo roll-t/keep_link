@@ -159,4 +159,15 @@ Map<String, String> en = {
   "Re-enter PIN to confirm": 'Re-enter PIN to confirm',
   "PIN has been set": 'PIN has been set',
   "The two PINs do not match": 'The two PINs do not match',
+
+  // Personal Page
+  "Personal": 'Personal',
+  "Guest User": 'Guest User',
+  "Not signed in": 'Not signed in',
+  "No display name": 'No display name',
+  "No email": 'No email',
+  "Sign In with Google": 'Sign In with Google',
+  "Sign Out": 'Sign Out',
+  "Please wait...": 'Please wait...',
+  "UID: @0": 'UID: @0',
 };

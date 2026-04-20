@@ -3,6 +3,9 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  firebase_auth
+  firebase_core
+  firebase_storage
   flutter_inappwebview_windows
   flutter_localization
   local_auth_windows
