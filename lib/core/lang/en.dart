@@ -170,4 +170,136 @@ Map<String, String> en = {
   "Sign Out": 'Sign Out',
   "Please wait...": 'Please wait...',
   "UID: @0": 'UID: @0',
+
+  // Personal - Extra
+  "Statistics": 'Statistics',
+  "Total Links": 'Total Links',
+  "Categories": 'Categories',
+  "This Week": 'This Week',
+  "Day Streak": 'Day Streak',
+  "Support": 'Support',
+  "Rate App": 'Rate App',
+  "Send Feedback": 'Send Feedback',
+  "Report a Bug": 'Report a Bug',
+  "Privacy Policy": 'Privacy Policy',
+  "Terms of Service": 'Terms of Service',
+  "App Version": 'App Version',
+    "No data": 'No data',
+    "Total Links Details": 'Total Links Details',
+    "Categories Details": 'Categories Details',
+    "This Week Details": 'This Week Details',
+    "Day Streak Details": 'Day Streak Details',
+    "Links in categories": 'Links in categories',
+    "Uncategorized links": 'Uncategorized links',
+    "First saved": 'First saved',
+    "Last saved": 'Last saved',
+    "Categories with links": 'Categories with links',
+    "Empty categories": 'Empty categories',
+    "Public categories": 'Public categories',
+    "Private categories": 'Private categories',
+    "Links this week": 'Links this week',
+    "Links last week": 'Links last week',
+    "Active days this week": 'Active days this week',
+    "Current streak": 'Current streak',
+    "Longest streak": 'Longest streak',
+    "Total active days": 'Total active days',
+    "Last active day": 'Last active day',
+  "Google sign in cancelled": 'Google sign in cancelled',
+  "Signed in successfully": 'Signed in successfully',
+  "Signed out successfully": 'Signed out successfully',
+  "Edit Username": 'Edit Username',
+  "Enter your name": 'Enter your name',
+  "Username must not be empty": 'Username must not be empty',
+  "Username must be at least 3 characters": 'Username must be at least 3 characters',
+  "Username must be at most 30 characters": 'Username must be at most 30 characters',
+  "Cancel": 'Cancel',
+  "You have already rated this app.\nThank you!": 'You have already rated this app.\nThank you!',
+
+  // Feedback
+  "Share your thoughts, suggestions, or ideas...": 'Share your thoughts, suggestions, or ideas...',
+  "Describe the bug, steps to reproduce, and expected behavior...":
+      'Describe the bug, steps to reproduce, and expected behavior...',
+  "Today you can send only 1 feedback. Please try again tomorrow.":
+      'Today you can send only 1 feedback. Please try again tomorrow.',
+  "Today you can send only 3 bug reports. Please try again tomorrow.":
+      'Today you can send only 3 bug reports. Please try again tomorrow.',
+  "Your message...": 'Your message...',
+  "Describe the issue...": 'Describe the issue...',
+  "Feedback sent. Thank you!": 'Feedback sent. Thank you!',
+  "Bug report sent. Thank you!": 'Bug report sent. Thank you!',
+  "Please sign in to send feedback.": 'Please sign in to send feedback.',
+  "Failed to send. Please try again.": 'Failed to send. Please try again.',
+  "Sending...": 'Sending...',
+  "Send": 'Send',
+  "Your feedback helps us improve LinkCapture.": 'Your feedback helps us improve LinkCapture.',
+
+  // Privacy Policy
+  "privacy.introduction.title": 'Introduction',
+  "privacy.introduction.body":
+      'LinkCapture ("we", "our", or "us") is committed to protecting your personal information. '
+      'This Privacy Policy explains how we collect, use, and safeguard your data when you use our app.',
+  "privacy.info_collect.title": 'Information We Collect',
+  "privacy.info_collect.body":
+      '• Account information: name, email address, and profile photo when you sign in with Google.\n'
+      '• User content: links and categories you save within the app.\n'
+      '• Device information: app version, operating system, and device type for analytics purposes.',
+  "privacy.usage.title": 'How We Use Your Information',
+  "privacy.usage.body":
+      '• To sync your saved links and categories across devices via Firebase.\n'
+      '• To identify your account and personalize your experience.\n'
+      '• To improve app performance and fix issues.',
+  "privacy.storage.title": 'Data Storage',
+  "privacy.storage.body":
+      'Your data is stored locally on your device using SQLite. If you sign in, data is also synced '
+      'to Firebase Realtime Database under your unique user ID. We do not sell your data to third parties.',
+  "privacy.third_party.title": 'Third-Party Services',
+  "privacy.third_party.body":
+      'We use the following third-party services:\n'
+      '• Google Sign-In - for authentication.\n'
+      '• Firebase - for cloud sync and analytics.\n'
+      'These services have their own privacy policies.',
+  "privacy.deletion.title": 'Data Deletion',
+  "privacy.deletion.body":
+      'You can delete your account data at any time by signing out and removing the app. '
+      'To request complete deletion of your Firebase data, contact us at feedback@linkcapture.app.',
+  "privacy.contact.title": 'Contact Us',
+  "privacy.contact.body":
+      'If you have any questions about this Privacy Policy, please contact us at:\nfeedback@linkcapture.app',
+
+  // Terms of Service
+  "terms.acceptance.title": 'Acceptance of Terms',
+  "terms.acceptance.body":
+      'By downloading or using LinkCapture, you agree to be bound by these Terms of Service. '
+      'If you do not agree, please do not use the app.',
+  "terms.use.title": 'Use of the App',
+  "terms.use.body":
+      '• LinkCapture is provided for personal, non-commercial use.\n'
+      '• You must not use the app to store illegal, harmful, or offensive content.\n'
+      '• You are responsible for maintaining the security of your account.',
+  "terms.content.title": 'User Content',
+  "terms.content.body":
+      'You retain ownership of any links and content you save in LinkCapture. '
+      'By using cloud sync, you grant us a limited license to store and transmit your content '
+      'solely for the purpose of providing the service.',
+  "terms.account.title": 'Account',
+  "terms.account.body":
+      'You may use LinkCapture without an account. If you sign in with Google, you agree to '
+      'Google\'s Terms of Service in addition to ours. You can sign out and delete your data at any time.',
+  "terms.disclaimer.title": 'Disclaimer of Warranties',
+  "terms.disclaimer.body":
+      'LinkCapture is provided "as is" without warranties of any kind. We do not guarantee '
+      'uninterrupted or error-free operation of the app.',
+  "terms.liability.title": 'Limitation of Liability',
+  "terms.liability.body":
+      'To the maximum extent permitted by law, we are not liable for any indirect, incidental, '
+      'or consequential damages arising from your use of LinkCapture.',
+  "terms.changes.title": 'Changes to Terms',
+  "terms.changes.body":
+      'We may update these Terms from time to time. Continued use of the app after changes '
+      'constitutes your acceptance of the new Terms.',
+  "terms.contact.title": 'Contact',
+  "terms.contact.body": 'For questions about these Terms, contact us at:\nfeedback@linkcapture.app',
+
+  // Common
+  "Last updated: @0": 'Last updated: @0',
 };

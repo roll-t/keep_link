@@ -136,37 +136,40 @@ class _CategorySection extends StatelessWidget {
         Obx(() {
           final cats = ctrl.categories;
 
-          return SingleChildScrollView(
-            controller: ctrl.categoryScrollController,
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                // Chip "All"
-                _ScrollItem(
-                  onSelected: () => ctrl.selectCategory(null),
-                  child: _CategoryChip(
-                    label: 'All',
-                    selected: ctrl.selectedCategoryId.value == null,
+          return SizedBox(
+            width: double.infinity,
+            child: SingleChildScrollView(
+              controller: ctrl.categoryScrollController,
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  // Chip "All"
+                  _ScrollItem(
+                    onSelected: () => ctrl.selectCategory(null),
+                    child: _CategoryChip(
+                      label: 'All',
+                      selected: ctrl.selectedCategoryId.value == null,
+                    ),
                   ),
-                ),
-                ...cats.map((cat) {
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: _ScrollItem(
-                      onSelected: () => ctrl.selectCategory(cat.id),
-                      child: Obx(
-                        () => _CategoryChip(
-                          label: cat.chilrenCount != null
-                              ? '${cat.name ?? ''} (${cat.chilrenCount})'
-                              : (cat.name ?? ''),
-                          selected: ctrl.selectedCategoryId.value == cat.id,
+                  ...cats.map((cat) {
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: _ScrollItem(
+                        onSelected: () => ctrl.selectCategory(cat.id),
+                        child: Obx(
+                          () => _CategoryChip(
+                            label: cat.chilrenCount != null
+                                ? '${cat.name ?? ''} (${cat.chilrenCount})'
+                                : (cat.name ?? ''),
+                            selected: ctrl.selectedCategoryId.value == cat.id,
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }),
-              ],
+                    );
+                  }),
+                ],
+              ),
             ),
           );
         }),

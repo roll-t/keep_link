@@ -98,6 +98,12 @@ class AppGetStorage {
     _box.write(_searchHistoryKey, history);
   }
 
+  // ========== App Review ========== //
+  static const String _hasRatedAppKey = 'has_rated_app';
+
+  static bool hasRatedApp() => _box.read<bool>(_hasRatedAppKey) ?? false;
+  static void setHasRatedApp() => _box.write(_hasRatedAppKey, true);
+
   static void clearSearchHistory() {
     _box.remove(_searchHistoryKey);
   }

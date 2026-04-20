@@ -9,6 +9,8 @@ import 'package:keep_link/features/link/module/link_search/di/search_link_bindin
 import 'package:keep_link/features/link/module/link_search/presentation/page/search_link_page.dart';
 import 'package:keep_link/features/personal/di/personal_binding.dart';
 import 'package:keep_link/features/personal/presentation/page/personal_page.dart';
+import 'package:keep_link/features/personal/presentation/page/privacy_policy_page.dart';
+import 'package:keep_link/features/personal/presentation/page/terms_page.dart';
 import 'package:keep_link/features/security/application/di/pin_verify_binding.dart';
 import 'package:keep_link/features/security/application/di/security_method_binding.dart';
 import 'package:keep_link/features/security/presentation/page/pin_verify_page.dart';
@@ -75,5 +77,15 @@ final appPage = [
     transition: Transition.rightToLeft,
     page: () => const PersonalPage(),
     binding: PersonalBinding(),
+  ),
+  GetPage(
+    name: PrivacyPolicyPage.routeName,
+    transition: Transition.rightToLeft,
+    page: () => const PrivacyPolicyPage(),
+  ),
+  GetPage(
+    name: TermsPage.routeName,
+    transition: Transition.rightToLeft,
+    page: () => const TermsPage(),
   ),
 ];

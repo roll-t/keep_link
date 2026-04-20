@@ -200,6 +200,91 @@ class SessionSyncService {
     _box.remove(_storageKey);
   }
 
+  // ── Post-login sync ───────────────────────────────────────────────────────
+
+  /// Called immediately after a user signs in for the first time in a session.
+  ///
+  /// Combines two steps in one pass:
+  /// 1. Flush all in-memory pending changes + any previously persisted queue.
+  /// 2. Reconcile ALL local SQLite records against Firebase (bypasses 24h throttle).
+  ///
+  /// This ensures links saved while the user was a guest are uploaded right
+  /// after login without requiring an app restart.
+  Future<void> syncAfterLogin(String userId) async {
+    if (userId.isEmpty) return;
+    log('Post-login sync started for user $userId.');
+
+    try {
+      // Merge in-memory queue with any previously persisted (offline) queue.
+      final stored = _loadStoredQueue();
+
+      final linkUpserts = Map<String, dynamic>.from(stored['linkUpserts'] as Map? ?? {});
+      _pendingLinkUpserts.forEach((k, v) => linkUpserts[k] = v);
+
+      final linkDeletes = <String>{
+        ...List<String>.from(stored['linkDeletes'] as List? ?? []),
+        ..._pendingLinkDeletes,
+      };
+      for (final id in linkDeletes) {
+        linkUpserts.remove(id);
+      }
+
+      final categoryUpserts = Map<String, dynamic>.from(stored['categoryUpserts'] as Map? ?? {});
+      _pendingCategoryUpserts.forEach((k, v) => categoryUpserts[k] = v);
+
+      final categoryDeletes = <String>{
+        ...List<String>.from(stored['categoryDeletes'] as List? ?? []),
+        ..._pendingCategoryDeletes,
+      };
+      for (final id in categoryDeletes) {
+        categoryUpserts.remove(id);
+      }
+
+      // Reconcile: find all local SQLite records that are not already queued
+      // and not yet on Firebase.
+      await LinkRepository.ensureLoaded();
+      await CategoryRepository.ensureLoaded();
+
+      final remoteData = await FirebaseService.getUserData(userId);
+      final remoteLinks = Map<String, dynamic>.from(remoteData?['links'] as Map? ?? {});
+      final remoteCategories = Map<String, dynamic>.from(remoteData?['categories'] as Map? ?? {});
+
+      for (final link in AppCache.links) {
+        if (!linkUpserts.containsKey(link.id) && !remoteLinks.containsKey(link.id)) {
+          linkUpserts[link.id] = link.toJson();
+        }
+      }
+      for (final cat in AppCache.categories) {
+        final id = cat.id;
+        if (id == null || id.isEmpty) continue;
+        if (!categoryUpserts.containsKey(id) && !remoteCategories.containsKey(id)) {
+          categoryUpserts[id] = cat.toJson();
+        }
+      }
+
+      // Build one combined update map.
+      final updates = <String, dynamic>{};
+      linkUpserts.forEach((id, data) => updates['links/$id'] = data);
+      for (final id in linkDeletes) updates['links/$id'] = null;
+      categoryUpserts.forEach((id, data) => updates['categories/$id'] = data);
+      for (final id in categoryDeletes) updates['categories/$id'] = null;
+
+      if (updates.isNotEmpty) {
+        await FirebaseService.applyUserDelta(userId, updates);
+        log('Post-login sync: pushed ${updates.length} paths to Firebase.');
+      } else {
+        log('Post-login sync: already in sync.');
+      }
+
+      // Clear queue and stamp the reconcile time so the 24h pass is skipped.
+      _clearInMemory();
+      _box.remove(_storageKey);
+      _box.write(_lastReconciledKey, DateTime.now().toIso8601String());
+    } catch (e) {
+      log('Post-login sync failed (will retry next launch): $e');
+    }
+  }
+
   // ── Reconcile (diff local vs Firebase, push missing) ──────────────────────
 
   static const _lastReconciledKey = 'last_reconciled_at';
