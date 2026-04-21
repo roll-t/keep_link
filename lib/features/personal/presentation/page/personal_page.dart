@@ -1,14 +1,25 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/cache/app_cache.dart';
 import 'package:keep_link/core/config/app_colors.dart';
+import 'package:keep_link/core/config/app_enum.dart';
+import 'package:keep_link/core/config/app_images.dart';
+import 'package:keep_link/core/config/app_text_styles.dart';
 import 'package:keep_link/core/extension/colors.dart';
+import 'package:keep_link/core/lang/translation_service.dart';
 import 'package:keep_link/core/ui/appbar/custom_app_bar.dart';
 import 'package:keep_link/core/ui/image/cache_image.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/features/personal/presentation/controller/personal_controller.dart';
 import 'package:keep_link/features/personal/presentation/page/privacy_policy_page.dart';
 import 'package:keep_link/features/personal/presentation/page/terms_page.dart';
+import 'package:keep_link/features/security/presentation/page/security_method_page.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class PersonalPage extends GetView<PersonalController> {
   static const routeName = '/PersonalPage';
@@ -148,7 +159,6 @@ class PersonalPage extends GetView<PersonalController> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 20),
 
                 // ── Sign in / out ─────────────────────────────────────────────
@@ -175,6 +185,42 @@ class PersonalPage extends GetView<PersonalController> {
                     minimumSize: const Size(double.infinity, 48),
                   ),
                 ),
+
+                const SizedBox(height: 20),
+
+                _SectionLabel(label: 'Friend Connection'.tr),
+                const SizedBox(height: 8),
+                _SupportCard(
+                  children: [
+                    _SupportTile(
+                      icon: Icons.link_rounded,
+                      label: 'Copy Personal Link'.tr,
+                      onTap: isLoggedIn ? controller.copyPersonalFriendLink : null,
+                    ),
+                    _SupportTile(
+                      icon: Icons.qr_code_2_rounded,
+                      label: 'Show Personal QR'.tr,
+                      onTap: isLoggedIn
+                          ? () {
+                              final link = controller.personalFriendLink;
+                              if (link != null) {
+                                _showPersonalQrSheet(context, currentUser, link);
+                              }
+                            }
+                          : null,
+                    ),
+                  ],
+                ),
+                if (!isLoggedIn)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: TextWidget(
+                      text: 'Sign in to create your personal friend link and QR.'.tr,
+                      color: AppColors.n70,
+                      size: 12,
+                    ),
+                  ),
+
                 const SizedBox(height: 16),
 
                 // ── Stats ─────────────────────────────────────────────────────
@@ -225,6 +271,26 @@ class PersonalPage extends GetView<PersonalController> {
                 ),
 
                 const SizedBox(height: 24),
+
+                // ── Settings ──────────────────────────────────────────────────
+                _SectionLabel(label: 'Settings'.tr),
+                const SizedBox(height: 8),
+                _SupportCard(
+                  children: [
+                    _SupportTile(
+                      icon: Icons.language_rounded,
+                      label: 'Language'.tr,
+                      onTap: () => _showLanguageBottomSheet(context),
+                    ),
+                    _SupportTile(
+                      icon: Icons.lock_rounded,
+                      label: 'Security'.tr,
+                      onTap: () =>
+                          Get.toNamed(SecurityMethodPage.routeName, arguments: TypePage.create),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
 
                 // ── Support ───────────────────────────────────────────────────
                 _SectionLabel(label: 'Support'.tr),
@@ -287,6 +353,223 @@ class PersonalPage extends GetView<PersonalController> {
         }),
       ),
     );
+  }
+
+  void _showLanguageBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: AppColors.d500,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextWidget(
+                text: 'Select Language'.tr,
+                textStyle: AppTextStyle.semiBold20,
+                color: AppColors.white,
+              ),
+              const SizedBox(height: 20),
+              ...LocalizationService.langs.entries.map((entry) {
+                final langCode = entry.key;
+                final langName = entry.value;
+                final isSelected = Get.locale?.languageCode == langCode;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: GestureDetector(
+                    onTap: () async {
+                      await LocalizationService.changeLocale(langCode);
+                      Get.back();
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: isSelected
+                            ? AppColors.primary.withOpacityCompat(0.2)
+                            : AppColors.bg700,
+                        border: Border.all(
+                          color: isSelected ? AppColors.primary : Colors.transparent,
+                          width: isSelected ? 2 : 0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextWidget(
+                            text: langName,
+                            textStyle: AppTextStyle.semiBold16,
+                            color: isSelected ? AppColors.primary : AppColors.white,
+                          ),
+                          if (isSelected)
+                            const Icon(Icons.check_circle_rounded, color: AppColors.primary),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPersonalQrSheet(BuildContext context, User currentUser, String link) {
+    final qrKey = GlobalKey();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.d500,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextWidget(
+                text: 'Your Personal QR'.tr,
+                textStyle: AppTextStyle.semiBold20,
+                color: AppColors.white,
+              ),
+              const SizedBox(height: 8),
+              TextWidget(
+                text: 'Let your friend scan this QR or copy the personal link below.'.tr,
+                color: AppColors.n70,
+                size: 13,
+                textAlign: TextAlign.center,
+              ),
+              RepaintBoundary(
+                key: qrKey,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(21),
+                            child: Image.asset(
+                              AppImages.iLogo.path,
+                              width: 42,
+                              height: 42,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacityCompat(0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.person, color: AppColors.white),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                TextWidget(
+                                  text: currentUser.displayName ?? 'No display name'.tr,
+                                  color: AppColors.bg700,
+                                  size: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                TextWidget(
+                                  text: currentUser.email ?? '',
+                                  color: AppColors.n700,
+                                  size: 12,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      QrImageView(
+                        data: link,
+                        version: QrVersions.auto,
+                        size: 220,
+                        backgroundColor: Colors.white,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final pngBytes = await _captureQrPng(qrKey);
+                        if (pngBytes != null) {
+                          await controller.sharePersonalQr(pngBytes);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.n700),
+                      icon: const Icon(Icons.share_rounded, color: AppColors.white),
+                      label: TextWidget(text: 'Share'.tr, color: AppColors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final pngBytes = await _captureQrPng(qrKey);
+                        if (pngBytes != null) {
+                          await controller.savePersonalQrToDevice(pngBytes);
+                        }
+                      },
+                      icon: const Icon(Icons.download_rounded, color: AppColors.white),
+                      label: TextWidget(text: 'Save QR'.tr, color: AppColors.white),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.white,
+                        side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<Uint8List?> _captureQrPng(GlobalKey boundaryKey) async {
+    try {
+      final context = boundaryKey.currentContext;
+      if (context == null) return null;
+
+      final boundary = context.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+
+      final image = await boundary.toImage(pixelRatio: 3);
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      return data?.buffer.asUint8List();
+    } catch (_) {
+      return null;
+    }
   }
 }
 

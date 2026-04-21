@@ -53,6 +53,54 @@ Map<String, String> vi = {
   "Search": 'Tìm kiếm',
   "Add Link": 'Thêm link',
   "All": 'Tất cả',
+  "Friends": 'Bạn bè',
+  "Friend Connection": 'Kết nối bạn bè',
+  "Search friends": 'Tìm bạn bè',
+  "Favorite Friends": 'Bạn bè yêu thích',
+  "Total Friends": 'Tổng bạn bè',
+  "Available Slots": 'Số chỗ còn lại',
+  "Favorites": 'Yêu thích',
+  "No friends yet": 'Chưa có bạn bè nào',
+  "Add Friend": 'Thêm bạn bè',
+  "Delete Friend": 'Xóa bạn bè',
+  "Add friends with personal link or QR": 'Thêm bạn bằng link cá nhân hoặc QR',
+  "Each account can keep up to @0 friends.": 'Mỗi tài khoản chỉ có thể lưu tối đa @0 bạn bè.',
+  "Paste a personal link or scan a personal QR to add a friend.":
+      'Dán link cá nhân hoặc quét QR cá nhân để thêm bạn bè.',
+  "Paste Link": 'Dán link',
+  "Scan QR": 'Quét QR',
+  "Paste Friend Link": 'Dán link bạn bè',
+  "Paste the personal link your friend sent you.": 'Dán link cá nhân mà bạn bè đã gửi cho bạn.',
+  "Paste from Clipboard": 'Dán từ bộ nhớ tạm',
+  "Scan from Gallery": 'Quét từ thư viện',
+  "Scanning image...": 'Đang quét ảnh...',
+  "Scan Personal QR": 'Quét QR cá nhân',
+  "Point the camera at your friend's personal QR code.":
+      'Hướng camera vào mã QR cá nhân của bạn bè.',
+  "friend_sign_in_required": 'Vui lòng đăng nhập để dùng tính năng bạn bè',
+  "friend_limit_reached": 'Bạn chỉ có thể lưu tối đa @0 bạn bè',
+  "friend_invalid_link": 'Link cá nhân này không hợp lệ',
+  "friend_cannot_add_self": 'Bạn không thể tự thêm chính mình',
+  "friend_already_exists": 'Bạn bè này đã có trong danh sách',
+  "friend_clipboard_empty": 'Bộ nhớ tạm chưa có link cá nhân hợp lệ',
+  "friend_no_qr_found_in_image": 'Không tìm thấy mã QR hợp lệ trong ảnh đã chọn',
+  "friend_scan_image_failed": 'Không thể quét QR từ ảnh đã chọn',
+  "friend_added_success": 'Thêm bạn bè thành công',
+  "friend_deleted_success": 'Xóa bạn bè thành công',
+  "delete_friend_confirm": 'Xóa @0 khỏi danh sách bạn bè?',
+  "Copy Personal Link": 'Sao chép link cá nhân',
+  "Save QR": 'Lưu QR',
+  "Share QR or Link": 'Chia sẻ QR hoặc link',
+  "Show Personal QR": 'Hiện QR cá nhân',
+  "Your Personal QR": 'QR cá nhân của bạn',
+  "Let your friend scan this QR or copy the personal link below.":
+      'Để bạn bè quét mã QR này hoặc sao chép link cá nhân bên dưới.',
+  "Sign in to create your personal friend link and QR.":
+      'Đăng nhập để tạo link cá nhân và QR cá nhân của bạn.',
+  "personal_link_copied": 'Đã sao chép link cá nhân',
+  "personal_qr_saved": 'Đã lưu QR vào máy',
+  "personal_qr_save_failed": 'Không thể lưu QR vào máy',
+  "personal_qr_share_failed": 'Không thể chia sẻ QR lúc này',
 
   // Category
   "Select Category": 'Chọn danh mục',
@@ -203,7 +251,9 @@ Map<String, String> vi = {
   "privacy.storage.title": 'Lưu trữ dữ liệu',
   "privacy.storage.body":
       'Dữ liệu của bạn được lưu cục bộ trên thiết bị bằng SQLite. Nếu bạn đăng nhập, dữ liệu cũng được đồng bộ '
-      'lên Firebase Realtime Database theo UID riêng của bạn. Chúng tôi không bán dữ liệu cho bên thứ ba.',
+      'lên Firebase Realtime Database theo UID riêng của bạn. Chúng tôi không bán dữ liệu cho bên thứ ba.\n\n'
+      '⚠️ Lưu ý quan trọng: Nếu bạn gỡ cài ứng dụng mà chưa đăng nhập, toàn bộ dữ liệu lưu cục bộ sẽ '
+      'bị xóa vĩnh viễn và không thể khôi phục. Chúng tôi khuyến nghị bạn nên đăng nhập để bật sao lưu đám mây.',
   "privacy.third_party.title": 'Dịch vụ bên thứ ba',
   "privacy.third_party.body":
       'Chúng tôi sử dụng các dịch vụ sau:\n'
@@ -213,10 +263,16 @@ Map<String, String> vi = {
   "privacy.deletion.title": 'Xóa dữ liệu',
   "privacy.deletion.body":
       'Bạn có thể xóa dữ liệu tài khoản bất cứ lúc nào bằng cách đăng xuất và gỡ ứng dụng. '
-      'Để yêu cầu xóa toàn bộ dữ liệu trên Firebase, vui lòng liên hệ feedback@linkcapture.app.',
+      'Để yêu cầu xóa toàn bộ dữ liệu trên Firebase, vui lòng liên hệ phuoctruong727@gmail.com.',
   "privacy.contact.title": 'Liên hệ',
   "privacy.contact.body":
-      'Nếu bạn có câu hỏi về Chính sách quyền riêng tư, vui lòng liên hệ:\nfeedback@linkcapture.app',
+      'Nếu bạn có câu hỏi về Chính sách quyền riêng tư, vui lòng liên hệ:\n'
+      '• Email: phuoctruong727@gmail.com\n'
+      '• Zalo: 0838629035',
+  "privacy.notice.title": 'Thông báo phát triển',
+  "privacy.notice.body":
+      'Ứng dụng LinkCapture hiện đang trong giai đoạn phát triển tích cực. Bạn có thể gặp một số lỗi hoặc '
+      'hành vi không mong muốn. Nếu bạn phát hiện lỗi hoặc có góp ý, hãy liên hệ với chúng tôi — chúng tôi rất trân trọng!',
 
   // Terms of Service
   "terms.acceptance.title": 'Chấp nhận điều khoản',
@@ -252,8 +308,10 @@ Map<String, String> vi = {
       'có thay đổi đồng nghĩa bạn chấp nhận điều khoản mới.',
   "terms.contact.title": 'Liên hệ',
   "terms.contact.body":
-      'Nếu có câu hỏi về Điều khoản này, vui lòng liên hệ:\nfeedback@linkcapture.app',
+      'Nếu có câu hỏi về Điều khoản này, vui lòng liên hệ:\n• Email: phuoctruong727@gmail.com\n• Zalo: 0838629035',
 
   // Common
   "Last updated: @0": 'Cập nhật lần cuối: @0',
+  "unable_open_email": 'Không thể mở ứng dụng email',
+  "unable_open_zalo": 'Không thể mở Zalo',
 };

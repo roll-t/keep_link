@@ -4,7 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 class DbHelper {
   static Database? _db;
-  static const int _version = 1;
+  static const int _version = 3;
 
   // Cache schema info để tránh query PRAGMA mỗi lần
   static final Map<String, List<String>> _columnCache = {};
@@ -35,10 +35,14 @@ class DbHelper {
 
   /// Placeholder migration — thêm case khi tăng _version
   static Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Ví dụ:
-    // if (oldVersion < 2) {
-    //   await db.execute('ALTER TABLE links ADD COLUMN pinned INTEGER DEFAULT 0');
-    // }
+    final batch = db.batch();
+    if (oldVersion < 3) {
+      batch.execute('DROP TABLE IF EXISTS friends');
+    }
+    for (final sql in _tableSchemas.values) {
+      batch.execute(sql);
+    }
+    await batch.commit(noResult: true);
   }
 
   // ─── Đăng ký model ──────────────────────────────────────────────────────────

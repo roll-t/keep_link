@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/ui/appbar/custom_app_bar.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/features/personal/presentation/widget/contact_links_widget.dart';
 
 class TermsPage extends StatelessWidget {
   static const routeName = '/TermsPage';
@@ -36,8 +37,8 @@ class _TermsContent extends StatelessWidget {
         _Section(title: 'terms.disclaimer.title'.tr, body: 'terms.disclaimer.body'.tr),
         _Section(title: 'terms.liability.title'.tr, body: 'terms.liability.body'.tr),
         _Section(title: 'terms.changes.title'.tr, body: 'terms.changes.body'.tr),
-        _Section(title: 'terms.contact.title'.tr, body: 'terms.contact.body'.tr),
-        const _LastUpdated(date: '20/04/2026'),
+        _ContactSection(title: 'terms.contact.title'.tr),
+        const _LastUpdated(date: '21/04/2026'),
       ],
     );
   }
@@ -64,6 +65,31 @@ class _Section extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           TextWidget(text: body, color: AppColors.onSurfaceVariant, size: 14),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContactSection extends StatelessWidget {
+  const _ContactSection({required this.title});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextWidget(
+            text: title,
+            color: AppColors.onSurface,
+            size: 15,
+            fontWeight: FontWeight.w600,
+          ),
+          const SizedBox(height: 10),
+          const ContactLinksWidget(),
         ],
       ),
     );

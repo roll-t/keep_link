@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 	<dict>
+		<key>NSCameraUsageDescription</key>
+		<string>Ứng dụng cần camera để quét QR kết bạn.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>Ứng dụng cần quyền lưu ảnh QR vào thư viện.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Ứng dụng cần truy cập ảnh để thay đổi avatar.</string>
 		<key>CFBundleDevelopmentRegion</key>

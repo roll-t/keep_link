@@ -38,6 +38,11 @@ dependencies:
   package_info_plus: ^8.3.0
   in_app_review: ^2.0.10
   image_picker: ^1.1.2
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^6.0.7
+  share_plus: ^10.1.4
+  path_provider: ^2.1.5
+  image_gallery_saver_plus: ^4.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -9,6 +9,7 @@ import 'package:keep_link/core/service/session_sync_service.dart';
 import 'package:keep_link/core/service/theme_service.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/application/model/category_model.dart';
+import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 
 import 'firebase_options.dart';
@@ -21,6 +22,7 @@ Future<void> appConfig() async {
 
   DbHelper.registerModel(CategoryModel(id: ''));
   DbHelper.registerModel(LinkModel(id: ''));
+  DbHelper.registerModel(FriendModel(id: ''));
 
   await DeepLinkService.init();
   await GetStorage.init();

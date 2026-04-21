@@ -23,7 +23,8 @@ class AppVectors {
   static const icSearch = _SvgIcon("${_root}ic_search$_ext");
   static const icSearchNotFound = _SvgIcon("${_root}ic_search_not_found$_ext");
   static const icSearchFile = _SvgIcon("${_root}ic_search_file$_ext");
-  static const iclang = _SvgIcon("${_root}ic_lang$_ext");
+  static const icLang = _SvgIcon("${_root}ic_lang$_ext");
+  static const icFriends = _SvgIcon("${_root}ic_friends$_ext");
 }
 
 class _SvgIcon {
@@ -35,6 +36,8 @@ class _SvgIcon {
     Color? color,
     VoidCallback? onTap,
     EdgeInsets? padding,
+    double? widthParent,
+    double? heightParent,
     Color? backgroundColor,
   }) {
     return GestureDetector(
@@ -42,6 +45,8 @@ class _SvgIcon {
       child: Container(
         padding: padding,
         decoration: BoxDecoration(color: backgroundColor, shape: BoxShape.circle),
+        width: widthParent,
+        height: heightParent ?? widthParent,
         child: SvgPicture.asset(
           path,
           width: size,

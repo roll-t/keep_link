@@ -53,6 +53,54 @@ Map<String, String> en = {
   "Search": 'Search',
   "Add Link": 'Add Link',
   "All": 'All',
+  "Friends": 'Friends',
+  "Friend Connection": 'Friend Connection',
+  "Search friends": 'Search friends',
+  "Favorite Friends": 'Favorite Friends',
+  "Total Friends": 'Total Friends',
+  "Available Slots": 'Available Slots',
+  "Favorites": 'Favorites',
+  "No friends yet": 'No friends yet',
+  "Add Friend": 'Add Friend',
+  "Delete Friend": 'Delete Friend',
+  "Add friends with personal link or QR": 'Add friends with personal link or QR',
+  "Each account can keep up to @0 friends.": 'Each account can keep up to @0 friends.',
+  "Paste a personal link or scan a personal QR to add a friend.":
+      'Paste a personal link or scan a personal QR to add a friend.',
+  "Paste Link": 'Paste Link',
+  "Scan QR": 'Scan QR',
+  "Paste Friend Link": 'Paste Friend Link',
+  "Paste the personal link your friend sent you.": 'Paste the personal link your friend sent you.',
+  "Paste from Clipboard": 'Paste from Clipboard',
+  "Scan from Gallery": 'Scan from Gallery',
+  "Scanning image...": 'Scanning image...',
+  "Scan Personal QR": 'Scan Personal QR',
+  "Point the camera at your friend's personal QR code.":
+      'Point the camera at your friend\'s personal QR code.',
+  "friend_sign_in_required": 'Please sign in to use the friend feature',
+  "friend_limit_reached": 'You can only keep up to @0 friends',
+  "friend_invalid_link": 'This personal link is invalid',
+  "friend_cannot_add_self": 'You cannot add your own account',
+  "friend_already_exists": 'This friend is already in your list',
+  "friend_clipboard_empty": 'Clipboard does not contain a valid personal link',
+  "friend_no_qr_found_in_image": 'No valid QR code was found in the selected image',
+  "friend_scan_image_failed": 'Unable to scan QR from the selected image',
+  "friend_added_success": 'Friend added successfully',
+  "friend_deleted_success": 'Friend deleted successfully',
+  "delete_friend_confirm": 'Delete @0 from your friend list?',
+  "Copy Personal Link": 'Copy Personal Link',
+  "Save QR": 'Save QR',
+  "Share QR or Link": 'Share QR or Link',
+  "Show Personal QR": 'Show Personal QR',
+  "Your Personal QR": 'Your Personal QR',
+  "Let your friend scan this QR or copy the personal link below.":
+      'Let your friend scan this QR or copy the personal link below.',
+  "Sign in to create your personal friend link and QR.":
+      'Sign in to create your personal friend link and QR.',
+  "personal_link_copied": 'Personal link copied',
+  "personal_qr_saved": 'QR saved to your device',
+  "personal_qr_save_failed": 'Unable to save QR to your device',
+  "personal_qr_share_failed": 'Unable to share QR right now',
 
   // Category
   "Select Category": 'Select Category',
@@ -233,7 +281,9 @@ Map<String, String> en = {
   "privacy.storage.title": 'Data Storage',
   "privacy.storage.body":
       'Your data is stored locally on your device using SQLite. If you sign in, data is also synced '
-      'to Firebase Realtime Database under your unique user ID. We do not sell your data to third parties.',
+      'to Firebase Realtime Database under your unique user ID. We do not sell your data to third parties.\n\n'
+      '⚠️ Important: If you uninstall the app without signing in, all locally stored data will be '
+      'permanently deleted and cannot be recovered. We strongly recommend signing in to enable cloud backup.',
   "privacy.third_party.title": 'Third-Party Services',
   "privacy.third_party.body":
       'We use the following third-party services:\n'
@@ -243,10 +293,16 @@ Map<String, String> en = {
   "privacy.deletion.title": 'Data Deletion',
   "privacy.deletion.body":
       'You can delete your account data at any time by signing out and removing the app. '
-      'To request complete deletion of your Firebase data, contact us at feedback@linkcapture.app.',
+      'To request complete deletion of your Firebase data, contact us at phuoctruong727@gmail.com.',
   "privacy.contact.title": 'Contact Us',
   "privacy.contact.body":
-      'If you have any questions about this Privacy Policy, please contact us at:\nfeedback@linkcapture.app',
+      'If you have any questions about this Privacy Policy, please contact us at:\n'
+      '• Email: phuoctruong727@gmail.com\n'
+      '• Zalo: 0838629035',
+  "privacy.notice.title": 'Development Notice',
+  "privacy.notice.body":
+      'LinkCapture is currently in active development. You may encounter bugs or unexpected behavior. '
+      'If you find any issues or have suggestions, please reach out — your feedback is greatly appreciated!',
 
   // Terms of Service
   "terms.acceptance.title": 'Acceptance of Terms',
@@ -280,8 +336,11 @@ Map<String, String> en = {
       'We may update these Terms from time to time. Continued use of the app after changes '
       'constitutes your acceptance of the new Terms.',
   "terms.contact.title": 'Contact',
-  "terms.contact.body": 'For questions about these Terms, contact us at:\nfeedback@linkcapture.app',
+  "terms.contact.body":
+      'For questions about these Terms, contact us at:\n• Email: phuoctruong727@gmail.com\n• Zalo: 0838629035',
 
   // Common
   "Last updated: @0": 'Last updated: @0',
+  "unable_open_email": 'Unable to open email app',
+  "unable_open_zalo": 'Unable to open Zalo',
 };

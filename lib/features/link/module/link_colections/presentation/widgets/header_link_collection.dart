@@ -5,13 +5,16 @@ import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
 import 'package:keep_link/features/category/presentation/widget/category_dialog.dart';
 import 'package:keep_link/features/category/presentation/widget/custom_popup_widget.dart';
-import 'package:keep_link/features/setting/presentation/page/setting_page.dart';
+import 'package:keep_link/features/link/module/link_colections/presentation/controller/header_link_collection_controller.dart';
 
-class HeaderLinkCollection extends GetView<CategoryController> {
+class HeaderLinkCollection extends StatelessWidget {
   const HeaderLinkCollection({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final categoryController = Get.find<CategoryController>();
+    final headerController = Get.find<HeaderLinkCollectionController>();
+
     return Positioned(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(top: 40),
@@ -19,24 +22,23 @@ class HeaderLinkCollection extends GetView<CategoryController> {
           spacing: 12,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            AppVectors.icSetting.show(
+            AppVectors.icFriends.show(
               size: 28,
               backgroundColor: AppColors.d300,
-              padding: const EdgeInsets.all(8),
-              onTap: () {
-                Get.toNamed(SettingPage.routeName);
-              },
+              padding: const EdgeInsets.all(10),
+              widthParent: 44,
+              onTap: headerController.openFriends,
             ),
             CustomPopupWidget(
-              controller: controller.popupController,
-              onSelected: controller.onSelectedCategory,
+              controller: categoryController.popupController,
+              onSelected: categoryController.onSelectedCategory,
             ),
             Row(
               children: [
                 Obx(
                   () =>
-                      (controller.popupController.selectedItem.value?.id == "all" ||
-                          controller.popupController.items.length <= 1)
+                      (categoryController.popupController.selectedItem.value?.id == "all" ||
+                          categoryController.popupController.items.length <= 1)
                       ? SizedBox.shrink()
                       : Row(
                           children: [
@@ -44,6 +46,7 @@ class HeaderLinkCollection extends GetView<CategoryController> {
                               size: 28,
                               backgroundColor: AppColors.d300,
                               padding: const EdgeInsets.all(8),
+                              widthParent: 44,
                               onTap: () {
                                 Get.dialog(CategoryDialog(isEditMode: true));
                               },
@@ -56,6 +59,7 @@ class HeaderLinkCollection extends GetView<CategoryController> {
                   size: 28,
                   backgroundColor: AppColors.d300,
                   padding: const EdgeInsets.all(8),
+                  widthParent: 44,
                   onTap: () {
                     // add
                     Get.dialog(CategoryDialog());

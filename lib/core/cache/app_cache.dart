@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/features/category/application/model/category_model.dart';
+import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 
 /// Central in-memory reactive cache — single source of truth.
@@ -59,6 +60,27 @@ class AppCache {
 
   static void removeCategory(String id) => categories.removeWhere((c) => c.id == id);
 
+  // ── Friends ───────────────────────────────────────────────────────────────
+
+  static final RxList<FriendModel> friends = <FriendModel>[].obs;
+  static bool _friendsLoaded = false;
+
+  static bool get friendsLoaded => _friendsLoaded;
+
+  static void setFriends(List<FriendModel> data) {
+    friends.assignAll(data);
+    _friendsLoaded = true;
+  }
+
+  static void addFriend(FriendModel friend) => friends.insert(0, friend);
+
+  static void updateFriend(FriendModel updated) {
+    final i = friends.indexWhere((friend) => friend.id == updated.id);
+    if (i != -1) friends[i] = updated;
+  }
+
+  static void removeFriend(String id) => friends.removeWhere((friend) => friend.id == id);
+
   // ── Derived helpers ───────────────────────────────────────────────────────
 
   /// IDs of categories whose visibility is not public.
@@ -79,6 +101,8 @@ class AppCache {
     _linksLoaded = false;
     categories.clear();
     _categoriesLoaded = false;
+    friends.clear();
+    _friendsLoaded = false;
   }
 
   /// Wipe only the link cache (e.g. after security settings change).

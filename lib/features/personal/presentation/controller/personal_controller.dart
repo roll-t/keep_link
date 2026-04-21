@@ -3,13 +3,16 @@ import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:keep_link/core/cache/app_cache.dart';
 import 'package:keep_link/core/cache/app_get_storage.dart';
 import 'package:keep_link/core/cache/sql_lite.dart';
 import 'package:keep_link/core/service/firebase_service.dart';
+import 'package:keep_link/core/service/friend_connection_service.dart';
 import 'package:keep_link/core/service/image_kit_service.dart';
 import 'package:keep_link/core/service/session_sync_service.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
@@ -21,6 +24,8 @@ import 'package:keep_link/features/personal/di/feedback_binding.dart';
 import 'package:keep_link/features/personal/presentation/controller/feedback_controller.dart';
 import 'package:keep_link/features/personal/presentation/page/feedback_page.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PersonalController extends GetxController {
   final user = Rxn<User>();
@@ -64,6 +69,12 @@ class PersonalController extends GetxController {
       }
     }
     return streak;
+  }
+
+  String? get personalFriendLink {
+    final currentUser = user.value;
+    if (currentUser == null) return null;
+    return FriendConnectionService.buildLink(currentUser);
   }
 
   @override
@@ -194,6 +205,70 @@ class PersonalController extends GetxController {
     if (saved == true) {
       user.value = FirebaseService.currentUser;
       AppToast.showToast('Username updated successfully'.tr, Icons.edit_rounded);
+    }
+  }
+
+  Future<void> copyPersonalFriendLink() async {
+    final link = personalFriendLink;
+    if (link == null) {
+      AppToast.showToast('friend_sign_in_required'.tr, Icons.login_rounded, color: Colors.orange);
+      return;
+    }
+
+    await Clipboard.setData(ClipboardData(text: link));
+    AppToast.showToast('personal_link_copied'.tr, Icons.copy_rounded, color: Colors.green);
+  }
+
+  Future<void> savePersonalQrToDevice(Uint8List pngBytes) async {
+    try {
+      final result = await ImageGallerySaverPlus.saveImage(
+        pngBytes,
+        quality: 100,
+        name: 'keeplink_friend_qr_${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      final isSuccess = (result['isSuccess'] == true) || (result['filePath'] != null);
+      if (isSuccess) {
+        AppToast.showToast(
+          'personal_qr_saved'.tr,
+          Icons.download_done_rounded,
+          color: Colors.green,
+        );
+        return;
+      }
+      AppToast.showToast(
+        'personal_qr_save_failed'.tr,
+        Icons.error_outline_rounded,
+        color: Colors.red,
+      );
+    } catch (_) {
+      AppToast.showToast(
+        'personal_qr_save_failed'.tr,
+        Icons.error_outline_rounded,
+        color: Colors.red,
+      );
+    }
+  }
+
+  Future<void> sharePersonalQr(Uint8List pngBytes) async {
+    final link = personalFriendLink;
+    if (link == null) {
+      AppToast.showToast('friend_sign_in_required'.tr, Icons.login_rounded, color: Colors.orange);
+      return;
+    }
+
+    try {
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/keep_link_friend_qr.png');
+      await file.writeAsBytes(pngBytes, flush: true);
+
+      await Share.shareXFiles([XFile(file.path)], text: link, subject: 'Keep Link Friend QR');
+    } catch (_) {
+      AppToast.showToast(
+        'personal_qr_share_failed'.tr,
+        Icons.error_outline_rounded,
+        color: Colors.red,
+      );
     }
   }
 

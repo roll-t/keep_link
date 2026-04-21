@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/ui/appbar/custom_app_bar.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/features/personal/presentation/widget/contact_links_widget.dart';
 
 class PrivacyPolicyPage extends StatelessWidget {
   static const routeName = '/PrivacyPolicyPage';
@@ -35,8 +36,9 @@ class _PolicyContent extends StatelessWidget {
         _Section(title: 'privacy.storage.title'.tr, body: 'privacy.storage.body'.tr),
         _Section(title: 'privacy.third_party.title'.tr, body: 'privacy.third_party.body'.tr),
         _Section(title: 'privacy.deletion.title'.tr, body: 'privacy.deletion.body'.tr),
-        _Section(title: 'privacy.contact.title'.tr, body: 'privacy.contact.body'.tr),
-        const _LastUpdated(date: '20/04/2026'),
+        _ContactSection(title: 'privacy.contact.title'.tr),
+        _Section(title: 'privacy.notice.title'.tr, body: 'privacy.notice.body'.tr),
+        const _LastUpdated(date: '21/04/2026'),
       ],
     );
   }
@@ -63,6 +65,31 @@ class _Section extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           TextWidget(text: body, color: AppColors.onSurfaceVariant, size: 14),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContactSection extends StatelessWidget {
+  const _ContactSection({required this.title});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextWidget(
+            text: title,
+            color: AppColors.onSurface,
+            size: 15,
+            fontWeight: FontWeight.w600,
+          ),
+          const SizedBox(height: 10),
+          const ContactLinksWidget(),
         ],
       ),
     );
