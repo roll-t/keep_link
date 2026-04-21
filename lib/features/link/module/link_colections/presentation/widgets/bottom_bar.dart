@@ -7,6 +7,7 @@ import 'package:keep_link/core/extension/colors.dart';
 import 'package:keep_link/features/link/module/link_add/presentation/page/add_link_page.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
 import 'package:keep_link/features/link/module/link_search/presentation/page/search_link_page.dart';
+import 'package:keep_link/features/personal/presentation/page/personal_page.dart';
 
 // ─── Controller (Giữ nguyên) ───────────────────────────────────────────────────
 class BottomBarController extends GetxController with GetSingleTickerProviderStateMixin {
@@ -32,7 +33,7 @@ class BottomBarController extends GetxController with GetSingleTickerProviderSta
     if (index == 0) {
       Get.toNamed(SearchLinkPage.routeName);
     } else if (index == 1) {
-      // Profile
+      Get.toNamed(PersonalPage.routeName);
     }
   }
 

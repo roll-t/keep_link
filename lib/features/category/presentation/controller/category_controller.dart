@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/cache/app_cache.dart';
+import 'package:keep_link/core/cache/app_get_storage.dart';
 import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/model/item_model.dart';
 import 'package:keep_link/core/repository/category_repository.dart';
@@ -61,12 +62,12 @@ class CategoryController extends GetxController {
 
   Future<CategoryModel> _createDefaultCategory() async {
     final now = DateTime.now();
-    final defaultCategory = CategoryModel(
-      id: now.millisecondsSinceEpoch.toString(),
-      name: "Category".tr,
-      createdAt: now,
-    );
+    final id = now.millisecondsSinceEpoch.toString();
+    final defaultCategory = CategoryModel(id: id, name: "Category".tr, createdAt: now);
     await CategoryRepository.insert(defaultCategory);
+    // Mark this category as guest-only so it is excluded from being pushed
+    // to a signed-in account that already has its own data.
+    AppGetStorage.setGuestDefaultCategoryId(id);
     return defaultCategory;
   }
 

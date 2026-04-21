@@ -78,7 +78,9 @@ class PinVerifyController extends GetxController {
     if (pin != firstPin.value) {
       _toast("PIN xác nhận không khớp");
       confirmPinController.clear();
-      confirmPinFocus.requestFocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (confirmPinFocus.canRequestFocus) confirmPinFocus.requestFocus();
+      });
       return;
     }
 

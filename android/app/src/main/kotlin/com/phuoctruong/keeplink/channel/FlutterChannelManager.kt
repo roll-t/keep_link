@@ -21,6 +21,7 @@ object FlutterChannelManager {
 
         setupBubbleChannel(context, messenger)
         setupPermissionChannel(context, messenger)
+        ImageKitChannel.setup(context, messenger)
     }
 
     // ----------------------------------------------------------------------

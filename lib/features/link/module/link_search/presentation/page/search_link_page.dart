@@ -144,6 +144,7 @@ class _CategorySection extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
+                  // Chip "All"
                   _ScrollItem(
                     onSelected: () => ctrl.selectCategory(null),
                     child: _CategoryChip(

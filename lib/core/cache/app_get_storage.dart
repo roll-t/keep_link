@@ -98,6 +98,78 @@ class AppGetStorage {
     _box.write(_searchHistoryKey, history);
   }
 
+  // ========== Guest Default Category ========== //
+  static const String _guestDefaultCategoryKey = 'guest_default_category_id';
+
+  /// ID of the auto-created default category for guest users.
+  /// Null once the user has signed in and the category has been handled.
+  static String? get guestDefaultCategoryId => _box.read<String>(_guestDefaultCategoryKey);
+
+  static void setGuestDefaultCategoryId(String id) => _box.write(_guestDefaultCategoryKey, id);
+
+  static void clearGuestDefaultCategoryId() => _box.remove(_guestDefaultCategoryKey);
+
+  // ========== App Review ========== //
+  static const String _hasRatedAppKey = 'has_rated_app';
+
+  static String _ratedAppKeyForUser(String? userId) {
+    if (userId == null || userId.trim().isEmpty) return _hasRatedAppKey;
+    return '${_hasRatedAppKey}_${userId.trim()}';
+  }
+
+  static bool hasRatedApp({String? userId}) {
+    return _box.read<bool>(_ratedAppKeyForUser(userId)) ?? false;
+  }
+
+  static void setHasRatedApp({String? userId}) {
+    _box.write(_ratedAppKeyForUser(userId), true);
+  }
+
+  // ========== Avatar fingerprint ========== //
+  static const String _avatarFingerprintKey = 'avatar_fingerprint';
+
+  static String _avatarFingerprintKeyForUser(String uid) => '${_avatarFingerprintKey}_$uid';
+
+  static int? getAvatarFingerprint(String uid) {
+    return _box.read<int>(_avatarFingerprintKeyForUser(uid));
+  }
+
+  static void setAvatarFingerprint(String uid, int fingerprint) {
+    _box.write(_avatarFingerprintKeyForUser(uid), fingerprint);
+  }
+
+  // ========== Avatar change limit (2/day) ========== //
+  static const String _avatarChangeDateKey = 'avatar_change_date';
+  static const String _avatarChangeCountKey = 'avatar_change_count';
+  static const int maxAvatarChangesPerDay = 2;
+
+  static String _avatarChangeDateKeyForUser(String uid) => '${_avatarChangeDateKey}_$uid';
+  static String _avatarChangeCountKeyForUser(String uid) => '${_avatarChangeCountKey}_$uid';
+
+  static int _todayDateInt() {
+    final now = DateTime.now();
+    return now.year * 10000 + now.month * 100 + now.day;
+  }
+
+  /// Returns how many avatar changes remain today (0 means limit reached).
+  static int avatarChangesRemainingToday(String uid) {
+    final savedDate = _box.read<int>(_avatarChangeDateKeyForUser(uid));
+    final today = _todayDateInt();
+    if (savedDate != today) return maxAvatarChangesPerDay;
+    final count = _box.read<int>(_avatarChangeCountKeyForUser(uid)) ?? 0;
+    final remaining = maxAvatarChangesPerDay - count;
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  /// Call this after a successful avatar upload.
+  static void recordAvatarChange(String uid) {
+    final today = _todayDateInt();
+    final savedDate = _box.read<int>(_avatarChangeDateKeyForUser(uid));
+    final count = savedDate == today ? (_box.read<int>(_avatarChangeCountKeyForUser(uid)) ?? 0) : 0;
+    _box.write(_avatarChangeDateKeyForUser(uid), today);
+    _box.write(_avatarChangeCountKeyForUser(uid), count + 1);
+  }
+
   static void clearSearchHistory() {
     _box.remove(_searchHistoryKey);
   }

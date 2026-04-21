@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/app/app_binding.dart';
 import 'package:keep_link/core/config/app_theme.dart';
@@ -19,6 +20,7 @@ class App extends StatelessWidget {
         defaultTransition: Transition.noTransition,
         debugShowCheckedModeBanner: false,
         transitionDuration: const Duration(milliseconds: 150),
+        builder: FToastBuilder(),
 
         ///---> [Localization service]
         translations: LocalizationService(),
