@@ -76,6 +76,61 @@ class FirebaseService {
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
   static String? get currentUserId => _auth.currentUser?.uid;
 
+  static Future<Map<String, String?>?> findUserProfileByEmail(String rawEmail) async {
+    final email = rawEmail.trim().toLowerCase();
+    if (email.isEmpty) return null;
+
+    try {
+      final snapshot = await _db.ref('users').get();
+      if (!snapshot.exists || snapshot.value is! Map) return null;
+
+      final users = Map<String, dynamic>.from(snapshot.value as Map);
+      for (final entry in users.entries) {
+        if (entry.value is! Map) continue;
+        final userMap = Map<String, dynamic>.from(entry.value as Map);
+
+        final profileMap = userMap['profile'] is Map
+            ? Map<String, dynamic>.from(userMap['profile'] as Map)
+            : const <String, dynamic>{};
+
+        final storedEmail = _pickString([userMap['email'], profileMap['email']]);
+        if (storedEmail == null || storedEmail.trim().toLowerCase() != email) {
+          continue;
+        }
+
+        final displayName = _pickString([
+          userMap['displayName'],
+          userMap['display_name'],
+          userMap['name'],
+          profileMap['displayName'],
+          profileMap['display_name'],
+          profileMap['name'],
+        ]);
+
+        final photoUrl = _pickString([
+          userMap['photoUrl'],
+          userMap['photo_url'],
+          userMap['avatarUrl'],
+          profileMap['photoUrl'],
+          profileMap['photo_url'],
+          profileMap['avatarUrl'],
+        ]);
+
+        return {
+          'uid': entry.key,
+          'displayName': displayName,
+          'email': storedEmail,
+          'photoUrl': photoUrl,
+        };
+      }
+
+      return null;
+    } catch (e) {
+      log('Find user by email error: $e');
+      return null;
+    }
+  }
+
   // ────────────────────────────────────────────────────────────────────────
   // REALTIME DATABASE
   // ────────────────────────────────────────────────────────────────────────
@@ -178,5 +233,17 @@ class FirebaseService {
       log('Submit feedback error: $e');
       rethrow;
     }
+  }
+
+  static String? _pickString(List<dynamic> values) {
+    for (final value in values) {
+      if (value is String) {
+        final trimmed = value.trim();
+        if (trimmed.isNotEmpty) {
+          return trimmed;
+        }
+      }
+    }
+    return null;
   }
 }

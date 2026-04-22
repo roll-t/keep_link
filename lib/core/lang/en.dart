@@ -64,6 +64,18 @@ Map<String, String> en = {
   "Add Friend": 'Add Friend',
   "Delete Friend": 'Delete Friend',
   "Add friends with personal link or QR": 'Add friends with personal link or QR',
+  "Choose Add Friend Method": 'Choose Add Friend Method',
+  "You can add friends by Gmail, personal link, or personal QR.":
+      'You can add friends by Gmail, personal link, or personal QR.',
+  "Add via Gmail": 'Add via Gmail',
+  "Add via Link": 'Add via Link',
+  "Add via QR": 'Add via QR',
+  "Find a friend account with their Gmail.": 'Find a friend account with their Gmail.',
+  "Paste your friend's personal link.": 'Paste your friend\'s personal link.',
+  "Scan your friend's personal QR code.": 'Scan your friend\'s personal QR code.',
+  "Add Friend by Gmail": 'Add Friend by Gmail',
+  "Enter your friend's Gmail to find and add them.":
+      'Enter your friend\'s Gmail to find and add them.',
   "Each account can keep up to @0 friends.": 'Each account can keep up to @0 friends.',
   "Paste a personal link or scan a personal QR to add a friend.":
       'Paste a personal link or scan a personal QR to add a friend.',
@@ -80,6 +92,8 @@ Map<String, String> en = {
   "friend_sign_in_required": 'Please sign in to use the friend feature',
   "friend_limit_reached": 'You can only keep up to @0 friends',
   "friend_invalid_link": 'This personal link is invalid',
+  "friend_invalid_email": 'Please enter a valid Gmail address',
+  "friend_email_not_found": 'No account found with this Gmail',
   "friend_cannot_add_self": 'You cannot add your own account',
   "friend_already_exists": 'This friend is already in your list',
   "friend_clipboard_empty": 'Clipboard does not contain a valid personal link',

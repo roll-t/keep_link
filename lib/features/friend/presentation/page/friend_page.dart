@@ -37,16 +37,10 @@ class FriendPage extends GetView<FriendController> {
                   children: [
                     _StatsRow(
                       totalFriends: controller.totalFriends,
-                      remainingSlots: controller.remainingSlots,
+                      onTapAddFriend: () => _openAddFriendMethodsSheet(context),
                     ),
                     const SizedBox(height: 14),
                     _SearchBar(controller: controller),
-                    const SizedBox(height: 12),
-                    _ActionPanel(
-                      controller: controller,
-                      onPaste: () => _openAddByLinkSheet(context),
-                      onScan: () => _openQrScanner(context),
-                    ),
                     const SizedBox(height: 10),
                     Align(
                       alignment: Alignment.centerLeft,
@@ -77,7 +71,6 @@ class FriendPage extends GetView<FriendController> {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
               Expanded(
                 child: Obx(() {
                   if (controller.visibleFriends.isEmpty) {
@@ -121,6 +114,33 @@ class FriendPage extends GetView<FriendController> {
     );
   }
 
+  Future<void> _openAddByGmailSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.d500,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _AddFriendByGmailSheet(controller: controller),
+    );
+  }
+
+  Future<void> _openAddFriendMethodsSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.d500,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _AddFriendMethodsSheet(
+        onAddByGmail: () => _openAddByGmailSheet(context),
+        onAddByLink: () => _openAddByLinkSheet(context),
+        onAddByQr: () => _openQrScanner(context),
+      ),
+    );
+  }
+
   Future<void> _openQrScanner(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -135,10 +155,10 @@ class FriendPage extends GetView<FriendController> {
 }
 
 class _StatsRow extends StatelessWidget {
-  const _StatsRow({required this.totalFriends, required this.remainingSlots});
+  const _StatsRow({required this.totalFriends, required this.onTapAddFriend});
 
   final int totalFriends;
-  final int remainingSlots;
+  final VoidCallback onTapAddFriend;
 
   @override
   Widget build(BuildContext context) {
@@ -154,9 +174,9 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: _StatCard(
-            icon: Icons.space_dashboard_rounded,
-            label: 'Available Slots'.tr,
-            value: '$remainingSlots',
+            icon: Icons.person_add_alt_1_rounded,
+            value: 'Add Friend'.tr,
+            onTap: onTapAddFriend,
           ),
         ),
       ],
@@ -165,15 +185,16 @@ class _StatsRow extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.icon, required this.label, required this.value});
+  const _StatCard({required this.icon, this.label, required this.value, this.onTap});
 
   final IconData icon;
-  final String label;
+  final String? label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: AppColors.d500, borderRadius: BorderRadius.circular(14)),
       child: Row(
@@ -199,12 +220,21 @@ class _StatCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
                 const SizedBox(height: 2),
-                TextWidget(text: label, color: AppColors.n70, size: 12),
+                if (label != null) TextWidget(text: label ?? "", color: AppColors.n70, size: 12),
               ],
             ),
           ),
         ],
       ),
+    );
+
+    if (onTap == null) {
+      return card;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(borderRadius: BorderRadius.circular(14), onTap: onTap, child: card),
     );
   }
 }
@@ -230,73 +260,73 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
-class _ActionPanel extends StatelessWidget {
-  const _ActionPanel({required this.controller, required this.onPaste, required this.onScan});
+// class _ActionPanel extends StatelessWidget {
+//   const _ActionPanel({required this.controller, required this.onPaste, required this.onScan});
 
-  final FriendController controller;
-  final VoidCallback onPaste;
-  final VoidCallback onScan;
+//   final FriendController controller;
+//   final VoidCallback onPaste;
+//   final VoidCallback onScan;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.d500,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.n500.withOpacityCompat(0.18)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextWidget(
-            text: 'Add friends with personal link or QR'.tr,
-            color: AppColors.white,
-            size: 15,
-            fontWeight: FontWeight.w600,
-          ),
-          const SizedBox(height: 6),
-          TextWidget(
-            text: 'Each account can keep up to @0 friends.'.trParams({
-              '0': '${FriendController.maxFriends}',
-            }),
-            color: AppColors.n70,
-            size: 13,
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: controller.hasReachedLimit ? null : onPaste,
-                  icon: const Icon(Icons.link_rounded, color: AppColors.white, size: 18),
-                  label: TextWidget(text: 'Paste Link'.tr, color: AppColors.white, size: 13),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    minimumSize: const Size(double.infinity, 46),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: controller.hasReachedLimit ? null : onScan,
-                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
-                  label: TextWidget(text: 'Scan QR'.tr, color: AppColors.white, size: 13),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 46),
-                    foregroundColor: AppColors.white,
-                    side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Container(
+//       padding: const EdgeInsets.all(14),
+//       decoration: BoxDecoration(
+//         color: AppColors.d500,
+//         borderRadius: BorderRadius.circular(16),
+//         border: Border.all(color: AppColors.n500.withOpacityCompat(0.18)),
+//       ),
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           TextWidget(
+//             text: 'You can add friends by Gmail, personal link, or personal QR.'.tr,
+//             color: AppColors.white,
+//             size: 15,
+//             fontWeight: FontWeight.w600,
+//           ),
+//           const SizedBox(height: 6),
+//           TextWidget(
+//             text: 'Each account can keep up to @0 friends.'.trParams({
+//               '0': '${FriendController.maxFriends}',
+//             }),
+//             color: AppColors.n70,
+//             size: 13,
+//           ),
+//           const SizedBox(height: 14),
+//           Row(
+//             children: [
+//               Expanded(
+//                 child: ElevatedButton.icon(
+//                   onPressed: controller.hasReachedLimit ? null : onPaste,
+//                   icon: const Icon(Icons.link_rounded, color: AppColors.white, size: 18),
+//                   label: TextWidget(text: 'Paste Link'.tr, color: AppColors.white, size: 13),
+//                   style: ElevatedButton.styleFrom(
+//                     backgroundColor: AppColors.primary,
+//                     minimumSize: const Size(double.infinity, 46),
+//                   ),
+//                 ),
+//               ),
+//               const SizedBox(width: 10),
+//               Expanded(
+//                 child: OutlinedButton.icon(
+//                   onPressed: controller.hasReachedLimit ? null : onScan,
+//                   icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+//                   label: TextWidget(text: 'Scan QR'.tr, color: AppColors.white, size: 13),
+//                   style: OutlinedButton.styleFrom(
+//                     minimumSize: const Size(double.infinity, 46),
+//                     foregroundColor: AppColors.white,
+//                     side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
+//                   ),
+//                 ),
+//               ),
+//             ],
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
 
 class _FriendCard extends StatelessWidget {
   const _FriendCard({required this.friend, required this.onToggleFavorite, required this.onDelete});
@@ -437,33 +467,272 @@ class _EmptyState extends StatelessWidget {
               size: 13,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: onPaste,
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                    icon: const Icon(Icons.link_rounded, color: AppColors.white),
-                    label: TextWidget(text: 'Paste Link'.tr, color: AppColors.white),
-                  ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddFriendMethodsSheet extends StatelessWidget {
+  const _AddFriendMethodsSheet({
+    required this.onAddByGmail,
+    required this.onAddByLink,
+    required this.onAddByQr,
+  });
+
+  final VoidCallback onAddByGmail;
+  final VoidCallback onAddByLink;
+  final VoidCallback onAddByQr;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 46,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.n500,
+                  borderRadius: BorderRadius.circular(99),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onScan,
-                    icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.white),
-                    label: TextWidget(text: 'Scan QR'.tr, color: AppColors.white),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.white,
-                      side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
-                    ),
-                  ),
-                ),
-              ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextWidget(
+              text: 'Choose Add Friend Method'.tr,
+              color: AppColors.white,
+              size: 18,
+              fontWeight: FontWeight.w700,
+            ),
+            const SizedBox(height: 6),
+            TextWidget(
+              text: 'You can add friends by Gmail, personal link, or personal QR.'.tr,
+              color: AppColors.n70,
+              size: 13,
+            ),
+            const SizedBox(height: 16),
+            _MethodTile(
+              icon: Icons.alternate_email_rounded,
+              title: 'Add via Gmail'.tr,
+              subtitle: 'Find a friend account with their Gmail.'.tr,
+              onTap: () {
+                Navigator.of(context).pop();
+                onAddByGmail();
+              },
+            ),
+            const SizedBox(height: 10),
+            _MethodTile(
+              icon: Icons.link_rounded,
+              title: 'Add via Link'.tr,
+              subtitle: 'Paste your friend\'s personal link.'.tr,
+              onTap: () {
+                Navigator.of(context).pop();
+                onAddByLink();
+              },
+            ),
+            const SizedBox(height: 10),
+            _MethodTile(
+              icon: Icons.qr_code_scanner_rounded,
+              title: 'Add via QR'.tr,
+              subtitle: 'Scan your friend\'s personal QR code.'.tr,
+              onTap: () {
+                Navigator.of(context).pop();
+                onAddByQr();
+              },
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MethodTile extends StatelessWidget {
+  const _MethodTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.bg700,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacityCompat(0.16),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextWidget(
+                      text: title,
+                      color: AppColors.white,
+                      size: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    const SizedBox(height: 2),
+                    TextWidget(text: subtitle, color: AppColors.n70, size: 12),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.n70),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddFriendByGmailSheet extends StatefulWidget {
+  const _AddFriendByGmailSheet({required this.controller});
+
+  final FriendController controller;
+
+  @override
+  State<_AddFriendByGmailSheet> createState() => _AddFriendByGmailSheetState();
+}
+
+class _AddFriendByGmailSheetState extends State<_AddFriendByGmailSheet> {
+  late final TextEditingController _gmailController;
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _gmailController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _gmailController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Center(
+            child: Container(
+              width: 46,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.n500,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          TextWidget(
+            text: 'Add Friend by Gmail'.tr,
+            color: AppColors.white,
+            size: 20,
+            fontWeight: FontWeight.w700,
+          ),
+          const SizedBox(height: 6),
+          TextWidget(
+            text: 'Enter your friend\'s Gmail to find and add them.'.tr,
+            color: AppColors.n70,
+            size: 13,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _gmailController,
+            keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.email],
+            style: const TextStyle(color: AppColors.white),
+            decoration: InputDecoration(
+              hintText: 'example@gmail.com',
+              hintStyle: const TextStyle(color: AppColors.n70),
+              filled: true,
+              fillColor: AppColors.bg700,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: AppColors.n500.withOpacityCompat(0.2)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: AppColors.n500.withOpacityCompat(0.2)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.primary),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isSubmitting
+                  ? null
+                  : () async {
+                      final navigator = Navigator.of(context);
+                      setState(() => _isSubmitting = true);
+                      final success = await widget.controller.addFriendFromEmail(
+                        _gmailController.text,
+                      );
+                      if (!mounted) return;
+                      setState(() => _isSubmitting = false);
+                      if (success) {
+                        navigator.pop();
+                      }
+                    },
+              icon: _isSubmitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
+                    )
+                  : const Icon(Icons.person_add_alt_1_rounded, color: AppColors.white),
+              label: TextWidget(text: 'Add Friend'.tr, color: AppColors.white),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 46),
+                backgroundColor: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

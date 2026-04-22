@@ -82,22 +82,74 @@ class FriendController extends GetxController {
       return false;
     }
 
-    final now = DateTime.now();
-    final friend = FriendModel(
-      id: payload.userId,
-      friendUserId: payload.userId,
+    return _saveFriend(
+      userId: payload.userId,
       displayName: payload.displayName,
       email: payload.email,
       photoUrl: payload.photoUrl,
       sourceLink: payload.rawLink,
-      createdAt: now,
-      updatedAt: now,
     );
+  }
 
-    await FriendRepository.insert(friend);
-    Fluttertoast.showToast(msg: 'friend_added_success'.tr);
-    _applyFilters();
-    return true;
+  Future<bool> addFriendFromEmail(String rawEmail) async {
+    final email = rawEmail.trim().toLowerCase();
+    if (email.isEmpty || !GetUtils.isEmail(email) || !email.endsWith('@gmail.com')) {
+      Fluttertoast.showToast(msg: 'friend_invalid_email'.tr);
+      return false;
+    }
+
+    final currentUser = FirebaseService.currentUser;
+    if (currentUser == null) {
+      Fluttertoast.showToast(msg: 'friend_sign_in_required'.tr);
+      return false;
+    }
+    if (hasReachedLimit) {
+      Fluttertoast.showToast(msg: 'friend_limit_reached'.trParams({'0': '$maxFriends'}));
+      return false;
+    }
+    if ((currentUser.email ?? '').trim().toLowerCase() == email) {
+      Fluttertoast.showToast(msg: 'friend_cannot_add_self'.tr);
+      return false;
+    }
+
+    final existingByEmail = AppCache.friends.firstWhereOrNull(
+      (friend) => (friend.email ?? '').trim().toLowerCase() == email,
+    );
+    if (existingByEmail != null) {
+      Fluttertoast.showToast(msg: 'friend_already_exists'.tr);
+      return false;
+    }
+
+    final profile = await FirebaseService.findUserProfileByEmail(email);
+    if (profile == null) {
+      Fluttertoast.showToast(msg: 'friend_email_not_found'.tr);
+      return false;
+    }
+
+    final userId = profile['uid'] ?? '';
+    final profileDisplayName = profile['displayName'] ?? '';
+    final profileEmail = profile['email'];
+    final profilePhoto = profile['photoUrl'];
+
+    if (userId.isEmpty) {
+      Fluttertoast.showToast(msg: 'friend_email_not_found'.tr);
+      return false;
+    }
+    if (userId == currentUser.uid) {
+      Fluttertoast.showToast(msg: 'friend_cannot_add_self'.tr);
+      return false;
+    }
+
+    final fallbackName = (profileEmail ?? email).split('@').first;
+    final safeDisplayName = profileDisplayName.trim().isEmpty ? fallbackName : profileDisplayName;
+
+    return _saveFriend(
+      userId: userId,
+      displayName: safeDisplayName,
+      email: profileEmail,
+      photoUrl: profilePhoto,
+      sourceLink: 'email:$email',
+    );
   }
 
   Future<String?> readClipboardLink() async {
@@ -151,5 +203,36 @@ class FriendController extends GetxController {
     }).toList();
 
     visibleFriends.assignAll(filtered);
+  }
+
+  Future<bool> _saveFriend({
+    required String userId,
+    required String displayName,
+    String? email,
+    String? photoUrl,
+    required String sourceLink,
+  }) async {
+    final existing = AppCache.friends.firstWhereOrNull((friend) => friend.friendUserId == userId);
+    if (existing != null) {
+      Fluttertoast.showToast(msg: 'friend_already_exists'.tr);
+      return false;
+    }
+
+    final now = DateTime.now();
+    final friend = FriendModel(
+      id: userId,
+      friendUserId: userId,
+      displayName: displayName,
+      email: email,
+      photoUrl: photoUrl,
+      sourceLink: sourceLink,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await FriendRepository.insert(friend);
+    Fluttertoast.showToast(msg: 'friend_added_success'.tr);
+    _applyFilters();
+    return true;
   }
 }
