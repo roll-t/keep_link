@@ -2,7 +2,9 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/routes/not_found/not_found_page.dart';
 import 'package:keep_link/features/category/application/di/category_binding.dart';
 import 'package:keep_link/features/friend/application/di/friend_binding.dart';
+import 'package:keep_link/features/friend/application/di/shared_category_binding.dart';
 import 'package:keep_link/features/friend/presentation/page/friend_page.dart';
+import 'package:keep_link/features/friend/presentation/page/shared_categories_page.dart';
 import 'package:keep_link/features/link/module/link_add/di/add_link_binding.dart';
 import 'package:keep_link/features/link/module/link_add/presentation/page/add_link_page.dart';
 import 'package:keep_link/features/link/module/link_colections/di/link_collection_binding.dart';
@@ -70,6 +72,12 @@ final appPage = [
     transition: Transition.rightToLeft,
     page: () => const FriendPage(),
     binding: FriendBinding(),
+  ),
+  GetPage(
+    name: SharedCategoriesPage.routeName,
+    transition: Transition.rightToLeft,
+    page: () => const SharedCategoriesPage(),
+    binding: SharedCategoryBinding(),
   ),
   GetPage(
     name: PrivacyPolicyPage.routeName,

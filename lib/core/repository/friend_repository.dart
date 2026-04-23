@@ -31,4 +31,24 @@ class FriendRepository {
     await DbHelper.delete(_table, id);
     AppCache.removeFriend(id);
   }
+
+  static Future<void> replaceAll(List<FriendModel> friends) async {
+    await ensureLoaded();
+
+    final favoriteMap = {
+      for (final friend in AppCache.friends)
+        if ((friend.id ?? '').isNotEmpty) friend.id!: friend.isFavorite,
+    };
+
+    final merged = friends
+        .map(
+          (friend) =>
+              friend.copyWith(isFavorite: favoriteMap[friend.id ?? ''] ?? friend.isFavorite),
+        )
+        .toList();
+
+    await DbHelper.clearTable(_table);
+    await DbHelper.upsertAll(merged);
+    AppCache.setFriends(merged);
+  }
 }

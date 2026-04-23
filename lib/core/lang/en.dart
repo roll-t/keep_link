@@ -74,21 +74,28 @@ Map<String, String> en = {
   "Paste your friend's personal link.": 'Paste your friend\'s personal link.',
   "Scan your friend's personal QR code.": 'Scan your friend\'s personal QR code.',
   "Add Friend by Gmail": 'Add Friend by Gmail',
-  "Enter your friend's Gmail to find and add them.":
-      'Enter your friend\'s Gmail to find and add them.',
+  "Enter your friend's Gmail to find and send them a request.":
+      'Enter your friend\'s Gmail to find and send them a request.',
   "Each account can keep up to @0 friends.": 'Each account can keep up to @0 friends.',
-  "Paste a personal link or scan a personal QR to add a friend.":
-      'Paste a personal link or scan a personal QR to add a friend.',
+  "Paste a personal link or scan a personal QR to send a request.":
+      'Paste a personal link or scan a personal QR to send a request.',
   "Paste Link": 'Paste Link',
   "Scan QR": 'Scan QR',
   "Paste Friend Link": 'Paste Friend Link',
-  "Paste the personal link your friend sent you.": 'Paste the personal link your friend sent you.',
+  "Paste the personal link your friend sent you to send a request.":
+      'Paste the personal link your friend sent you to send a request.',
   "Paste from Clipboard": 'Paste from Clipboard',
   "Scan from Gallery": 'Scan from Gallery',
   "Scanning image...": 'Scanning image...',
   "Scan Personal QR": 'Scan Personal QR',
   "Point the camera at your friend's personal QR code.":
       'Point the camera at your friend\'s personal QR code.',
+  "Friend Requests": 'Friend Requests',
+  "Review and respond to pending friend invitations.":
+      'Review and respond to pending friend invitations.',
+  "Accept": 'Accept',
+  "Decline": 'Decline',
+  "Send Request": 'Send Request',
   "friend_sign_in_required": 'Please sign in to use the friend feature',
   "friend_limit_reached": 'You can only keep up to @0 friends',
   "friend_invalid_link": 'This personal link is invalid',
@@ -96,6 +103,11 @@ Map<String, String> en = {
   "friend_email_not_found": 'No account found with this Gmail',
   "friend_cannot_add_self": 'You cannot add your own account',
   "friend_already_exists": 'This friend is already in your list',
+  "friend_request_already_sent": 'You already sent this friend request',
+  "friend_request_sent": 'Friend request sent',
+  "friend_request_accepted": 'Friend request accepted',
+  "friend_request_declined": 'Friend request declined',
+  "friend_request_action_failed": 'Unable to complete the friend request action',
   "friend_clipboard_empty": 'Clipboard does not contain a valid personal link',
   "friend_no_qr_found_in_image": 'No valid QR code was found in the selected image',
   "friend_scan_image_failed": 'Unable to scan QR from the selected image',
@@ -357,4 +369,21 @@ Map<String, String> en = {
   "Last updated: @0": 'Last updated: @0',
   "unable_open_email": 'Unable to open email app',
   "unable_open_zalo": 'Unable to open Zalo',
+
+  // Category Sharing
+  "share_category": 'Share Category',
+  "shared_with_me": 'Shared With Me',
+  "category_shared": 'Category shared successfully',
+  "category_unshared": 'Category sharing removed',
+  "share_sign_in_required": 'Please sign in to share categories',
+  "share_no_friends": 'You have no friends to share with yet',
+  "no_shared_categories": 'No shared categories yet',
+  "no_shared_categories_desc": 'When a friend shares a category with you, it will appear here.',
+  "shared_by": 'Shared by @0',
+  "no_links_in_shared_category": 'No links in this shared category',
+  "shared_load_error": 'Failed to load shared categories',
+  "Friend Requests": 'Friend Requests',
+  "Review and respond to pending friend invitations.":
+      'Review and respond to pending friend invitations.',
+  "Send Friend Request": 'Send Friend Request',
 };

@@ -9,10 +9,12 @@ import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/model/item_model.dart';
 import 'package:keep_link/core/repository/category_repository.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
+import 'package:keep_link/core/service/firebase_service.dart';
 import 'package:keep_link/core/utils/binding/dependency_utils.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/category/application/model/category_model.dart';
 import 'package:keep_link/features/category/presentation/controller/custom_popup_controller.dart';
+import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
 
 class CategoryController extends GetxController {
@@ -276,5 +278,49 @@ class CategoryController extends GetxController {
   void onSelectedCategory() {
     visibility.value = popupController.selectedItem.value?.visibility ?? VisibilityStatus.public;
     _reloadLinks();
+  }
+
+  // ── Share ─────────────────────────────────────────────────────────────────
+
+  /// Returns the list of friends this [categoryId] is currently shared with.
+  /// Result is a list of [FriendModel]s that have access.
+  Future<List<FriendModel>> getCategorySharedFriends(String categoryId) async {
+    if (FirebaseService.currentUser == null) return [];
+    try {
+      final sharedUids = await FirebaseService.getCategorySharedFriendUids(categoryId);
+      return AppCache.friends.where((f) => sharedUids.contains(f.friendUserId)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Toggle sharing [categoryId] with [friend].
+  /// If already shared → unshare; otherwise → share.
+  Future<void> toggleCategoryShare({
+    required String categoryId,
+    required FriendModel friend,
+    required bool currentlyShared,
+    required VoidCallback onSuccess,
+  }) async {
+    if (FirebaseService.currentUser == null) {
+      Fluttertoast.showToast(msg: 'share_sign_in_required'.tr);
+      return;
+    }
+
+    final friendUid = friend.friendUserId;
+    if (friendUid.isEmpty) return;
+
+    try {
+      if (currentlyShared) {
+        await FirebaseService.unshareCategory(friendUid: friendUid, categoryId: categoryId);
+        Fluttertoast.showToast(msg: 'category_unshared'.tr);
+      } else {
+        await FirebaseService.shareCategory(friendUid: friendUid, categoryId: categoryId);
+        Fluttertoast.showToast(msg: 'category_shared'.tr);
+      }
+      onSuccess();
+    } catch (e) {
+      _handleError('Toggle share error', e, StackTrace.current);
+    }
   }
 }

@@ -9,6 +9,7 @@ import 'package:keep_link/core/service/firebase_service.dart';
 import 'package:keep_link/core/service/friend_connection_service.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
+import 'package:keep_link/features/friend/application/model/friend_request_model.dart';
 
 class FriendController extends GetxController {
   static const int maxFriends = 10;
@@ -17,6 +18,8 @@ class FriendController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool favoritesOnly = false.obs;
   final RxList<FriendModel> visibleFriends = <FriendModel>[].obs;
+  final RxList<FriendRequestModel> incomingRequests = <FriendRequestModel>[].obs;
+  final RxList<String> pendingRequestUserIds = <String>[].obs;
 
   int get totalFriends => AppCache.friends.length;
   int get favoriteFriends => AppCache.friends.where((friend) => friend.isFavorite).length;
@@ -42,6 +45,7 @@ class FriendController extends GetxController {
     try {
       isLoading.value = true;
       await FriendRepository.ensureLoaded();
+      await _syncRemoteFriendState();
       _applyFilters();
     } finally {
       isLoading.value = false;
@@ -82,7 +86,7 @@ class FriendController extends GetxController {
       return false;
     }
 
-    return _saveFriend(
+    return _sendFriendRequest(
       userId: payload.userId,
       displayName: payload.displayName,
       email: payload.email,
@@ -143,7 +147,7 @@ class FriendController extends GetxController {
     final fallbackName = (profileEmail ?? email).split('@').first;
     final safeDisplayName = profileDisplayName.trim().isEmpty ? fallbackName : profileDisplayName;
 
-    return _saveFriend(
+    return _sendFriendRequest(
       userId: userId,
       displayName: safeDisplayName,
       email: profileEmail,
@@ -168,6 +172,31 @@ class FriendController extends GetxController {
     return addFriendFromLink(text);
   }
 
+  Future<void> acceptFriendRequest(FriendRequestModel request) async {
+    if (hasReachedLimit) {
+      Fluttertoast.showToast(msg: 'friend_limit_reached'.trParams({'0': '$maxFriends'}));
+      return;
+    }
+
+    try {
+      await FirebaseService.acceptFriendRequest(request);
+      await _syncRemoteFriendState();
+      Fluttertoast.showToast(msg: 'friend_request_accepted'.tr);
+    } catch (_) {
+      Fluttertoast.showToast(msg: 'friend_request_action_failed'.tr);
+    }
+  }
+
+  Future<void> declineFriendRequest(FriendRequestModel request) async {
+    try {
+      await FirebaseService.declineFriendRequest(request.fromUserId);
+      incomingRequests.removeWhere((item) => item.fromUserId == request.fromUserId);
+      Fluttertoast.showToast(msg: 'friend_request_declined'.tr);
+    } catch (_) {
+      Fluttertoast.showToast(msg: 'friend_request_action_failed'.tr);
+    }
+  }
+
   Future<void> toggleFavorite(FriendModel friend) async {
     final updated = friend.copyWith(isFavorite: !friend.isFavorite, updatedAt: DateTime.now());
     await FriendRepository.update(updated);
@@ -181,7 +210,8 @@ class FriendController extends GetxController {
       confirmText: 'Delete'.tr,
       cancelText: 'Cancel'.tr,
       onConfirm: () async {
-        await FriendRepository.delete(friend.id ?? '');
+        await FirebaseService.removeFriend(friend.friendUserId);
+        await _syncRemoteFriendState();
         Get.back();
         Fluttertoast.showToast(msg: 'friend_deleted_success'.tr);
       },
@@ -205,7 +235,7 @@ class FriendController extends GetxController {
     visibleFriends.assignAll(filtered);
   }
 
-  Future<bool> _saveFriend({
+  Future<bool> _sendFriendRequest({
     required String userId,
     required String displayName,
     String? email,
@@ -218,21 +248,54 @@ class FriendController extends GetxController {
       return false;
     }
 
-    final now = DateTime.now();
-    final friend = FriendModel(
-      id: userId,
-      friendUserId: userId,
-      displayName: displayName,
-      email: email,
-      photoUrl: photoUrl,
-      sourceLink: sourceLink,
-      createdAt: now,
-      updatedAt: now,
-    );
+    final incoming = incomingRequests.firstWhereOrNull((request) => request.fromUserId == userId);
+    if (incoming != null) {
+      await acceptFriendRequest(incoming);
+      return true;
+    }
 
-    await FriendRepository.insert(friend);
-    Fluttertoast.showToast(msg: 'friend_added_success'.tr);
-    _applyFilters();
-    return true;
+    if (pendingRequestUserIds.contains(userId)) {
+      Fluttertoast.showToast(msg: 'friend_request_already_sent'.tr);
+      return false;
+    }
+
+    try {
+      await FirebaseService.sendFriendRequest(
+        targetUserId: userId,
+        displayName: displayName,
+        email: email,
+        photoUrl: photoUrl,
+        sourceLink: sourceLink,
+      );
+      pendingRequestUserIds.add(userId);
+      Fluttertoast.showToast(msg: 'friend_request_sent'.tr);
+      return true;
+    } catch (_) {
+      Fluttertoast.showToast(msg: 'friend_request_action_failed'.tr);
+      return false;
+    }
+  }
+
+  Future<void> _syncRemoteFriendState() async {
+    final currentUser = FirebaseService.currentUser;
+    if (currentUser == null) {
+      incomingRequests.clear();
+      pendingRequestUserIds.clear();
+      return;
+    }
+
+    final results = await Future.wait<dynamic>([
+      FirebaseService.getRemoteFriends(),
+      FirebaseService.getIncomingFriendRequests(),
+      FirebaseService.getOutgoingFriendRequestUserIds(),
+    ]);
+
+    final remoteFriends = results[0] as List<FriendModel>;
+    final requests = results[1] as List<FriendRequestModel>;
+    final outgoingIds = results[2] as List<String>;
+
+    await FriendRepository.replaceAll(remoteFriends);
+    incomingRequests.assignAll(requests);
+    pendingRequestUserIds.assignAll(outgoingIds);
   }
 }

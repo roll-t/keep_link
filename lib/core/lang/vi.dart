@@ -74,20 +74,28 @@ Map<String, String> vi = {
   "Paste your friend's personal link.": 'Dán link cá nhân của bạn bè.',
   "Scan your friend's personal QR code.": 'Quét mã QR cá nhân của bạn bè.',
   "Add Friend by Gmail": 'Thêm bạn bằng Gmail',
-  "Enter your friend's Gmail to find and add them.": 'Nhập Gmail của bạn bè để tìm và thêm họ.',
+  "Enter your friend's Gmail to find and send them a request.":
+      'Nhập Gmail của bạn bè để tìm và gửi lời mời kết bạn.',
   "Each account can keep up to @0 friends.": 'Mỗi tài khoản chỉ có thể lưu tối đa @0 bạn bè.',
-  "Paste a personal link or scan a personal QR to add a friend.":
-      'Dán link cá nhân hoặc quét QR cá nhân để thêm bạn bè.',
+  "Paste a personal link or scan a personal QR to send a request.":
+      'Dán link cá nhân hoặc quét QR cá nhân để gửi lời mời kết bạn.',
   "Paste Link": 'Dán link',
   "Scan QR": 'Quét QR',
   "Paste Friend Link": 'Dán link bạn bè',
-  "Paste the personal link your friend sent you.": 'Dán link cá nhân mà bạn bè đã gửi cho bạn.',
+  "Paste the personal link your friend sent you to send a request.":
+      'Dán link cá nhân mà bạn bè đã gửi cho bạn để gửi lời mời kết bạn.',
   "Paste from Clipboard": 'Dán từ bộ nhớ tạm',
   "Scan from Gallery": 'Quét từ thư viện',
   "Scanning image...": 'Đang quét ảnh...',
   "Scan Personal QR": 'Quét QR cá nhân',
   "Point the camera at your friend's personal QR code.":
       'Hướng camera vào mã QR cá nhân của bạn bè.',
+  "Friend Requests": 'Lời mời kết bạn',
+  "Review and respond to pending friend invitations.":
+      'Xem và phản hồi các lời mời kết bạn đang chờ.',
+  "Accept": 'Đồng ý',
+  "Decline": 'Từ chối',
+  "Send Request": 'Gửi lời mời',
   "friend_sign_in_required": 'Vui lòng đăng nhập để dùng tính năng bạn bè',
   "friend_limit_reached": 'Bạn chỉ có thể lưu tối đa @0 bạn bè',
   "friend_invalid_link": 'Link cá nhân này không hợp lệ',
@@ -95,6 +103,11 @@ Map<String, String> vi = {
   "friend_email_not_found": 'Không tìm thấy tài khoản với Gmail này',
   "friend_cannot_add_self": 'Bạn không thể tự thêm chính mình',
   "friend_already_exists": 'Bạn bè này đã có trong danh sách',
+  "friend_request_already_sent": 'Bạn đã gửi lời mời kết bạn này rồi',
+  "friend_request_sent": 'Đã gửi lời mời kết bạn',
+  "friend_request_accepted": 'Đã chấp nhận lời mời kết bạn',
+  "friend_request_declined": 'Đã từ chối lời mời kết bạn',
+  "friend_request_action_failed": 'Không thể xử lý lời mời kết bạn lúc này',
   "friend_clipboard_empty": 'Bộ nhớ tạm chưa có link cá nhân hợp lệ',
   "friend_no_qr_found_in_image": 'Không tìm thấy mã QR hợp lệ trong ảnh đã chọn',
   "friend_scan_image_failed": 'Không thể quét QR từ ảnh đã chọn',
@@ -327,4 +340,21 @@ Map<String, String> vi = {
   "Last updated: @0": 'Cập nhật lần cuối: @0',
   "unable_open_email": 'Không thể mở ứng dụng email',
   "unable_open_zalo": 'Không thể mở Zalo',
+
+  // Category Sharing
+  "share_category": 'Chia sẻ danh mục',
+  "shared_with_me": 'Được chia sẻ với tôi',
+  "category_shared": 'Đã chia sẻ danh mục thành công',
+  "category_unshared": 'Đã gỡ chia sẻ danh mục',
+  "share_sign_in_required": 'Vui lòng đăng nhập để chia sẻ danh mục',
+  "share_no_friends": 'Bạn chưa có bạn bè để chia sẻ',
+  "no_shared_categories": 'Chưa có danh mục nào được chia sẻ',
+  "no_shared_categories_desc": 'Khi bạn bè chia sẻ danh mục với bạn, nó sẽ xuất hiện ở đây.',
+  "shared_by": 'Được chia sẻ bởi @0',
+  "no_links_in_shared_category": 'Không có link nào trong danh mục được chia sẻ này',
+  "shared_load_error": 'Không thể tải danh mục được chia sẻ',
+  "Friend Requests": 'Lời mời kết bạn',
+  "Review and respond to pending friend invitations.":
+      'Xem và phản hồi các lời mời kết bạn đang chờ.',
+  "Send Friend Request": 'Gửi lời mời kết bạn',
 };

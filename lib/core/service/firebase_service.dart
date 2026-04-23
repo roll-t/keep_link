@@ -3,6 +3,9 @@ import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:keep_link/features/friend/application/model/friend_model.dart';
+import 'package:keep_link/features/friend/application/model/friend_request_model.dart';
+import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
 
 class FirebaseService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -10,6 +13,12 @@ class FirebaseService {
   static final GoogleSignIn _googleSignIn = GoogleSignIn();
   static const int _dailyFeedbackLimit = 1;
   static const int _dailyBugReportLimit = 3;
+  static const String _publicFriendProfilesPath = 'friendDirectory/profiles';
+  static const String _friendRequestsKey = 'friendRequests';
+  static const String _sentFriendRequestsKey = 'sentFriendRequests';
+  static const String _friendsKey = 'friends';
+  static const String _sharedWithKey = 'sharedWith';
+  static const String _sharedCategoryAccessKey = 'sharedCategoryAccess';
 
   // ────────────────────────────────────────────────────────────────────────
   // AUTH
@@ -27,6 +36,7 @@ class FirebaseService {
       );
 
       final userCredential = await _auth.signInWithCredential(credential);
+      await syncFriendLookupProfile();
       log('Google sign in success: ${userCredential.user?.uid}');
       return userCredential;
     } on FirebaseAuthException catch (e) {
@@ -53,6 +63,7 @@ class FirebaseService {
     try {
       await _auth.currentUser?.updateDisplayName(name);
       await _auth.currentUser?.reload();
+      await syncFriendLookupProfile();
       log('Display name updated: $name');
     } catch (e) {
       log('Update display name error: $e');
@@ -65,6 +76,7 @@ class FirebaseService {
     try {
       await _auth.currentUser?.updatePhotoURL(photoUrl);
       await _auth.currentUser?.reload();
+      await syncFriendLookupProfile();
       log('Photo URL updated: $photoUrl');
     } catch (e) {
       log('Update photo URL error: $e');
@@ -77,57 +89,329 @@ class FirebaseService {
   static String? get currentUserId => _auth.currentUser?.uid;
 
   static Future<Map<String, String?>?> findUserProfileByEmail(String rawEmail) async {
-    final email = rawEmail.trim().toLowerCase();
+    final email = _normalizeEmail(rawEmail);
     if (email.isEmpty) return null;
 
     try {
-      final snapshot = await _db.ref('users').get();
-      if (!snapshot.exists || snapshot.value is! Map) return null;
+      final lookupSnapshot = await _db
+          .ref(_publicFriendProfilesPath)
+          .orderByChild('email')
+          .equalTo(email)
+          .limitToFirst(1)
+          .get();
+      if (!lookupSnapshot.exists || lookupSnapshot.value is! Map) return null;
 
-      final users = Map<String, dynamic>.from(snapshot.value as Map);
-      for (final entry in users.entries) {
-        if (entry.value is! Map) continue;
-        final userMap = Map<String, dynamic>.from(entry.value as Map);
+      final matchedProfiles = Map<String, dynamic>.from(lookupSnapshot.value as Map);
+      final entry = matchedProfiles.entries.firstWhere(
+        (candidate) => candidate.value is Map,
+        orElse: () => const MapEntry('', null),
+      );
+      final userId = entry.key.trim();
+      if (userId.isEmpty || entry.value is! Map) return null;
 
-        final profileMap = userMap['profile'] is Map
-            ? Map<String, dynamic>.from(userMap['profile'] as Map)
-            : const <String, dynamic>{};
+      final profile = Map<String, dynamic>.from(entry.value as Map);
+      final storedEmail = _pickString([profile['email']]) ?? email;
+      final displayName = _pickString([
+        profile['displayName'],
+        profile['display_name'],
+        profile['name'],
+      ]);
+      final photoUrl = _pickString([
+        profile['photoUrl'],
+        profile['photo_url'],
+        profile['avatarUrl'],
+      ]);
 
-        final storedEmail = _pickString([userMap['email'], profileMap['email']]);
-        if (storedEmail == null || storedEmail.trim().toLowerCase() != email) {
-          continue;
-        }
-
-        final displayName = _pickString([
-          userMap['displayName'],
-          userMap['display_name'],
-          userMap['name'],
-          profileMap['displayName'],
-          profileMap['display_name'],
-          profileMap['name'],
-        ]);
-
-        final photoUrl = _pickString([
-          userMap['photoUrl'],
-          userMap['photo_url'],
-          userMap['avatarUrl'],
-          profileMap['photoUrl'],
-          profileMap['photo_url'],
-          profileMap['avatarUrl'],
-        ]);
-
-        return {
-          'uid': entry.key,
-          'displayName': displayName,
-          'email': storedEmail,
-          'photoUrl': photoUrl,
-        };
-      }
-
-      return null;
+      return {
+        'uid': userId,
+        'displayName': displayName,
+        'email': storedEmail,
+        'photoUrl': photoUrl,
+      };
     } catch (e) {
       log('Find user by email error: $e');
       return null;
+    }
+  }
+
+  /// Keep a small public profile directory for friend discovery without reading
+  /// the entire private users tree.
+  static Future<void> syncFriendLookupProfile() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final email = _normalizeEmail(user.email);
+    if (email.isEmpty) return;
+
+    final displayName = _pickString([user.displayName]) ?? email.split('@').first;
+    final photoUrl = _pickString([user.photoURL]);
+
+    try {
+      await _db.ref().update({
+        '$_publicFriendProfilesPath/${user.uid}': {
+          'email': email,
+          'displayName': displayName,
+          'photoUrl': photoUrl,
+          'updatedAt': ServerValue.timestamp,
+        },
+      });
+      log('Friend lookup profile synced: ${user.uid}');
+    } catch (e) {
+      log('Sync friend lookup profile error: $e');
+    }
+  }
+
+  static Future<void> sendFriendRequest({
+    required String targetUserId,
+    required String displayName,
+    String? email,
+    String? photoUrl,
+    required String sourceLink,
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw FirebaseException(
+        plugin: 'firebase_database',
+        code: 'unauthenticated',
+        message: 'Sign in is required to send a friend request.',
+      );
+    }
+    if (targetUserId.isEmpty || targetUserId == currentUser.uid) {
+      throw FirebaseException(
+        plugin: 'firebase_database',
+        code: 'invalid-argument',
+        message: 'Invalid target user.',
+      );
+    }
+
+    final now = DateTime.now().toIso8601String();
+    final requesterDisplayName =
+        _pickString([currentUser.displayName]) ??
+        _normalizeEmail(currentUser.email).split('@').first;
+    final requesterEmail = _normalizeEmail(currentUser.email);
+    final requesterPhotoUrl = _pickString([currentUser.photoURL]);
+
+    final incomingRequest = {
+      'fromUserId': currentUser.uid,
+      'displayName': requesterDisplayName,
+      'email': requesterEmail,
+      'photoUrl': requesterPhotoUrl,
+      'sourceLink': sourceLink,
+      'status': 'pending',
+      'createdAt': now,
+      'updatedAt': now,
+    };
+
+    final outgoingRequest = {
+      'targetUserId': targetUserId,
+      'displayName': displayName,
+      'email': email,
+      'photoUrl': photoUrl,
+      'sourceLink': sourceLink,
+      'status': 'pending',
+      'createdAt': now,
+      'updatedAt': now,
+    };
+
+    try {
+      await _db.ref('users/$targetUserId').update({
+        '$_friendRequestsKey/${currentUser.uid}': incomingRequest,
+      });
+
+      try {
+        await _db.ref('users/${currentUser.uid}').update({
+          '$_sentFriendRequestsKey/$targetUserId': outgoingRequest,
+        });
+      } catch (e) {
+        log('Send friend request mirror write warning: $e');
+      }
+
+      log('Friend request sent: ${currentUser.uid} -> $targetUserId');
+    } catch (e) {
+      log('Send friend request error: $e');
+      rethrow;
+    }
+  }
+
+  static Future<List<FriendRequestModel>> getIncomingFriendRequests() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return const <FriendRequestModel>[];
+
+    try {
+      final snapshot = await _db.ref('users/${currentUser.uid}/$_friendRequestsKey').get();
+      if (!snapshot.exists || snapshot.value is! Map) return const <FriendRequestModel>[];
+
+      final raw = Map<String, dynamic>.from(snapshot.value as Map);
+      return raw.entries
+          .where((entry) => entry.value is Map)
+          .map(
+            (entry) => FriendRequestModel.fromJson(
+              entry.key,
+              Map<String, dynamic>.from(entry.value as Map),
+            ),
+          )
+          .where((request) => request.status == 'pending')
+          .toList()
+        ..sort(
+          (a, b) => (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+            a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+          ),
+        );
+    } catch (e) {
+      log('Get incoming friend requests error: $e');
+      return const <FriendRequestModel>[];
+    }
+  }
+
+  static Future<List<String>> getOutgoingFriendRequestUserIds() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return const <String>[];
+
+    try {
+      final snapshot = await _db.ref('users/${currentUser.uid}/$_sentFriendRequestsKey').get();
+      if (!snapshot.exists || snapshot.value is! Map) return const <String>[];
+
+      final raw = Map<String, dynamic>.from(snapshot.value as Map);
+      return raw.entries
+          .where((entry) => entry.value is Map)
+          .map((entry) => MapEntry(entry.key, Map<String, dynamic>.from(entry.value as Map)))
+          .where((entry) => (entry.value['status'] ?? 'pending').toString() == 'pending')
+          .map((entry) => entry.key)
+          .toList();
+    } catch (e) {
+      log('Get outgoing friend requests error: $e');
+      return const <String>[];
+    }
+  }
+
+  static Future<List<FriendModel>> getRemoteFriends() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return const <FriendModel>[];
+
+    try {
+      final snapshot = await _db.ref('users/${currentUser.uid}/$_friendsKey').get();
+      if (!snapshot.exists || snapshot.value is! Map) return const <FriendModel>[];
+
+      final raw = Map<String, dynamic>.from(snapshot.value as Map);
+      return raw.entries.where((entry) => entry.value is Map).map((entry) {
+        final json = Map<String, dynamic>.from(entry.value as Map);
+        json['id'] = entry.key;
+        json['friend_user_id'] = json['friendUserId'] ?? entry.key;
+        json['display_name'] = json['displayName'] ?? '';
+        json['photo_url'] = json['photoUrl'];
+        json['source_link'] = json['sourceLink'];
+        json['created_at'] = json['createdAt'];
+        json['updated_at'] = json['updatedAt'];
+        return FriendModel.fromJson(json);
+      }).toList()..sort(
+        (a, b) => (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+          a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+        ),
+      );
+    } catch (e) {
+      log('Get remote friends error: $e');
+      return const <FriendModel>[];
+    }
+  }
+
+  static Future<void> acceptFriendRequest(FriendRequestModel request) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw FirebaseException(
+        plugin: 'firebase_database',
+        code: 'unauthenticated',
+        message: 'Sign in is required to accept a friend request.',
+      );
+    }
+
+    final now = DateTime.now().toIso8601String();
+    final currentDisplayName =
+        _pickString([currentUser.displayName]) ??
+        _normalizeEmail(currentUser.email).split('@').first;
+    final currentEmail = _normalizeEmail(currentUser.email);
+    final currentPhotoUrl = _pickString([currentUser.photoURL]);
+
+    final currentUserFriend = {
+      'friendUserId': request.fromUserId,
+      'displayName': request.displayName,
+      'email': request.email,
+      'photoUrl': request.photoUrl,
+      'sourceLink': request.sourceLink,
+      'createdAt': now,
+      'updatedAt': now,
+    };
+
+    final requesterFriend = {
+      'friendUserId': currentUser.uid,
+      'displayName': currentDisplayName,
+      'email': currentEmail,
+      'photoUrl': currentPhotoUrl,
+      'sourceLink': request.sourceLink,
+      'createdAt': now,
+      'updatedAt': now,
+    };
+
+    try {
+      await _db.ref('users/${currentUser.uid}').update({
+        '$_friendsKey/${request.fromUserId}': currentUserFriend,
+        '$_friendRequestsKey/${request.fromUserId}': null,
+      });
+
+      await _db.ref('users/${request.fromUserId}').update({
+        '$_friendsKey/${currentUser.uid}': requesterFriend,
+        '$_sentFriendRequestsKey/${currentUser.uid}': null,
+      });
+
+      log('Friend request accepted: ${request.fromUserId} <-> ${currentUser.uid}');
+    } catch (e) {
+      log('Accept friend request error: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> declineFriendRequest(String fromUserId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw FirebaseException(
+        plugin: 'firebase_database',
+        code: 'unauthenticated',
+        message: 'Sign in is required to decline a friend request.',
+      );
+    }
+
+    try {
+      await _db.ref('users/${currentUser.uid}').update({'$_friendRequestsKey/$fromUserId': null});
+
+      await _db.ref('users/$fromUserId').update({
+        '$_sentFriendRequestsKey/${currentUser.uid}': null,
+      });
+
+      log('Friend request declined: $fromUserId -> ${currentUser.uid}');
+    } catch (e) {
+      log('Decline friend request error: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> removeFriend(String friendUserId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw FirebaseException(
+        plugin: 'firebase_database',
+        code: 'unauthenticated',
+        message: 'Sign in is required to remove a friend.',
+      );
+    }
+
+    try {
+      await _db.ref('users/${currentUser.uid}').update({'$_friendsKey/$friendUserId': null});
+
+      await _db.ref('users/$friendUserId').update({'$_friendsKey/${currentUser.uid}': null});
+
+      log('Friend removed: ${currentUser.uid} x $friendUserId');
+    } catch (e) {
+      log('Remove friend error: $e');
+      rethrow;
     }
   }
 
@@ -245,5 +529,210 @@ class FirebaseService {
       }
     }
     return null;
+  }
+
+  static String _normalizeEmail(String? value) => value?.trim().toLowerCase() ?? '';
+
+  // ────────────────────────────────────────────────────────────────────────
+  // CATEGORY SHARING
+  // ────────────────────────────────────────────────────────────────────────
+
+  /// Share [categoryId] with [friendUid].
+  /// Writes to two paths atomically (per-user updates to avoid root write):
+  ///   users/$ownerUid/sharedWith/$friendUid/$categoryId: true
+  ///   users/$friendUid/sharedCategoryAccess/$ownerUid/$categoryId: true
+  static Future<void> shareCategory({required String friendUid, required String categoryId}) async {
+    final owner = _auth.currentUser;
+    if (owner == null) {
+      throw FirebaseException(
+        plugin: 'firebase_database',
+        code: 'unauthenticated',
+        message: 'Sign in is required to share a category.',
+      );
+    }
+
+    try {
+      await _db.ref('users/${owner.uid}/$_sharedWithKey/$friendUid').update({categoryId: true});
+      await _db.ref('users/$friendUid/$_sharedCategoryAccessKey/${owner.uid}').update({
+        categoryId: true,
+      });
+      log('Category shared: ${owner.uid} -> $friendUid (cat: $categoryId)');
+    } catch (e) {
+      log('Share category error: $e');
+      rethrow;
+    }
+  }
+
+  /// Revoke sharing of [categoryId] with [friendUid].
+  static Future<void> unshareCategory({
+    required String friendUid,
+    required String categoryId,
+  }) async {
+    final owner = _auth.currentUser;
+    if (owner == null) {
+      throw FirebaseException(
+        plugin: 'firebase_database',
+        code: 'unauthenticated',
+        message: 'Sign in is required to unshare a category.',
+      );
+    }
+
+    try {
+      await _db.ref('users/${owner.uid}/$_sharedWithKey/$friendUid/$categoryId').remove();
+      await _db.ref('users/$friendUid/$_sharedCategoryAccessKey/${owner.uid}/$categoryId').remove();
+      log('Category unshared: ${owner.uid} -> $friendUid (cat: $categoryId)');
+    } catch (e) {
+      log('Unshare category error: $e');
+      rethrow;
+    }
+  }
+
+  /// Returns list of friend UIDs that [categoryId] is currently shared with.
+  static Future<List<String>> getCategorySharedFriendUids(String categoryId) async {
+    final owner = _auth.currentUser;
+    if (owner == null) return const [];
+
+    try {
+      final snapshot = await _db.ref('users/${owner.uid}/$_sharedWithKey').get();
+      if (!snapshot.exists || snapshot.value is! Map) return const [];
+
+      final raw = Map<String, dynamic>.from(snapshot.value as Map);
+      return raw.entries
+          .where(
+            (entry) =>
+                entry.value is Map &&
+                (Map<String, dynamic>.from(entry.value as Map)[categoryId]) == true,
+          )
+          .map((entry) => entry.key)
+          .toList();
+    } catch (e) {
+      log('Get category shared friend uids error: $e');
+      return const [];
+    }
+  }
+
+  /// Remove all sharing records for [categoryId] when the category is deleted.
+  static Future<void> revokeAllCategoryShares(String categoryId) async {
+    final owner = _auth.currentUser;
+    if (owner == null) return;
+
+    try {
+      final sharedFriendUids = await getCategorySharedFriendUids(categoryId);
+      for (final friendUid in sharedFriendUids) {
+        await unshareCategory(friendUid: friendUid, categoryId: categoryId);
+      }
+      log('All shares revoked for category: $categoryId');
+    } catch (e) {
+      log('Revoke all category shares error: $e');
+    }
+  }
+
+  /// Fetch all categories that friends have shared with the current user.
+  /// Returns a list of [SharedCategoryModel].
+  static Future<List<SharedCategoryModel>> getSharedCategoriesFromFriends() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return const [];
+
+    try {
+      // Step 1: Get the access index  users/$me/sharedCategoryAccess/$ownerUid/$catId
+      final accessSnapshot = await _db
+          .ref('users/${currentUser.uid}/$_sharedCategoryAccessKey')
+          .get();
+      if (!accessSnapshot.exists || accessSnapshot.value is! Map) return const [];
+
+      final accessMap = Map<String, dynamic>.from(accessSnapshot.value as Map);
+      final results = <SharedCategoryModel>[];
+
+      for (final ownerEntry in accessMap.entries) {
+        final ownerUid = ownerEntry.key;
+        if (ownerEntry.value is! Map) continue;
+        final catMap = Map<String, dynamic>.from(ownerEntry.value as Map);
+        if (catMap.isEmpty) continue;
+
+        // Step 2: Resolve owner display info from friendDirectory
+        String ownerDisplayName = ownerUid;
+        String? ownerPhotoUrl;
+        try {
+          final profileSnap = await _db.ref('$_publicFriendProfilesPath/$ownerUid').get();
+          if (profileSnap.exists && profileSnap.value is Map) {
+            final profile = Map<String, dynamic>.from(profileSnap.value as Map);
+            ownerDisplayName =
+                _pickString([profile['displayName'], profile['display_name']]) ?? ownerUid;
+            ownerPhotoUrl = _pickString([profile['photoUrl'], profile['photo_url']]);
+          }
+        } catch (_) {}
+
+        // Step 3: Fetch each category node
+        for (final catId in catMap.keys) {
+          try {
+            final catSnap = await _db.ref('users/$ownerUid/categories/$catId').get();
+            if (!catSnap.exists || catSnap.value is! Map) continue;
+            final catJson = Map<String, dynamic>.from(catSnap.value as Map);
+
+            // Step 4: Count links in this category
+            int linkCount = 0;
+            try {
+              final linksSnap = await _db
+                  .ref('users/$ownerUid/links')
+                  .orderByChild('categoryId')
+                  .equalTo(catId)
+                  .get();
+              if (linksSnap.exists && linksSnap.value is Map) {
+                linkCount = (linksSnap.value as Map).length;
+              }
+            } catch (_) {}
+
+            results.add(
+              SharedCategoryModel.fromJson(
+                ownerUid: ownerUid,
+                ownerDisplayName: ownerDisplayName,
+                ownerPhotoUrl: ownerPhotoUrl,
+                categoryId: catId,
+                categoryJson: catJson,
+                linkCount: linkCount,
+              ),
+            );
+          } catch (_) {}
+        }
+      }
+
+      return results;
+    } catch (e) {
+      log('Get shared categories error: $e');
+      return const [];
+    }
+  }
+
+  /// Fetch the links belonging to [categoryId] from [ownerUid]'s account.
+  /// Returns raw JSON maps suitable for constructing [LinkModel].
+  static Future<List<Map<String, dynamic>>> fetchSharedCategoryLinks({
+    required String ownerUid,
+    required String categoryId,
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return const [];
+
+    try {
+      final snapshot = await _db
+          .ref('users/$ownerUid/links')
+          .orderByChild('categoryId')
+          .equalTo(categoryId)
+          .get();
+      if (!snapshot.exists || snapshot.value is! Map) return const [];
+
+      final raw = Map<String, dynamic>.from(snapshot.value as Map);
+      return raw.entries.where((entry) => entry.value is Map).map((entry) {
+        final map = Map<String, dynamic>.from(entry.value as Map);
+        map['id'] = entry.key;
+        return map;
+      }).toList()..sort((a, b) {
+        final aTime = a['createdAt'] as String? ?? '';
+        final bTime = b['createdAt'] as String? ?? '';
+        return bTime.compareTo(aTime);
+      });
+    } catch (e) {
+      log('Fetch shared category links error: $e');
+      return const [];
+    }
   }
 }

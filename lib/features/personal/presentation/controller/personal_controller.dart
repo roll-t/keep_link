@@ -81,8 +81,14 @@ class PersonalController extends GetxController {
   void onInit() {
     super.onInit();
     user.value = FirebaseService.currentUser;
+    if (user.value != null) {
+      Future<void>(() => FirebaseService.syncFriendLookupProfile());
+    }
     _authSub = FirebaseService.authStateChanges.listen((u) {
       user.value = u;
+      if (u != null) {
+        Future<void>(() => FirebaseService.syncFriendLookupProfile());
+      }
     });
     _loadAppVersion();
   }
