@@ -263,6 +263,28 @@ class FirebaseService {
     }
   }
 
+  static Stream<List<FriendRequestModel>> watchIncomingFriendRequests() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return const Stream.empty();
+
+    return _db.ref('users/$uid/$_friendRequestsKey').onValue.map((event) {
+      if (!event.snapshot.exists || event.snapshot.value is! Map) {
+        return <FriendRequestModel>[];
+      }
+      final raw = Map<String, dynamic>.from(event.snapshot.value as Map);
+      return raw.entries
+          .where((e) => e.value is Map)
+          .map((e) => FriendRequestModel.fromJson(e.key, Map<String, dynamic>.from(e.value as Map)))
+          .where((r) => r.status == 'pending')
+          .toList()
+        ..sort(
+          (a, b) => (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+            a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+          ),
+        );
+    });
+  }
+
   static Future<List<String>> getOutgoingFriendRequestUserIds() async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return const <String>[];
@@ -312,6 +334,18 @@ class FirebaseService {
       log('Get remote friends error: $e');
       return const <FriendModel>[];
     }
+  }
+
+  /// Stream theo dõi realtime node `users/$uid/friends`.
+  /// Emit số lượng bạn bè mỗi khi có thay đổi — dùng để trigger sync cục bộ.
+  static Stream<int> watchFriendsCount() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return const Stream.empty();
+
+    return _db.ref('users/$uid/$_friendsKey').onValue.map((event) {
+      if (!event.snapshot.exists || event.snapshot.value is! Map) return 0;
+      return (event.snapshot.value as Map).length;
+    });
   }
 
   static Future<void> acceptFriendRequest(FriendRequestModel request) async {
@@ -403,16 +437,38 @@ class FirebaseService {
       );
     }
 
+    // Bước 1: Dọn phía mình — luôn được phép vì ghi vào node của chính mình
     try {
-      await _db.ref('users/${currentUser.uid}').update({'$_friendsKey/$friendUserId': null});
-
-      await _db.ref('users/$friendUserId').update({'$_friendsKey/${currentUser.uid}': null});
-
-      log('Friend removed: ${currentUser.uid} x $friendUserId');
+      await _db.ref('users/${currentUser.uid}').update({
+        '$_friendsKey/$friendUserId': null,
+        '$_sharedWithKey/$friendUserId': null,
+        '$_sharedCategoryAccessKey/$friendUserId': null,
+      });
     } catch (e) {
-      log('Remove friend error: $e');
+      log('Remove friend (own side) error: $e');
       rethrow;
     }
+
+    // Bước 2: Dọn phía bạn — mỗi path riêng để lỗi permission không chặn cả lô.
+    // Nếu Firebase rules không cho phép ghi node của người khác,
+    // bỏ qua; bạn sẽ tự dọn khi friendsWatcher phát hiện bị xoá.
+    try {
+      await _db.ref('users/$friendUserId/$_friendsKey/${currentUser.uid}').remove();
+    } catch (e) {
+      log('Remove friend (friend side - friends) error: $e');
+    }
+    try {
+      await _db.ref('users/$friendUserId/$_sharedWithKey/${currentUser.uid}').remove();
+    } catch (e) {
+      log('Remove friend (friend side - sharedWith) error: $e');
+    }
+    try {
+      await _db.ref('users/$friendUserId/$_sharedCategoryAccessKey/${currentUser.uid}').remove();
+    } catch (e) {
+      log('Remove friend (friend side - sharedCategoryAccess) error: $e');
+    }
+
+    log('Friend removed: ${currentUser.uid} x $friendUserId');
   }
 
   // ────────────────────────────────────────────────────────────────────────
@@ -703,6 +759,51 @@ class FirebaseService {
     }
   }
 
+  /// Watch `users/$uid/sharedCategoryAccess` for real-time changes.
+  /// Emits a flat Set of "${ownerUid}/${categoryId}" strings every time
+  /// the node changes — callers can diff to detect new shares.
+  static Stream<Set<String>> watchSharedCategoryAccess() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return const Stream.empty();
+
+    return _db.ref('users/$uid/$_sharedCategoryAccessKey').onValue.map((event) {
+      if (!event.snapshot.exists || event.snapshot.value is! Map) return <String>{};
+      final raw = Map<String, dynamic>.from(event.snapshot.value as Map);
+      final keys = <String>{};
+      for (final ownerEntry in raw.entries) {
+        if (ownerEntry.value is! Map) continue;
+        final catMap = Map<String, dynamic>.from(ownerEntry.value as Map);
+        for (final catId in catMap.keys) {
+          keys.add('${ownerEntry.key}/$catId');
+        }
+      }
+      return keys;
+    });
+  }
+
+  /// Watch all links belonging to [ownerUid] and count per [sharedCatIds].
+  /// Emits a map of catId → link count whenever any link changes for that owner.
+  static Stream<Map<String, int>> watchOwnerLinksCount({
+    required String ownerUid,
+    required Set<String> sharedCatIds,
+  }) {
+    if (sharedCatIds.isEmpty) return const Stream.empty();
+    return _db.ref('users/$ownerUid/links').onValue.map((event) {
+      final counts = <String, int>{for (final id in sharedCatIds) id: 0};
+      if (!event.snapshot.exists || event.snapshot.value is! Map) return counts;
+      final raw = Map<String, dynamic>.from(event.snapshot.value as Map);
+      for (final entry in raw.entries) {
+        if (entry.value is! Map) continue;
+        final link = Map<String, dynamic>.from(entry.value as Map);
+        final catId = link['categoryId'] as String?;
+        if (catId != null && counts.containsKey(catId)) {
+          counts[catId] = (counts[catId] ?? 0) + 1;
+        }
+      }
+      return counts;
+    });
+  }
+
   /// Fetch the links belonging to [categoryId] from [ownerUid]'s account.
   /// Returns raw JSON maps suitable for constructing [LinkModel].
   static Future<List<Map<String, dynamic>>> fetchSharedCategoryLinks({
@@ -734,5 +835,34 @@ class FirebaseService {
       log('Fetch shared category links error: $e');
       return const [];
     }
+  }
+
+  /// Watch links of [ownerUid] filtered by [categoryId] in real-time.
+  static Stream<List<Map<String, dynamic>>> watchSharedCategoryLinks({
+    required String ownerUid,
+    required String categoryId,
+  }) {
+    if (_auth.currentUser == null) return const Stream.empty();
+
+    return _db
+        .ref('users/$ownerUid/links')
+        .orderByChild('categoryId')
+        .equalTo(categoryId)
+        .onValue
+        .map((event) {
+          if (!event.snapshot.exists || event.snapshot.value is! Map) {
+            return <Map<String, dynamic>>[];
+          }
+          final raw = Map<String, dynamic>.from(event.snapshot.value as Map);
+          return (raw.entries.where((e) => e.value is Map).map((e) {
+            final map = Map<String, dynamic>.from(e.value as Map);
+            map['id'] = e.key;
+            return map;
+          }).toList()..sort((a, b) {
+            final aTime = a['createdAt'] as String? ?? '';
+            final bTime = b['createdAt'] as String? ?? '';
+            return bTime.compareTo(aTime);
+          }));
+        });
   }
 }

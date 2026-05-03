@@ -113,6 +113,11 @@ Map<String, String> en = {
   "friend_scan_image_failed": 'Unable to scan QR from the selected image',
   "friend_added_success": 'Friend added successfully',
   "friend_deleted_success": 'Friend deleted successfully',
+  "friend_new_request_received": 'You have a new friend request',
+  "Requests": 'Requests',
+  "No friend requests": 'No friend requests',
+  "When someone sends you a friend request, it will appear here.":
+      'When someone sends you a friend request, it will appear here.',
   "delete_friend_confirm": 'Delete @0 from your friend list?',
   "Copy Personal Link": 'Copy Personal Link',
   "Save QR": 'Save QR',
@@ -135,6 +140,8 @@ Map<String, String> en = {
   "Enter category name": 'Enter category name',
   "Save": 'Save',
   "Add": 'Add',
+  "Edit": 'Edit',
+  "Share": 'Share',
   "Delete": 'Delete',
   "Category": 'Category',
   "Update successful": 'Update successful',
@@ -382,8 +389,7 @@ Map<String, String> en = {
   "shared_by": 'Shared by @0',
   "no_links_in_shared_category": 'No links in this shared category',
   "shared_load_error": 'Failed to load shared categories',
-  "Friend Requests": 'Friend Requests',
-  "Review and respond to pending friend invitations.":
-      'Review and respond to pending friend invitations.',
+  "shared_new_category_received": 'A friend shared a category with you',
+  "shared_new_link_received": 'A new link was added to a shared category',
   "Send Friend Request": 'Send Friend Request',
 };

@@ -113,6 +113,11 @@ Map<String, String> vi = {
   "friend_scan_image_failed": 'Không thể quét QR từ ảnh đã chọn',
   "friend_added_success": 'Thêm bạn bè thành công',
   "friend_deleted_success": 'Xóa bạn bè thành công',
+  "friend_new_request_received": 'Bạn có lời mời kết bạn mới',
+  "Requests": 'Lời mời',
+  "No friend requests": 'Không có lời mời kết bạn',
+  "When someone sends you a friend request, it will appear here.":
+      'Khi ai đó gửi lời mời kết bạn, lời mời sẽ hiện ở đây.',
   "delete_friend_confirm": 'Xóa @0 khỏi danh sách bạn bè?',
   "Copy Personal Link": 'Sao chép link cá nhân',
   "Save QR": 'Lưu QR',
@@ -135,6 +140,8 @@ Map<String, String> vi = {
   "Enter category name": 'Nhập tên danh mục',
   "Save": 'Lưu',
   "Add": 'Thêm',
+  "Edit": 'Chỉnh sửa',
+  "Share": 'Chia sẻ',
   "Delete": 'Xoá',
   "Category": 'Danh mục',
   "Private": 'Riêng tư',
@@ -353,8 +360,7 @@ Map<String, String> vi = {
   "shared_by": 'Được chia sẻ bởi @0',
   "no_links_in_shared_category": 'Không có link nào trong danh mục được chia sẻ này',
   "shared_load_error": 'Không thể tải danh mục được chia sẻ',
-  "Friend Requests": 'Lời mời kết bạn',
-  "Review and respond to pending friend invitations.":
-      'Xem và phản hồi các lời mời kết bạn đang chờ.',
+  "shared_new_category_received": 'Bạn bè vừa chia sẻ một danh mục mới với bạn',
+  "shared_new_link_received": 'Có link mới được thêm vào danh mục đang chia sẻ',
   "Send Friend Request": 'Gửi lời mời kết bạn',
 };

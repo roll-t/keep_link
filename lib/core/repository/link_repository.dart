@@ -83,6 +83,7 @@ class LinkRepository {
     await DbHelper.upsert(link);
     AppCache.addLink(link);
     SessionSyncService.instance.trackLinkUpsert(link);
+    SessionSyncService.instance.pushNow();
   }
 
   /// Update an existing link.  Writes to DB then updates cache in-place.

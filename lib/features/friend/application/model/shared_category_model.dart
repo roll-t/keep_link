@@ -40,4 +40,17 @@ class SharedCategoryModel {
       sharedAt: sharedAt,
     );
   }
+
+  SharedCategoryModel copyWithLinkCount(int linkCount) {
+    return SharedCategoryModel(
+      ownerUid: ownerUid,
+      ownerDisplayName: ownerDisplayName,
+      ownerPhotoUrl: ownerPhotoUrl,
+      categoryId: categoryId,
+      categoryName: categoryName,
+      categoryDescription: categoryDescription,
+      linkCount: linkCount,
+      sharedAt: sharedAt,
+    );
+  }
 }

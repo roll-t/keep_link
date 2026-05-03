@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
@@ -14,10 +16,18 @@ class SharedCategoryController extends GetxController {
   final RxBool isLoadingLinks = false.obs;
   SharedCategoryModel? activeSharedCategory;
 
+  StreamSubscription<List<Map<String, dynamic>>>? _linksSubscription;
+
   @override
   void onInit() {
     super.onInit();
     loadSharedCategories();
+  }
+
+  @override
+  void onClose() {
+    _linksSubscription?.cancel();
+    super.onClose();
   }
 
   Future<void> loadSharedCategories() async {
@@ -35,25 +45,48 @@ class SharedCategoryController extends GetxController {
     }
   }
 
-  Future<void> openSharedCategory(SharedCategoryModel category) async {
+  void openSharedCategory(SharedCategoryModel category) {
     activeSharedCategory = category;
     sharedLinks.clear();
+    isLoadingLinks.value = true;
 
-    try {
-      isLoadingLinks.value = true;
-      final rawLinks = await FirebaseService.fetchSharedCategoryLinks(
-        ownerUid: category.ownerUid,
-        categoryId: category.categoryId,
-      );
-      final links = rawLinks
-          .map((json) => LinkModel.fromJson(json, id: json['id'] as String? ?? ''))
-          .toList();
-      sharedLinks.assignAll(links);
-    } catch (e) {
-      debugPrint('Open shared category error: $e');
-      Fluttertoast.showToast(msg: 'shared_load_error'.tr);
-    } finally {
-      isLoadingLinks.value = false;
-    }
+    // Huỷ watcher cũ nếu đang mở danh mục khác
+    _linksSubscription?.cancel();
+
+    _linksSubscription =
+        FirebaseService.watchSharedCategoryLinks(
+          ownerUid: category.ownerUid,
+          categoryId: category.categoryId,
+        ).listen(
+          (rawLinks) {
+            final links = rawLinks
+                .map((json) => LinkModel.fromJson(json, id: json['id'] as String? ?? ''))
+                .toList();
+            sharedLinks.assignAll(links);
+            isLoadingLinks.value = false;
+
+            // Cập nhật link count trong danh sách category card
+            final idx = sharedCategories.indexWhere(
+              (c) => c.ownerUid == category.ownerUid && c.categoryId == category.categoryId,
+            );
+            if (idx != -1) {
+              final updated = sharedCategories[idx].copyWithLinkCount(links.length);
+              sharedCategories[idx] = updated;
+            }
+          },
+          onError: (Object e) {
+            debugPrint('Watch shared category links error: $e');
+            isLoadingLinks.value = false;
+            Fluttertoast.showToast(msg: 'shared_load_error'.tr);
+          },
+        );
+  }
+
+  /// Đóng watcher links khi bottom sheet bị đóng
+  void closeSharedCategory() {
+    _linksSubscription?.cancel();
+    _linksSubscription = null;
+    activeSharedCategory = null;
+    sharedLinks.clear();
   }
 }

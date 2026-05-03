@@ -1,18 +1,27 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/cache/app_cache.dart';
+import 'package:keep_link/core/cache/app_get_storage.dart';
 import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/repository/friend_repository.dart';
 import 'package:keep_link/core/service/firebase_service.dart';
 import 'package:keep_link/core/service/friend_connection_service.dart';
+import 'package:keep_link/core/service/local_notification_service.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/friend/application/model/friend_request_model.dart';
+import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
 
 class FriendController extends GetxController {
   static const int maxFriends = 10;
+  static final RxInt pendingRequestCount = 0.obs;
+  static final RxInt pendingSharedCount = 0.obs;
+  static final Rxn<User> currentUser = Rxn<User>();
 
   final searchController = TextEditingController();
   final RxBool isLoading = false.obs;
@@ -20,6 +29,16 @@ class FriendController extends GetxController {
   final RxList<FriendModel> visibleFriends = <FriendModel>[].obs;
   final RxList<FriendRequestModel> incomingRequests = <FriendRequestModel>[].obs;
   final RxList<String> pendingRequestUserIds = <String>[].obs;
+  StreamSubscription<List<FriendRequestModel>>? _requestWatcher;
+  StreamSubscription<Set<String>>? _sharedCategoryWatcher;
+  StreamSubscription<int>? _friendsWatcher;
+  StreamSubscription<User?>? _authSub;
+  final Map<String, StreamSubscription<Map<String, int>>> _linkCountWatchers = {};
+  final Map<String, int> _knownLinkCounts = {}; // key: "ownerUid/catId"
+  bool _isInitialLoad = true;
+  bool _isSharedInitialLoad = true;
+  bool _isFriendsInitialLoad = true;
+  Set<String> _knownSharedKeys = {};
 
   int get totalFriends => AppCache.friends.length;
   int get favoriteFriends => AppCache.friends.where((friend) => friend.isFavorite).length;
@@ -29,16 +48,245 @@ class FriendController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    currentUser.value = FirebaseService.currentUser;
     searchController.addListener(_applyFilters);
     ever(AppCache.friends, (_) => _applyFilters());
     fetchFriends();
+    _startRequestWatcher();
+    _startSharedCategoryWatcher();
+    _startFriendsWatcher();
+    _authSub = FirebaseService.authStateChanges.listen((user) {
+      currentUser.value = user;
+      if (user != null) {
+        _startRequestWatcher();
+        _startSharedCategoryWatcher();
+        _startFriendsWatcher();
+      } else {
+        _requestWatcher?.cancel();
+        _requestWatcher = null;
+        incomingRequests.clear();
+        pendingRequestCount.value = 0;
+        _sharedCategoryWatcher?.cancel();
+        _sharedCategoryWatcher = null;
+        _knownSharedKeys = {};
+        pendingSharedCount.value = 0;
+        for (final sub in _linkCountWatchers.values) sub.cancel();
+        _linkCountWatchers.clear();
+        _knownLinkCounts.clear();
+        _friendsWatcher?.cancel();
+        _friendsWatcher = null;
+      }
+    });
   }
 
   @override
   void onClose() {
+    _authSub?.cancel();
+    _requestWatcher?.cancel();
+    _sharedCategoryWatcher?.cancel();
+    _friendsWatcher?.cancel();
+    for (final sub in _linkCountWatchers.values) sub.cancel();
+    _linkCountWatchers.clear();
     searchController.removeListener(_applyFilters);
     searchController.dispose();
     super.onClose();
+  }
+
+  void _startRequestWatcher() {
+    if (FirebaseService.currentUser == null) return;
+    _requestWatcher?.cancel();
+    _isInitialLoad = true;
+    _requestWatcher = FirebaseService.watchIncomingFriendRequests().listen(
+      (requests) {
+        final newCount = requests.length;
+        final oldCount = incomingRequests.length;
+        incomingRequests.assignAll(requests);
+        pendingRequestCount.value = newCount;
+        if (!_isInitialLoad && newCount > oldCount) {
+          LocalNotificationService.showFriendRequestNotification(
+            title: 'Keep Link',
+            body: 'friend_new_request_received'.tr,
+          );
+        }
+        _isInitialLoad = false;
+      },
+      onError: (Object error) {
+        // permission-denied khi đăng xuất — huỷ listener, reset state
+        _requestWatcher?.cancel();
+        _requestWatcher = null;
+        incomingRequests.clear();
+        pendingRequestCount.value = 0;
+      },
+      cancelOnError: true,
+    );
+  }
+
+  void _startFriendsWatcher() {
+    if (FirebaseService.currentUser == null) return;
+    _friendsWatcher?.cancel();
+    _isFriendsInitialLoad = true;
+    int _lastCount = AppCache.friends.length;
+    _friendsWatcher = FirebaseService.watchFriendsCount().listen(
+      (remoteCount) async {
+        if (_isFriendsInitialLoad) {
+          _lastCount = remoteCount;
+          _isFriendsInitialLoad = false;
+          return;
+        }
+        // Khi số lượng tăng (bị ai đó chấp nhận lời mời) → sync lại
+        if (remoteCount > _lastCount) {
+          _lastCount = remoteCount;
+          await _syncRemoteFriendState();
+        } else {
+          _lastCount = remoteCount;
+        }
+      },
+      onError: (Object _) {
+        _friendsWatcher?.cancel();
+        _friendsWatcher = null;
+      },
+      cancelOnError: true,
+    );
+  }
+
+  void _startSharedCategoryWatcher() {
+    final uid = FirebaseService.currentUser?.uid;
+    if (uid == null) return;
+    _sharedCategoryWatcher?.cancel();
+    _isSharedInitialLoad = true;
+    _sharedCategoryWatcher = FirebaseService.watchSharedCategoryAccess().listen(
+      (keys) {
+        if (_isSharedInitialLoad) {
+          _isSharedInitialLoad = false;
+          _knownSharedKeys = Set.from(keys);
+          // So sánh với keys đã xem lần trước (lưu local)
+          final seenKeys = AppGetStorage.getSeenSharedKeys(uid);
+          final unseen = keys.difference(seenKeys);
+          pendingSharedCount.value = unseen.length;
+          // Bắt đầu watch link counts cho tất cả shared categories
+          _reconcileLinkWatchers(keys);
+          return;
+        }
+        // Real-time: có key mới xuất hiện
+        final newKeys = keys.difference(_knownSharedKeys);
+        if (newKeys.isNotEmpty) {
+          pendingSharedCount.value += newKeys.length;
+          LocalNotificationService.showSharedCategoryNotification(
+            title: 'Keep Link',
+            body: 'shared_new_category_received'.tr,
+          );
+        }
+        _knownSharedKeys = Set.from(keys);
+        // Cập nhật link watchers khi shared categories thay đổi
+        _reconcileLinkWatchers(keys);
+      },
+      onError: (Object error) {
+        _sharedCategoryWatcher?.cancel();
+        _sharedCategoryWatcher = null;
+        _knownSharedKeys = {};
+        pendingSharedCount.value = 0;
+      },
+      cancelOnError: true,
+    );
+  }
+
+  /// Đánh dấu tất cả danh mục chia sẻ hiện tại là "đã xem"
+  static void markSharedCategoriesAsSeen() {
+    final uid = FirebaseService.currentUser?.uid;
+    if (uid == null) return;
+    pendingSharedCount.value = 0;
+    _saveSeenKeys(uid);
+  }
+
+  static void _saveSeenKeys(String uid) {
+    if (Get.isRegistered<FriendController>()) {
+      final ctrl = Get.find<FriendController>();
+      AppGetStorage.setSeenSharedKeys(uid, Set.from(ctrl._knownSharedKeys));
+    }
+  }
+
+  /// Group keys ("ownerUid/catId") by ownerUid → Set<catId>
+  Map<String, Set<String>> _ownerCatMap(Set<String> keys) {
+    final map = <String, Set<String>>{};
+    for (final key in keys) {
+      final slash = key.indexOf('/');
+      if (slash <= 0) continue;
+      final owner = key.substring(0, slash);
+      final cat = key.substring(slash + 1);
+      map.putIfAbsent(owner, () => {}).add(cat);
+    }
+    return map;
+  }
+
+  /// Sync link-count watchers to match the current set of shared keys.
+  void _reconcileLinkWatchers(Set<String> keys) {
+    final ownerCats = _ownerCatMap(keys);
+
+    // Cancel watchers for owners no longer in the shared set
+    final removed = _linkCountWatchers.keys.where((o) => !ownerCats.containsKey(o)).toList();
+    for (final owner in removed) {
+      _linkCountWatchers.remove(owner)?.cancel();
+      _knownLinkCounts.removeWhere((k, _) => k.startsWith('$owner/'));
+    }
+
+    // Add / refresh watchers for each owner
+    for (final entry in ownerCats.entries) {
+      _startLinkWatcherForOwner(entry.key, entry.value);
+    }
+  }
+
+  void _startLinkWatcherForOwner(String ownerUid, Set<String> catIds) {
+    // Cancel existing watcher before replacing (catIds may have changed)
+    _linkCountWatchers.remove(ownerUid)?.cancel();
+
+    bool isInitial = true;
+    _linkCountWatchers[ownerUid] =
+        FirebaseService.watchOwnerLinksCount(
+          ownerUid: ownerUid,
+          sharedCatIds: Set.from(catIds),
+        ).listen(
+          (counts) {
+            if (isInitial) {
+              // Ghi nhận baseline, không thông báo
+              isInitial = false;
+              counts.forEach((catId, count) {
+                _knownLinkCounts['$ownerUid/$catId'] = count;
+              });
+              return;
+            }
+            // Phát hiện catId nào có count tăng
+            final newLinkCatIds = <String>[];
+            counts.forEach((catId, count) {
+              final key = '$ownerUid/$catId';
+              final prev = _knownLinkCounts[key] ?? 0;
+              if (count > prev) newLinkCatIds.add(catId);
+              _knownLinkCounts[key] = count;
+            });
+            if (newLinkCatIds.isNotEmpty) {
+              LocalNotificationService.showSharedCategoryNotification(
+                title: 'Keep Link',
+                body: 'shared_new_link_received'.tr,
+              );
+              // Nếu user đang xem danh sách link của category đó thì không tăng badge
+              // (stream trong SharedCategoryController đã tự update)
+              String? viewingCatId;
+              if (Get.isRegistered<SharedCategoryController>()) {
+                final active = Get.find<SharedCategoryController>().activeSharedCategory;
+                if (active != null && active.ownerUid == ownerUid) {
+                  viewingCatId = active.categoryId;
+                }
+              }
+              final unviewedCount = newLinkCatIds.where((id) => id != viewingCatId).length;
+              if (unviewedCount > 0) {
+                pendingSharedCount.value += unviewedCount;
+              }
+            }
+          },
+          onError: (Object _) {
+            _linkCountWatchers.remove(ownerUid)?.cancel();
+          },
+          cancelOnError: true,
+        );
   }
 
   Future<void> fetchFriends() async {

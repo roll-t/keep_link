@@ -152,6 +152,7 @@ class PersonalPage extends GetView<PersonalController> {
                         TextWidget(
                           text: 'UID: @0'.trParams({'0': currentUser.uid}),
                           color: AppColors.n60,
+
                           size: 12,
                           textAlign: TextAlign.center,
                         ),
@@ -188,89 +189,81 @@ class PersonalPage extends GetView<PersonalController> {
 
                 const SizedBox(height: 20),
 
-                _SectionLabel(label: 'Friend Connection'.tr),
-                const SizedBox(height: 8),
-                _SupportCard(
-                  children: [
-                    _SupportTile(
-                      icon: Icons.link_rounded,
-                      label: 'Copy Personal Link'.tr,
-                      onTap: isLoggedIn ? controller.copyPersonalFriendLink : null,
-                    ),
-                    _SupportTile(
-                      icon: Icons.qr_code_2_rounded,
-                      label: 'Show Personal QR'.tr,
-                      onTap: isLoggedIn
-                          ? () {
-                              final link = controller.personalFriendLink;
-                              if (link != null) {
-                                _showPersonalQrSheet(context, currentUser, link);
-                              }
-                            }
-                          : null,
-                    ),
-                  ],
-                ),
-                if (!isLoggedIn)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: TextWidget(
-                      text: 'Sign in to create your personal friend link and QR.'.tr,
-                      color: AppColors.n70,
-                      size: 12,
-                    ),
+                // ── Friend Connection ──────────────────────────────────────
+                if (isLoggedIn) ...[
+                  _SectionLabel(label: 'Friend Connection'.tr),
+                  const SizedBox(height: 8),
+                  _SupportCard(
+                    children: [
+                      _SupportTile(
+                        icon: Icons.link_rounded,
+                        label: 'Copy Personal Link'.tr,
+                        onTap: controller.copyPersonalFriendLink,
+                      ),
+                      _SupportTile(
+                        icon: Icons.qr_code_2_rounded,
+                        label: 'Show Personal QR'.tr,
+                        onTap: () {
+                          final link = controller.personalFriendLink;
+                          if (link != null) {
+                            _showPersonalQrSheet(context, currentUser, link);
+                          }
+                        },
+                      ),
+                    ],
                   ),
-
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
 
                 // ── Stats ─────────────────────────────────────────────────────
-                _SectionLabel(label: 'Statistics'.tr),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.link_rounded,
-                        value: '${controller.totalLinks}',
-                        label: 'Total Links'.tr,
-                        color: AppColors.primary,
+                if (isLoggedIn) ...[
+                  _SectionLabel(label: 'Statistics'.tr),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatCard(
+                          icon: Icons.link_rounded,
+                          value: '${controller.totalLinks}',
+                          label: 'Total Links'.tr,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.folder_rounded,
-                        value: '${controller.totalCategories}',
-                        label: 'Categories'.tr,
-                        color: const Color(0xFF9B59B6),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _StatCard(
+                          icon: Icons.folder_rounded,
+                          value: '${controller.totalCategories}',
+                          label: 'Categories'.tr,
+                          color: const Color(0xFF9B59B6),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.calendar_today_rounded,
-                        value: '${controller.linksThisWeek}',
-                        label: 'This Week'.tr,
-                        color: const Color(0xFF27AE60),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatCard(
+                          icon: Icons.calendar_today_rounded,
+                          value: '${controller.linksThisWeek}',
+                          label: 'This Week'.tr,
+                          color: const Color(0xFF27AE60),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.local_fire_department_rounded,
-                        value: '${controller.currentStreak}',
-                        label: 'Day Streak'.tr,
-                        color: const Color(0xFFE67E22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _StatCard(
+                          icon: Icons.local_fire_department_rounded,
+                          value: '${controller.currentStreak}',
+                          label: 'Day Streak'.tr,
+                          color: const Color(0xFFE67E22),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                ],
 
                 // ── Settings ──────────────────────────────────────────────────
                 _SectionLabel(label: 'Settings'.tr),

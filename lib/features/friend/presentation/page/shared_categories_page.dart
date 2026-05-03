@@ -8,7 +8,7 @@ import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
 import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:keep_link/features/link/module/link_detail/presentation/page/link_detail.dart';
 
 class SharedCategoriesPage extends GetView<SharedCategoryController> {
   static const routeName = '/SharedCategoriesPage';
@@ -45,10 +45,7 @@ class SharedCategoriesPage extends GetView<SharedCategoryController> {
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (_, index) {
               final cat = controller.sharedCategories[index];
-              return _SharedCategoryCard(
-                category: cat,
-                onTap: () => _openLinksSheet(context, cat),
-              );
+              return _SharedCategoryCard(category: cat, onTap: () => _openLinksSheet(context, cat));
             },
           );
         }),
@@ -66,7 +63,7 @@ class SharedCategoriesPage extends GetView<SharedCategoryController> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => _SharedLinksSheet(controller: controller, category: category),
-    );
+    ).whenComplete(controller.closeSharedCategory);
   }
 }
 
@@ -130,10 +127,7 @@ class _SharedCategoryCard extends StatelessWidget {
         child: Row(
           children: [
             // Owner avatar
-            _OwnerAvatar(
-              displayName: category.ownerDisplayName,
-              photoUrl: category.ownerPhotoUrl,
-            ),
+            _OwnerAvatar(displayName: category.ownerDisplayName, photoUrl: category.ownerPhotoUrl),
             const SizedBox(width: 14),
             // Category info
             Expanded(
@@ -308,9 +302,7 @@ class _SharedLinksSheet extends StatelessWidget {
           Expanded(
             child: Obx(() {
               if (controller.isLoadingLinks.value) {
-                return const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                );
+                return const Center(child: CircularProgressIndicator(color: AppColors.primary));
               }
               if (controller.sharedLinks.isEmpty) {
                 return Center(
@@ -326,9 +318,7 @@ class _SharedLinksSheet extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                 itemCount: controller.sharedLinks.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, index) => _SharedLinkItem(
-                  link: controller.sharedLinks[index],
-                ),
+                itemBuilder: (_, index) => _SharedLinkItem(link: controller.sharedLinks[index]),
               );
             }),
           ),
@@ -344,12 +334,12 @@ class _SharedLinkItem extends StatelessWidget {
   final LinkModel link;
 
   Future<void> _launch() async {
-    final url = link.metaDataModel?.url ?? link.name ?? '';
-    if (url.isEmpty) return;
-    final uri = Uri.tryParse(url);
-    if (uri != null && await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    Get.bottomSheet(
+      LinkDetailPage(link: link),
+      barrierColor: AppColors.black.withOpacityCompat(.8),
+      isScrollControlled: true,
+      backgroundColor: AppColors.transparent,
+    );
   }
 
   @override
@@ -407,9 +397,9 @@ class _SharedLinkItem extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Icon(
-              Icons.open_in_new_rounded,
-              size: 16,
-              color: AppColors.n500.withOpacityCompat(0.7),
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: AppColors.n500.withOpacityCompat(0.6),
             ),
           ],
         ),

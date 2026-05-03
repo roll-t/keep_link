@@ -182,6 +182,26 @@ class AppGetStorage {
   static void remove(String key) => _box.remove(key);
   static void clear() => _box.erase();
 
+  // ========== Seen Shared Category Keys ========== //
+  static const String _seenSharedKeysPrefix = 'seen_shared_keys_';
+
+  /// Lấy danh sách key đã xem của user (dạng "ownerUid/catId")
+  static Set<String> getSeenSharedKeys(String uid) {
+    final raw = _box.read<List>('$_seenSharedKeysPrefix$uid');
+    if (raw == null) return {};
+    return raw.cast<String>().toSet();
+  }
+
+  /// Lưu danh sách key đã xem sau khi user mở trang danh mục chia sẻ
+  static void setSeenSharedKeys(String uid, Set<String> keys) {
+    _box.write('$_seenSharedKeysPrefix$uid', keys.toList());
+  }
+
+  /// Xoá seen keys khi user đăng xuất
+  static void clearSeenSharedKeys(String uid) {
+    _box.remove('$_seenSharedKeysPrefix$uid');
+  }
+
   // ========== Control size ========== //
   static int estimateCacheSize() {
     // ... (Giữ nguyên logic cũ)
