@@ -169,12 +169,16 @@ class FriendController extends GetxController {
         }
         // Real-time: có key mới xuất hiện
         final newKeys = keys.difference(_knownSharedKeys);
+        final removedKeys = _knownSharedKeys.difference(keys);
         if (newKeys.isNotEmpty) {
           pendingSharedCount.value += newKeys.length;
           LocalNotificationService.showSharedCategoryNotification(
             title: 'Keep Link',
             body: 'shared_new_category_received'.tr,
           );
+        }
+        if (newKeys.isNotEmpty || removedKeys.isNotEmpty) {
+          SharedCategoryController.invalidateCache();
         }
         _knownSharedKeys = Set.from(keys);
         // Cập nhật link watchers khi shared categories thay đổi
@@ -263,6 +267,7 @@ class FriendController extends GetxController {
               _knownLinkCounts[key] = count;
             });
             if (newLinkCatIds.isNotEmpty) {
+              SharedCategoryController.invalidateCache();
               LocalNotificationService.showSharedCategoryNotification(
                 title: 'Keep Link',
                 body: 'shared_new_link_received'.tr,

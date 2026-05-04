@@ -1302,120 +1302,122 @@ class _QrScannerSheetState extends State<_QrScannerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.72,
-      child: Column(
-        children: [
-          const SizedBox(height: 14),
-          Container(
-            width: 46,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.n500,
-              borderRadius: BorderRadius.circular(99),
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.72,
+        child: Column(
+          children: [
+            const SizedBox(height: 14),
+            Container(
+              width: 46,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.n500,
+                borderRadius: BorderRadius.circular(99),
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-          TextWidget(
-            text: 'Scan Personal QR'.tr,
-            color: AppColors.white,
-            size: 18,
-            fontWeight: FontWeight.w700,
-          ),
-          const SizedBox(height: 8),
-          TextWidget(
-            text: 'Point the camera at your friend\'s personal QR code.'.tr,
-            color: AppColors.n70,
-            size: 13,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: MobileScanner(
-                  controller: _scannerController,
-                  onDetect: (capture) async {
-                    final navigator = Navigator.of(context);
-                    if (_isHandling) return;
-                    final value = capture.barcodes.firstOrNull?.rawValue?.trim();
-                    if (value == null || value.isEmpty) return;
+            const SizedBox(height: 14),
+            TextWidget(
+              text: 'Scan Personal QR'.tr,
+              color: AppColors.white,
+              size: 18,
+              fontWeight: FontWeight.w700,
+            ),
+            const SizedBox(height: 8),
+            TextWidget(
+              text: 'Point the camera at your friend\'s personal QR code.'.tr,
+              color: AppColors.n70,
+              size: 13,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: MobileScanner(
+                    controller: _scannerController,
+                    onDetect: (capture) async {
+                      final navigator = Navigator.of(context);
+                      if (_isHandling) return;
+                      final value = capture.barcodes.firstOrNull?.rawValue?.trim();
+                      if (value == null || value.isEmpty) return;
 
-                    _isHandling = true;
-                    final added = await widget.controller.addFriendFromLink(value);
-                    if (!mounted) return;
-                    if (added) {
-                      navigator.pop();
-                      return;
-                    }
-                    _isHandling = false;
-                  },
+                      _isHandling = true;
+                      final added = await widget.controller.addFriendFromLink(value);
+                      if (!mounted) return;
+                      if (added) {
+                        navigator.pop();
+                        return;
+                      }
+                      _isHandling = false;
+                    },
+                  ),
                 ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _isPickingImage
-                        ? null
-                        : () async {
-                            final navigator = Navigator.of(context);
-                            final data = await Clipboard.getData('text/plain');
-                            final text = data?.text?.trim() ?? '';
-                            if (text.isEmpty) {
-                              _showMessage('friend_clipboard_empty'.tr);
-                              return;
-                            }
-                            final added = await widget.controller.addFriendFromLink(text);
-                            if (!mounted) return;
-                            if (added) {
-                              navigator.pop();
-                            }
-                          },
-                    icon: const Icon(Icons.content_paste_rounded, color: AppColors.white),
-                    label: TextWidget(text: 'Paste from Clipboard'.tr, color: AppColors.white),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.white,
-                      side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isPickingImage
+                          ? null
+                          : () async {
+                              final navigator = Navigator.of(context);
+                              final data = await Clipboard.getData('text/plain');
+                              final text = data?.text?.trim() ?? '';
+                              if (text.isEmpty) {
+                                _showMessage('friend_clipboard_empty'.tr);
+                                return;
+                              }
+                              final added = await widget.controller.addFriendFromLink(text);
+                              if (!mounted) return;
+                              if (added) {
+                                navigator.pop();
+                              }
+                            },
+                      icon: const Icon(Icons.content_paste_rounded, color: AppColors.white),
+                      label: TextWidget(text: 'Paste from Clipboard'.tr, color: AppColors.white),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.white,
+                        side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _isPickingImage ? null : _pickImageAndScan,
-                    icon: _isPickingImage
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.white,
-                            ),
-                          )
-                        : const Icon(Icons.photo_library_rounded, color: AppColors.white),
-                    label: TextWidget(
-                      text: _isPickingImage ? 'Scanning image...'.tr : 'Scan from Gallery'.tr,
-                      color: AppColors.white,
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.white,
-                      side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isPickingImage ? null : _pickImageAndScan,
+                      icon: _isPickingImage
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.white,
+                              ),
+                            )
+                          : const Icon(Icons.photo_library_rounded, color: AppColors.white),
+                      label: TextWidget(
+                        text: _isPickingImage ? 'Scanning image...'.tr : 'Scan from Gallery'.tr,
+                        color: AppColors.white,
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.white,
+                        side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

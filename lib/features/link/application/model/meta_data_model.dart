@@ -5,6 +5,7 @@ class MetaDataModel {
   String imageUrl;
   String favicon;
   String appleIcon;
+  String address;
 
   MetaDataModel({
     required this.url,
@@ -13,6 +14,7 @@ class MetaDataModel {
     required this.imageUrl,
     required this.favicon,
     required this.appleIcon,
+    this.address = '',
   });
 
   factory MetaDataModel.fromMap(Map<String, dynamic> map) {
@@ -23,6 +25,7 @@ class MetaDataModel {
       imageUrl: map['IMAGE_URL'] ?? '',
       favicon: map['FAVICON'] ?? '',
       appleIcon: map['APPLE_ICON'] ?? '',
+      address: map['ADDRESS'] as String? ?? '',
     );
   }
 
@@ -34,6 +37,7 @@ class MetaDataModel {
       'IMAGE_URL': imageUrl,
       'FAVICON': favicon,
       'APPLE_ICON': appleIcon,
+      'ADDRESS': address,
     };
   }
 
@@ -44,6 +48,7 @@ class MetaDataModel {
     String? imageUrl,
     String? favicon,
     String? appleIcon,
+    String? address,
   }) {
     return MetaDataModel(
       url: url ?? this.url,
@@ -52,6 +57,7 @@ class MetaDataModel {
       imageUrl: imageUrl ?? this.imageUrl,
       favicon: favicon ?? this.favicon,
       appleIcon: appleIcon ?? this.appleIcon,
+      address: address ?? this.address,
     );
   }
 

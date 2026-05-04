@@ -27,6 +27,8 @@ class LinkDetailController extends GetxController {
   String get title => link.metaDataModel?.title ?? link.name ?? '';
   String get description => link.metaDataModel?.description ?? '';
   bool get isTikTok => url.contains("tiktok.com");
+  String get address => link.metaDataModel?.address ?? '';
+  bool get hasLocation => address.isNotEmpty;
 
   // ── Shared WebView configuration ────────────────────────────────────────────
 
@@ -171,6 +173,12 @@ class LinkDetailController extends GetxController {
 
   void openInApp() {
     if (url.isNotEmpty) Utils.lanchUrl(url);
+  }
+
+  void openInMaps() {
+    if (address.isEmpty) return;
+    final query = Uri.encodeComponent(address);
+    Utils.lanchUrl('https://www.google.com/maps/search/?api=1&query=$query');
   }
 
   void goToEdit() {

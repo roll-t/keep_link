@@ -610,7 +610,7 @@ class FirebaseService {
     try {
       await _db.ref('users/${owner.uid}/$_sharedWithKey/$friendUid').update({categoryId: true});
       await _db.ref('users/$friendUid/$_sharedCategoryAccessKey/${owner.uid}').update({
-        categoryId: true,
+        categoryId: ServerValue.timestamp,
       });
       log('Category shared: ${owner.uid} -> $friendUid (cat: $categoryId)');
     } catch (e) {
@@ -644,6 +644,30 @@ class FirebaseService {
   }
 
   /// Returns list of friend UIDs that [categoryId] is currently shared with.
+  /// Returns all sharing entries for the current user in one read.
+  /// Result: { friendUid: [catId1, catId2, ...], ... }
+  static Future<Map<String, List<String>>> getAllSharedWith() async {
+    final owner = _auth.currentUser;
+    if (owner == null) return {};
+
+    try {
+      final snapshot = await _db.ref('users/${owner.uid}/$_sharedWithKey').get();
+      if (!snapshot.exists || snapshot.value is! Map) return {};
+
+      final raw = Map<String, dynamic>.from(snapshot.value as Map);
+      final result = <String, List<String>>{};
+      for (final entry in raw.entries) {
+        if (entry.value is! Map) continue;
+        final catMap = Map<String, dynamic>.from(entry.value as Map);
+        result[entry.key] = catMap.keys.toList();
+      }
+      return result;
+    } catch (e) {
+      log('Get all sharedWith error: $e');
+      return {};
+    }
+  }
+
   static Future<List<String>> getCategorySharedFriendUids(String categoryId) async {
     final owner = _auth.currentUser;
     if (owner == null) return const [];
@@ -719,7 +743,14 @@ class FirebaseService {
         } catch (_) {}
 
         // Step 3: Fetch each category node
-        for (final catId in catMap.keys) {
+        for (final catEntry in catMap.entries) {
+          final catId = catEntry.key;
+          // Parse sharedAt timestamp (new data = int ms, old data = bool true)
+          DateTime? sharedAt;
+          final rawVal = catEntry.value;
+          if (rawVal is int) {
+            sharedAt = DateTime.fromMillisecondsSinceEpoch(rawVal);
+          }
           try {
             final catSnap = await _db.ref('users/$ownerUid/categories/$catId').get();
             if (!catSnap.exists || catSnap.value is! Map) continue;
@@ -746,6 +777,7 @@ class FirebaseService {
                 categoryId: catId,
                 categoryJson: catJson,
                 linkCount: linkCount,
+                sharedAt: sharedAt,
               ),
             );
           } catch (_) {}

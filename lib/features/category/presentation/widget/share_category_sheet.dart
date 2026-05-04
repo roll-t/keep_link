@@ -69,109 +69,112 @@ class _ShareCategorySheetState extends State<ShareCategorySheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Handle
-          Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 4),
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.n500.withOpacityCompat(0.4),
-                borderRadius: BorderRadius.circular(2),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.n500.withOpacityCompat(0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          ),
-          // Title
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-            child: Row(
-              children: [
-                const Icon(Icons.share_rounded, color: AppColors.primary, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextWidget(
-                        text: 'share_category'.tr,
-                        color: AppColors.white,
-                        size: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      TextWidget(text: widget.categoryName, color: AppColors.n70, size: 12),
-                    ],
+            // Title
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Row(
+                children: [
+                  const Icon(Icons.share_rounded, color: AppColors.primary, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextWidget(
+                          text: 'share_category'.tr,
+                          color: AppColors.white,
+                          size: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        TextWidget(text: widget.categoryName, color: AppColors.n70, size: 12),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Divider(color: AppColors.n500.withOpacityCompat(0.2), height: 1),
-          // Friends list
-          Obx(() {
-            if (_isLoadingInitial.value) {
-              return const Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-              );
-            }
-
-            if (FirebaseService.currentUser == null) {
-              return Padding(
-                padding: const EdgeInsets.all(24),
-                child: TextWidget(
-                  text: 'share_sign_in_required'.tr,
-                  color: AppColors.n70,
-                  size: 14,
-                  textAlign: TextAlign.center,
-                ),
-              );
-            }
-
-            final friendsList = AppCache.friends.toList();
-
-            if (friendsList.isEmpty) {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-                child: TextWidget(
-                  text: 'share_no_friends'.tr,
-                  color: AppColors.n70,
-                  size: 14,
-                  textAlign: TextAlign.center,
-                ),
-              );
-            }
-
-            return ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-                shrinkWrap: true,
-                itemCount: friendsList.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, index) {
-                  final friend = friendsList[index];
-                  final uid = friend.friendUserId;
-                  return Obx(() {
-                    final isShared = _sharedFriendUids.contains(uid);
-                    final isPending = _pendingToggles.contains(uid);
-                    return _FriendShareRow(
-                      friend: friend,
-                      isShared: isShared,
-                      isPending: isPending,
-                      onTap: () => _toggle(friend),
-                    );
-                  });
-                },
+                ],
               ),
-            );
-          }),
-        ],
+            ),
+            const SizedBox(height: 16),
+            Divider(color: AppColors.n500.withOpacityCompat(0.2), height: 1),
+            // Friends list
+            Obx(() {
+              if (_isLoadingInitial.value) {
+                return const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                );
+              }
+
+              if (FirebaseService.currentUser == null) {
+                return Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: TextWidget(
+                    text: 'share_sign_in_required'.tr,
+                    color: AppColors.n70,
+                    size: 14,
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              }
+
+              final friendsList = AppCache.friends.toList();
+
+              if (friendsList.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+                  child: TextWidget(
+                    text: 'share_no_friends'.tr,
+                    color: AppColors.n70,
+                    size: 14,
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              }
+
+              return ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                  shrinkWrap: true,
+                  itemCount: friendsList.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, index) {
+                    final friend = friendsList[index];
+                    final uid = friend.friendUserId;
+                    return Obx(() {
+                      final isShared = _sharedFriendUids.contains(uid);
+                      final isPending = _pendingToggles.contains(uid);
+                      return _FriendShareRow(
+                        friend: friend,
+                        isShared: isShared,
+                        isPending: isPending,
+                        onTap: () => _toggle(friend),
+                      );
+                    });
+                  },
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }

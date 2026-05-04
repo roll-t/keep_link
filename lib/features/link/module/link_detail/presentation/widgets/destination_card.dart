@@ -71,6 +71,38 @@ class DestinationCard extends GetView<LinkDetailController> {
             ),
           ],
         ),
+        if (controller.hasLocation) ...[
+          const SizedBox(height: 12),
+          const Divider(color: Color(0xFF2E2E2E), height: 1),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: controller.openInMaps,
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A6B3C),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.map_rounded, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextWidget(
+                    text: controller.address,
+                    textStyle: AppTextStyle.regular14,
+                    color: const Color(0xFF4CAF50),
+                    maxLines: 2,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.open_in_new, color: Color(0xFF4CAF50), size: 18),
+              ],
+            ),
+          ),
+        ],
       ],
     ),
   );

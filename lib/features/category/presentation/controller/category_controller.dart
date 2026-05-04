@@ -25,6 +25,7 @@ class CategoryController extends GetxController {
   final RxList<CategoryModel> categories = <CategoryModel>[].obs;
   final RxString errorMess = "".obs;
   final Rx<VisibilityStatus> visibility = VisibilityStatus.public.obs;
+  final RxSet<String> pinnedCategoryIds = <String>{}.obs;
 
   // Constants
   static const int _maxCategories = 30;
@@ -33,6 +34,7 @@ class CategoryController extends GetxController {
   void onInit() {
     super.onInit();
     categoryNameController.clear();
+    pinnedCategoryIds.addAll(AppGetStorage.getPinnedCategoryIds());
     fetchCategories();
     ever(AppCache.links, (_) => _recomputeChildrenCounts());
   }
@@ -60,6 +62,11 @@ class CategoryController extends GetxController {
 
     final currentSelectedId = keepSelection ? popupController.selectedItem.value?.id : null;
     _updatePopupItems(selectId: currentSelectedId);
+
+    // Tải danh sách share 1 lần (nếu đăng nhập & cache chưa có)
+    if (FirebaseService.currentUser != null && AppCache.sharedWithCache.isEmpty) {
+      _loadSharedWithCache(loadedList);
+    }
   }
 
   Future<CategoryModel> _createDefaultCategory() async {
@@ -183,6 +190,9 @@ class CategoryController extends GetxController {
 
   void _sortCategories(List<CategoryModel> list) {
     list.sort((a, b) {
+      final aPinned = pinnedCategoryIds.contains(a.id);
+      final bPinned = pinnedCategoryIds.contains(b.id);
+      if (aPinned != bPinned) return aPinned ? -1 : 1;
       final aTime = a.createdAt ?? a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       final bTime = b.createdAt ?? b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       return bTime.compareTo(aTime);
@@ -211,6 +221,7 @@ class CategoryController extends GetxController {
           name: c.name,
           visibility: c.visibility,
           chilrenCount: c.chilrenCount,
+          isPinned: pinnedCategoryIds.contains(c.id),
         ),
       ),
     ];
@@ -221,8 +232,6 @@ class CategoryController extends GetxController {
       final matched = newItems.firstWhere((e) => e.id == selectId, orElse: () => newItems.first);
       popupController.selectedItem.value = matched;
     } else {
-      // Nếu không có selectId, ưu tiên giữ cái cũ nếu nó vẫn tồn tại trong list mới
-      // logic cũ của bạn là reset về first, tôi giữ nguyên logic đó.
       popupController.selectedItem.value ??= newItems.first;
     }
   }
@@ -280,7 +289,88 @@ class CategoryController extends GetxController {
     _reloadLinks();
   }
 
+  // ── Visibility Toggle ────────────────────────────────────────────────────
+
+  Future<void> toggleCategoryVisibility(String categoryId) async {
+    final index = categories.indexWhere((e) => e.id == categoryId);
+    if (index == -1) return;
+
+    final current = categories[index];
+    final newVisibility = current.visibility == VisibilityStatus.private
+        ? VisibilityStatus.public
+        : VisibilityStatus.private;
+
+    final updated = CategoryModel(
+      id: current.id,
+      name: current.name,
+      description: current.description,
+      iconUrl: current.iconUrl,
+      createdAt: current.createdAt,
+      updatedAt: DateTime.now(),
+      visibility: newVisibility,
+    );
+
+    try {
+      await CategoryRepository.update(updated);
+      categories[index] = updated;
+      _sortCategories(categories);
+      categories.refresh();
+      _updatePopupItems(selectId: updated.id);
+      Fluttertoast.showToast(
+        msg: newVisibility == VisibilityStatus.private ? 'Đã đặt riêng tư' : 'Đã đặt công khai',
+      );
+    } catch (e, s) {
+      _handleError('Toggle visibility error', e, s);
+    }
+  }
+
+  // ── Pin ───────────────────────────────────────────────────────────────────
+
+  void togglePinCategory(String categoryId) {
+    if (pinnedCategoryIds.contains(categoryId)) {
+      pinnedCategoryIds.remove(categoryId);
+    } else {
+      pinnedCategoryIds.add(categoryId);
+    }
+    AppGetStorage.setPinnedCategoryIds(Set.from(pinnedCategoryIds));
+    _sortCategories(categories);
+    categories.refresh();
+    _updatePopupItems(selectId: popupController.selectedItem.value?.id);
+  }
+
+  bool isCategoryPinned(String? categoryId) =>
+      categoryId != null && pinnedCategoryIds.contains(categoryId);
+
   // ── Share ─────────────────────────────────────────────────────────────────
+
+  /// Bulk-load shared-with info for all categories in one Firebase read.
+  /// Stores result in [AppCache.sharedWithCache] — only called once per session.
+  Future<void> _loadSharedWithCache(List<CategoryModel> cats) async {
+    try {
+      final uid = FirebaseService.currentUser?.uid;
+      if (uid == null) return;
+
+      // Fetch entire sharedWith node: users/$uid/sharedWith
+      final sharedWithMap = await FirebaseService.getAllSharedWith();
+      // sharedWithMap: { friendUid: { catId: true, ... }, ... }
+
+      // Build reverse map: catId → [FriendModel, ...]
+      final result = <String, List<FriendModel>>{};
+      for (final entry in sharedWithMap.entries) {
+        final friendUid = entry.key;
+        final catIds = entry.value;
+        final friend = AppCache.friends.firstWhere(
+          (f) => f.friendUserId == friendUid,
+          orElse: () => FriendModel(friendUserId: friendUid),
+        );
+        for (final catId in catIds) {
+          result.putIfAbsent(catId, () => []).add(friend);
+        }
+      }
+
+      AppCache.setSharedWith(result);
+    } catch (_) {}
+  }
 
   /// Returns the list of friends this [categoryId] is currently shared with.
   /// Result is a list of [FriendModel]s that have access.
@@ -313,9 +403,11 @@ class CategoryController extends GetxController {
     try {
       if (currentlyShared) {
         await FirebaseService.unshareCategory(friendUid: friendUid, categoryId: categoryId);
+        AppCache.removeSharedFriend(categoryId, friendUid);
         Fluttertoast.showToast(msg: 'category_unshared'.tr);
       } else {
         await FirebaseService.shareCategory(friendUid: friendUid, categoryId: categoryId);
+        AppCache.addSharedFriend(categoryId, friend);
         Fluttertoast.showToast(msg: 'category_shared'.tr);
       }
       onSuccess();

@@ -202,6 +202,39 @@ class AppGetStorage {
     _box.remove('$_seenSharedKeysPrefix$uid');
   }
 
+  // ========== Viewed Shared Category Items (per-item red dot) ========== //
+  static const String _viewedSharedItemsPrefix = 'viewed_shared_items_';
+
+  /// Lấy danh sách key đã mở chi tiết từng item (dạng "ownerUid/catId")
+  static Set<String> getViewedSharedItemKeys(String uid) {
+    final raw = _box.read<List>('$_viewedSharedItemsPrefix$uid');
+    if (raw == null) return {};
+    return raw.cast<String>().toSet();
+  }
+
+  /// Lưu danh sách key đã mở chi tiết từng item
+  static void setViewedSharedItemKeys(String uid, Set<String> keys) {
+    _box.write('$_viewedSharedItemsPrefix$uid', keys.toList());
+  }
+
+  /// Xoá viewed item keys khi user đăng xuất
+  static void clearViewedSharedItemKeys(String uid) {
+    _box.remove('$_viewedSharedItemsPrefix$uid');
+  }
+
+  // ========== Pinned Category IDs ========== //
+  static const String _pinnedCategoryIdsKey = 'pinned_category_ids';
+
+  static Set<String> getPinnedCategoryIds() {
+    final raw = _box.read<List>(_pinnedCategoryIdsKey);
+    if (raw == null) return {};
+    return raw.cast<String>().toSet();
+  }
+
+  static void setPinnedCategoryIds(Set<String> ids) {
+    _box.write(_pinnedCategoryIdsKey, ids.toList());
+  }
+
   // ========== Control size ========== //
   static int estimateCacheSize() {
     // ... (Giữ nguyên logic cũ)

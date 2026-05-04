@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/cache/app_get_storage.dart';
 import 'package:keep_link/core/config/app_colors.dart';
+import 'package:keep_link/core/config/app_enum.dart';
 import 'package:keep_link/core/config/app_vectors.dart';
 import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
 import 'package:keep_link/features/category/presentation/widget/category_dialog.dart';
@@ -114,6 +116,10 @@ class _CategoryMoreButton extends StatelessWidget {
         final selected = categoryController.popupController.selectedItem.value;
         if (value == 'edit') {
           Get.dialog(CategoryDialog(isEditMode: true));
+        } else if (value == 'pin' && selected != null && selected.id != 'all') {
+          categoryController.togglePinCategory(selected.id!);
+        } else if (value == 'visibility' && selected != null && selected.id != 'all') {
+          categoryController.toggleCategoryVisibility(selected.id!);
         } else if (value == 'share' && selected != null && selected.id != 'all') {
           showModalBottomSheet<void>(
             context: context,
@@ -135,40 +141,83 @@ class _CategoryMoreButton extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       borderRadius: BorderRadius.circular(22),
       offset: const Offset(30, 55),
-      itemBuilder: (_) => [
-        PopupMenuItem(
-          value: 'edit',
-          child: Row(
-            children: [
-              const Icon(Icons.edit_rounded, size: 18, color: AppColors.white),
-              const SizedBox(width: 10),
-              Text('Edit'.tr, style: const TextStyle(color: AppColors.white)),
-            ],
-          ),
-        ),
-        if (isLoggedIn)
+      itemBuilder: (_) {
+        final selected = categoryController.popupController.selectedItem.value;
+        final isPinned = categoryController.isCategoryPinned(selected?.id);
+        final isPrivate = selected?.visibility == VisibilityStatus.private;
+        final canToggleVisibility =
+            AppGetStorage.isCategorySecurity() && selected != null && selected.id != 'all';
+        return [
           PopupMenuItem(
-            value: 'share',
+            value: 'edit',
             child: Row(
               children: [
-                const Icon(Icons.person_add_alt_1_rounded, size: 18, color: AppColors.white),
+                const Icon(Icons.edit_rounded, size: 18, color: AppColors.white),
                 const SizedBox(width: 10),
-                Text('Share'.tr, style: const TextStyle(color: AppColors.white)),
+                Text('Edit'.tr, style: const TextStyle(color: AppColors.white)),
               ],
             ),
           ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              const Icon(Icons.delete_rounded, size: 18, color: AppColors.red),
-              const SizedBox(width: 10),
-              Text('Delete'.tr, style: const TextStyle(color: AppColors.red)),
-            ],
+          if (selected != null && selected.id != 'all')
+            PopupMenuItem(
+              value: 'pin',
+              child: Row(
+                children: [
+                  Icon(
+                    isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+                    size: 18,
+                    color: isPinned ? const Color(0xFF4CAF50) : AppColors.white,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    isPinned ? 'Bỏ ghim' : 'Ghim',
+                    style: TextStyle(color: isPinned ? const Color(0xFF4CAF50) : AppColors.white),
+                  ),
+                ],
+              ),
+            ),
+          if (canToggleVisibility)
+            PopupMenuItem(
+              value: 'visibility',
+              child: Row(
+                children: [
+                  Icon(
+                    isPrivate ? Icons.public : Icons.lock_rounded,
+                    size: 18,
+                    color: isPrivate ? AppColors.white : const Color(0xFFFFB300),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    isPrivate ? 'Đặt công khai' : 'Đặt riêng tư',
+                    style: TextStyle(color: isPrivate ? AppColors.white : const Color(0xFFFFB300)),
+                  ),
+                ],
+              ),
+            ),
+          if (isLoggedIn)
+            PopupMenuItem(
+              value: 'share',
+              child: Row(
+                children: [
+                  const Icon(Icons.person_add_alt_1_rounded, size: 18, color: AppColors.white),
+                  const SizedBox(width: 10),
+                  Text('Share'.tr, style: const TextStyle(color: AppColors.white)),
+                ],
+              ),
+            ),
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                const Icon(Icons.delete_rounded, size: 18, color: AppColors.red),
+                const SizedBox(width: 10),
+                Text('Delete'.tr, style: const TextStyle(color: AppColors.red)),
+              ],
+            ),
           ),
-        ),
-      ],
+        ];
+      },
       child: Container(
         width: 44,
         height: 44,

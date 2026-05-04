@@ -1,5 +1,6 @@
 // ignore_for_file: depend_on_referenced_packages
 
+import 'dart:convert';
 import 'dart:developer';
 
 import 'package:dio/dio.dart';
@@ -55,6 +56,8 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
     try {
       if (_isTikTokUrl(url)) {
         metaData.value = await _fetchTikTokMeta(url);
+      } else if (_isGoogleMapsUrl(url)) {
+        metaData.value = _extractGoogleMapsMeta(url);
       } else {
         metaData.value = await _fetchNormalMeta(url);
       }
@@ -77,14 +80,81 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
 
   bool _isTikTokUrl(String url) => url.contains("tiktok.com");
 
+  bool _isGoogleMapsUrl(String url) {
+    final lower = url.toLowerCase();
+    return lower.contains('maps.google.com') ||
+        lower.contains('google.com/maps') ||
+        lower.contains('maps.app.goo.gl') ||
+        lower.contains('goo.gl/maps');
+  }
+
+  MetaDataModel _extractGoogleMapsMeta(String url) {
+    String address = '';
+    String title = '';
+    try {
+      final uri = Uri.parse(url);
+      // Place name from path: /maps/place/PlaceName/@lat,lng
+      final pathSegments = uri.pathSegments;
+      final placeIdx = pathSegments.indexOf('place');
+      if (placeIdx != -1 && placeIdx + 1 < pathSegments.length) {
+        title = Uri.decodeComponent(pathSegments[placeIdx + 1]).replaceAll('+', ' ');
+        address = title;
+      }
+      // ?q=address
+      final q = uri.queryParameters['q'];
+      if (q != null && q.isNotEmpty) {
+        if (title.isEmpty) title = q;
+        address = q;
+      }
+      // lat,lng from @lat,lng in path
+      if (address.isEmpty) {
+        final m = RegExp(r'@(-?\d+\.\d+),(-?\d+\.\d+)').firstMatch(url);
+        if (m != null) address = '${m.group(1)},${m.group(2)}';
+      }
+    } catch (_) {}
+    return MetaDataModel(
+      url: url,
+      title: title.isNotEmpty ? title : 'Google Maps',
+      description: '',
+      imageUrl: '',
+      favicon: '',
+      appleIcon: '',
+      address: address,
+    );
+  }
+
   Future<MetaDataModel?> _fetchTikTokMeta(String url) async {
+    // 1. Thử TikTok oEmbed API chính thức (ít bị block nhất)
+    try {
+      final oembedUrl = Uri.parse(
+        'https://www.tiktok.com/oembed',
+      ).replace(queryParameters: {'url': url}).toString();
+      final response = await _dio.get(oembedUrl);
+      if (response.statusCode == 200 && response.data is Map) {
+        final data = response.data as Map<String, dynamic>;
+        final title = data['title'] as String? ?? '';
+        final thumbnail = data['thumbnail_url'] as String? ?? '';
+        final author = data['author_name'] as String? ?? '';
+        return MetaDataModel(
+          url: url,
+          title: title.isNotEmpty ? title : author,
+          description: author.isNotEmpty ? '@$author' : '',
+          imageUrl: thumbnail,
+          favicon: '',
+          appleIcon: '',
+        );
+      }
+    } catch (_) {}
+
+    // 2. Fallback: tiktok_scraper
     try {
       final video = await TiktokScraper.getVideoInfo(url);
       final parsed = TiktokMetaData.fromJson(video.toMap());
       return parsed.toMetaData().copyWith(url: url);
-    } catch (e) {
-      return await _fetchNormalMeta(url);
-    }
+    } catch (_) {}
+
+    // 3. Fallback cuối: parse HTML thông thường
+    return await _fetchNormalMeta(url);
   }
 
   Future<MetaDataModel?> _fetchNormalMeta(String url) async {
@@ -128,6 +198,7 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
 
   Map<String, dynamic> _parseMetadata(Document doc, String url) {
     String? title, description, image, favicon, appleIcon;
+    String? streetAddress, locality, region;
 
     final uriBase = Uri.parse(url);
 
@@ -193,6 +264,18 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
         case "twitter:image":
           image ??= content;
           break;
+
+        case "og:street-address":
+          streetAddress ??= content;
+          break;
+
+        case "og:locality":
+          locality ??= content;
+          break;
+
+        case "og:region":
+          region ??= content;
+          break;
       }
     }
 
@@ -232,7 +315,62 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
     }
 
     // ===========================
-    // 4. Kết quả cuối cùng
+    // 4. JSON-LD (LocalBusiness / Place)
+    // ===========================
+    if (streetAddress == null && locality == null) {
+      for (final script in doc.getElementsByTagName('script')) {
+        if (script.attributes['type'] != 'application/ld+json') continue;
+        try {
+          final raw = jsonDecode(script.text);
+          void tryExtract(Map<String, dynamic> data) {
+            final type = data['@type'];
+            final placeTypes = [
+              'LocalBusiness',
+              'Place',
+              'Restaurant',
+              'FoodEstablishment',
+              'CivicStructure',
+              'TouristAttraction',
+              'Hotel',
+              'Store',
+              'Accommodation',
+              'LodgingBusiness',
+            ];
+            final isPlace =
+                (type is String && placeTypes.any((t) => type.contains(t))) ||
+                (type is List &&
+                    placeTypes.any((t) => (type).any((ty) => ty.toString().contains(t))));
+            if (!isPlace) return;
+            final addr = data['address'];
+            if (addr is Map<String, dynamic>) {
+              streetAddress ??= addr['streetAddress'] as String?;
+              locality ??= addr['addressLocality'] as String?;
+              region ??= addr['addressRegion'] as String?;
+            } else if (addr is String && addr.isNotEmpty) {
+              streetAddress ??= addr;
+            }
+          }
+
+          if (raw is Map<String, dynamic>) {
+            tryExtract(raw);
+          } else if (raw is List) {
+            for (final item in raw) {
+              if (item is Map<String, dynamic>) tryExtract(item);
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    final addressParts = [
+      streetAddress,
+      locality,
+      region,
+    ].where((p) => p != null && p.isNotEmpty).toList();
+    final address = addressParts.join(', ');
+
+    // ===========================
+    // 5. Kết quả cuối cùng
     // ===========================
     return {
       'URL': url,
@@ -241,6 +379,7 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
       'IMAGE_URL': resolveUrl(image),
       'FAVICON': resolveUrl(favicon),
       'APPLE_ICON': resolveUrl(appleIcon),
+      'ADDRESS': address,
     };
   }
 }

@@ -5,12 +5,14 @@ class ItemModel {
   String? name;
   VisibilityStatus visibility;
   int? chilrenCount;
+  bool isPinned;
 
   ItemModel({
     this.id,
     this.name,
     this.visibility = VisibilityStatus.public,
     this.chilrenCount,
+    this.isPinned = false,
   });
 
   // From JSON

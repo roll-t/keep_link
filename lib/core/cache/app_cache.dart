@@ -81,6 +81,37 @@ class AppCache {
 
   static void removeFriend(String id) => friends.removeWhere((friend) => friend.id == id);
 
+  // ── Shared-with cache (categoryId → friends it is shared with) ────────────
+
+  /// Reactive map: key = categoryId, value = list of friends who have access.
+  /// Updated locally after every share/unshare — no extra Firebase reads.
+  static final RxMap<String, List<FriendModel>> sharedWithCache = <String, List<FriendModel>>{}.obs;
+
+  /// Initialise/replace entries from a bulk fetch (called once on login).
+  static void setSharedWith(Map<String, List<FriendModel>> data) {
+    sharedWithCache.assignAll(data);
+  }
+
+  /// Add a friend to a category's shared list.
+  static void addSharedFriend(String categoryId, FriendModel friend) {
+    final list = List<FriendModel>.from(sharedWithCache[categoryId] ?? []);
+    if (!list.any((f) => f.friendUserId == friend.friendUserId)) {
+      list.add(friend);
+    }
+    sharedWithCache[categoryId] = list;
+  }
+
+  /// Remove a friend from a category's shared list.
+  static void removeSharedFriend(String categoryId, String friendUserId) {
+    final list = List<FriendModel>.from(sharedWithCache[categoryId] ?? []);
+    list.removeWhere((f) => f.friendUserId == friendUserId);
+    if (list.isEmpty) {
+      sharedWithCache.remove(categoryId);
+    } else {
+      sharedWithCache[categoryId] = list;
+    }
+  }
+
   // ── Derived helpers ───────────────────────────────────────────────────────
 
   /// IDs of categories whose visibility is not public.
@@ -103,6 +134,7 @@ class AppCache {
     _categoriesLoaded = false;
     friends.clear();
     _friendsLoaded = false;
+    sharedWithCache.clear();
   }
 
   /// Wipe only the link cache (e.g. after security settings change).
