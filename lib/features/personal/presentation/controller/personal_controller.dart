@@ -268,7 +268,7 @@ class PersonalController extends GetxController {
       final file = File('${dir.path}/keep_link_friend_qr.png');
       await file.writeAsBytes(pngBytes, flush: true);
 
-      await Share.shareXFiles([XFile(file.path)], text: link, subject: 'Keep Link Friend QR');
+      await Share.shareXFiles([XFile(file.path)], text: link, subject: 'Linkeep Friend QR');
     } catch (_) {
       AppToast.showToast(
         'personal_qr_share_failed'.tr,

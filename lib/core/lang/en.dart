@@ -294,12 +294,12 @@ Map<String, String> en = {
   "Failed to send. Please try again.": 'Failed to send. Please try again.',
   "Sending...": 'Sending...',
   "Send": 'Send',
-  "Your feedback helps us improve LinkCapture.": 'Your feedback helps us improve LinkCapture.',
+  "Your feedback helps us improve Linkeep.": 'Your feedback helps us improve Linkeep.',
 
   // Privacy Policy
   "privacy.introduction.title": 'Introduction',
   "privacy.introduction.body":
-      'LinkCapture ("we", "our", or "us") is committed to protecting your personal information. '
+      'Linkeep ("we", "our", or "us") is committed to protecting your personal information. '
       'This Privacy Policy explains how we collect, use, and safeguard your data when you use our app.',
   "privacy.info_collect.title": 'Information We Collect',
   "privacy.info_collect.body":
@@ -334,36 +334,36 @@ Map<String, String> en = {
       '• Zalo: 0838629035',
   "privacy.notice.title": 'Development Notice',
   "privacy.notice.body":
-      'LinkCapture is currently in active development. You may encounter bugs or unexpected behavior. '
+      'Linkeep is currently in active development. You may encounter bugs or unexpected behavior. '
       'If you find any issues or have suggestions, please reach out — your feedback is greatly appreciated!',
 
   // Terms of Service
   "terms.acceptance.title": 'Acceptance of Terms',
   "terms.acceptance.body":
-      'By downloading or using LinkCapture, you agree to be bound by these Terms of Service. '
+      'By downloading or using Linkeep, you agree to be bound by these Terms of Service. '
       'If you do not agree, please do not use the app.',
   "terms.use.title": 'Use of the App',
   "terms.use.body":
-      '• LinkCapture is provided for personal, non-commercial use.\n'
+      '• Linkeep is provided for personal, non-commercial use.\n'
       '• You must not use the app to store illegal, harmful, or offensive content.\n'
       '• You are responsible for maintaining the security of your account.',
   "terms.content.title": 'User Content',
   "terms.content.body":
-      'You retain ownership of any links and content you save in LinkCapture. '
+      'You retain ownership of any links and content you save in Linkeep. '
       'By using cloud sync, you grant us a limited license to store and transmit your content '
       'solely for the purpose of providing the service.',
   "terms.account.title": 'Account',
   "terms.account.body":
-      'You may use LinkCapture without an account. If you sign in with Google, you agree to '
+      'You may use Linkeep without an account. If you sign in with Google, you agree to '
       'Google\'s Terms of Service in addition to ours. You can sign out and delete your data at any time.',
   "terms.disclaimer.title": 'Disclaimer of Warranties',
   "terms.disclaimer.body":
-      'LinkCapture is provided "as is" without warranties of any kind. We do not guarantee '
+      'Linkeep is provided "as is" without warranties of any kind. We do not guarantee '
       'uninterrupted or error-free operation of the app.',
   "terms.liability.title": 'Limitation of Liability',
   "terms.liability.body":
       'To the maximum extent permitted by law, we are not liable for any indirect, incidental, '
-      'or consequential damages arising from your use of LinkCapture.',
+      'or consequential damages arising from your use of Linkeep.',
   "terms.changes.title": 'Changes to Terms',
   "terms.changes.body":
       'We may update these Terms from time to time. Continued use of the app after changes '

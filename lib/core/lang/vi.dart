@@ -263,13 +263,12 @@ Map<String, String> vi = {
   "Failed to send. Please try again.": 'Gửi thất bại. Vui lòng thử lại.',
   "Sending...": 'Đang gửi...',
   "Send": 'Gửi',
-  "Your feedback helps us improve LinkCapture.":
-      'Góp ý của bạn giúp chúng tôi cải thiện LinkCapture.',
+  "Your feedback helps us improve Linkeep.": 'Góp ý của bạn giúp chúng tôi cải thiện Linkeep.',
 
   // Privacy Policy
   "privacy.introduction.title": 'Giới thiệu',
   "privacy.introduction.body":
-      'LinkCapture ("chúng tôi") cam kết bảo vệ thông tin cá nhân của bạn. '
+      'Linkeep ("chúng tôi") cam kết bảo vệ thông tin cá nhân của bạn. '
       'Chính sách này giải thích cách chúng tôi thu thập, sử dụng và bảo vệ dữ liệu khi bạn dùng ứng dụng.',
   "privacy.info_collect.title": 'Thông tin chúng tôi thu thập',
   "privacy.info_collect.body":
@@ -304,37 +303,37 @@ Map<String, String> vi = {
       '• Zalo: 0838629035',
   "privacy.notice.title": 'Thông báo phát triển',
   "privacy.notice.body":
-      'Ứng dụng LinkCapture hiện đang trong giai đoạn phát triển tích cực. Bạn có thể gặp một số lỗi hoặc '
+      'Ứng dụng Linkeep hiện đang trong giai đoạn phát triển tích cực. Bạn có thể gặp một số lỗi hoặc '
       'hành vi không mong muốn. Nếu bạn phát hiện lỗi hoặc có góp ý, hãy liên hệ với chúng tôi — chúng tôi rất trân trọng!',
 
   // Terms of Service
   "terms.acceptance.title": 'Chấp nhận điều khoản',
   "terms.acceptance.body":
-      'Khi tải xuống hoặc sử dụng LinkCapture, bạn đồng ý tuân theo các Điều khoản dịch vụ này. '
+      'Khi tải xuống hoặc sử dụng Linkeep, bạn đồng ý tuân theo các Điều khoản dịch vụ này. '
       'Nếu không đồng ý, vui lòng không sử dụng ứng dụng.',
   "terms.use.title": 'Sử dụng ứng dụng',
   "terms.use.body":
-      '• LinkCapture được cung cấp cho mục đích sử dụng cá nhân, phi thương mại.\n'
+      '• Linkeep được cung cấp cho mục đích sử dụng cá nhân, phi thương mại.\n'
       '• Bạn không được sử dụng ứng dụng để lưu nội dung bất hợp pháp, độc hại hoặc phản cảm.\n'
       '• Bạn chịu trách nhiệm bảo mật tài khoản của mình.',
   "terms.content.title": 'Nội dung người dùng',
   "terms.content.body":
-      'Bạn vẫn sở hữu link và nội dung đã lưu trong LinkCapture. '
+      'Bạn vẫn sở hữu link và nội dung đã lưu trong Linkeep. '
       'Khi dùng tính năng đồng bộ đám mây, bạn cấp cho chúng tôi quyền giới hạn để lưu trữ và truyền dữ liệu '
       'chỉ nhằm mục đích cung cấp dịch vụ.',
   "terms.account.title": 'Tài khoản',
   "terms.account.body":
-      'Bạn có thể dùng LinkCapture mà không cần tài khoản. Nếu đăng nhập bằng Google, bạn đồng ý '
+      'Bạn có thể dùng Linkeep mà không cần tài khoản. Nếu đăng nhập bằng Google, bạn đồng ý '
       'với Điều khoản dịch vụ của Google cùng với điều khoản của chúng tôi. '
       'Bạn có thể đăng xuất và xóa dữ liệu bất cứ lúc nào.',
   "terms.disclaimer.title": 'Tuyên bố miễn trừ bảo đảm',
   "terms.disclaimer.body":
-      'LinkCapture được cung cấp "nguyên trạng" và không có bất kỳ bảo đảm nào. '
+      'Linkeep được cung cấp "nguyên trạng" và không có bất kỳ bảo đảm nào. '
       'Chúng tôi không đảm bảo ứng dụng luôn hoạt động liên tục hoặc không có lỗi.',
   "terms.liability.title": 'Giới hạn trách nhiệm',
   "terms.liability.body":
       'Trong phạm vi pháp luật cho phép, chúng tôi không chịu trách nhiệm đối với bất kỳ thiệt hại gián tiếp, '
-      'ngẫu nhiên hoặc hệ quả nào phát sinh từ việc bạn sử dụng LinkCapture.',
+      'ngẫu nhiên hoặc hệ quả nào phát sinh từ việc bạn sử dụng Linkeep.',
   "terms.changes.title": 'Thay đổi điều khoản',
   "terms.changes.body":
       'Chúng tôi có thể cập nhật các Điều khoản này theo thời gian. Việc tiếp tục sử dụng ứng dụng sau khi '

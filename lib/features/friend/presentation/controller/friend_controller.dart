@@ -104,7 +104,7 @@ class FriendController extends GetxController {
         pendingRequestCount.value = newCount;
         if (!_isInitialLoad && newCount > oldCount) {
           LocalNotificationService.showFriendRequestNotification(
-            title: 'Keep Link',
+            title: 'Linkeep',
             body: 'friend_new_request_received'.tr,
           );
         }
@@ -173,7 +173,7 @@ class FriendController extends GetxController {
         if (newKeys.isNotEmpty) {
           pendingSharedCount.value += newKeys.length;
           LocalNotificationService.showSharedCategoryNotification(
-            title: 'Keep Link',
+            title: 'Linkeep',
             body: 'shared_new_category_received'.tr,
           );
         }
@@ -269,7 +269,7 @@ class FriendController extends GetxController {
             if (newLinkCatIds.isNotEmpty) {
               SharedCategoryController.invalidateCache();
               LocalNotificationService.showSharedCategoryNotification(
-                title: 'Keep Link',
+                title: 'Linkeep',
                 body: 'shared_new_link_received'.tr,
               );
               // Nếu user đang xem danh sách link của category đó thì không tăng badge

@@ -66,7 +66,7 @@ class FeedbackPage extends GetView<FeedbackController> {
             ),
             const SizedBox(height: 12),
             TextWidget(
-              text: 'Your feedback helps us improve LinkCapture.'.tr,
+              text: 'Your feedback helps us improve Linkeep.'.tr,
               color: AppColors.outlineVariant,
               size: 12,
               textAlign: TextAlign.center,
