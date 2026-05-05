@@ -112,6 +112,24 @@ class AppCache {
     }
   }
 
+  /// Remove a friend from every category in the shared-with cache.
+  /// Call this after the friend is deleted so ShareCategorySheet stays in sync.
+  static void removeSharedFriendFromAll(String friendUserId) {
+    final keysToRemove = <String>[];
+    for (final entry in sharedWithCache.entries) {
+      final updated = List<FriendModel>.from(entry.value)
+        ..removeWhere((f) => f.friendUserId == friendUserId);
+      if (updated.isEmpty) {
+        keysToRemove.add(entry.key);
+      } else {
+        sharedWithCache[entry.key] = updated;
+      }
+    }
+    for (final key in keysToRemove) {
+      sharedWithCache.remove(key);
+    }
+  }
+
   // ── Derived helpers ───────────────────────────────────────────────────────
 
   /// IDs of categories whose visibility is not public.
