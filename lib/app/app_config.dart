@@ -2,6 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:keep_link/app/app_lifecycle_observer.dart';
+import 'package:keep_link/core/cache/app_cache.dart';
+import 'package:keep_link/core/cache/app_get_storage.dart';
 import 'package:keep_link/core/cache/sql_lite.dart';
 import 'package:keep_link/core/lang/translation_service.dart';
 import 'package:keep_link/core/service/deep_link_service.dart';
@@ -27,6 +29,14 @@ Future<void> appConfig() async {
 
   await DeepLinkService.init();
   await GetStorage.init();
+
+  // Xoá dữ liệu cũ nếu đây là lần đầu chạy sau khi cài đặt (hoặc cài lại).
+  if (AppGetStorage.isFirstLaunch()) {
+    await DbHelper.resetDatabase();
+    AppCache.invalidateAll();
+    AppGetStorage.clearUserData();
+    AppGetStorage.markLaunched();
+  }
 
   await LocalNotificationService.init();
 

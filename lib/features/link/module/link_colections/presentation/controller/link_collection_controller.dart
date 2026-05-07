@@ -20,6 +20,60 @@ class LinkCollectionController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isLoadMore = false.obs;
 
+  // --- Selection Mode ---
+  final RxBool isSelectionMode = false.obs;
+  final RxSet<String> selectedIds = <String>{}.obs;
+
+  bool get isAllSelected => listLink.isNotEmpty && selectedIds.length == listLink.length;
+
+  void enterSelectionMode(String firstId) {
+    isSelectionMode.value = true;
+    selectedIds.add(firstId);
+  }
+
+  void exitSelectionMode() {
+    isSelectionMode.value = false;
+    selectedIds.clear();
+  }
+
+  void toggleSelectItem(String id) {
+    if (selectedIds.contains(id)) {
+      selectedIds.remove(id);
+      if (selectedIds.isEmpty) exitSelectionMode();
+    } else {
+      selectedIds.add(id);
+    }
+  }
+
+  void toggleSelectAll() {
+    if (isAllSelected) {
+      selectedIds.clear();
+      exitSelectionMode();
+    } else {
+      selectedIds.addAll(listLink.map((e) => e.id));
+    }
+  }
+
+  Future<void> deleteSelectedLinks() async {
+    final idsToDelete = List<String>.from(selectedIds);
+    if (idsToDelete.isEmpty) return;
+    DialogUtils.showConfirm(
+      alertType: AlertType.warning,
+      title: "Xác nhận",
+      content: "Bạn chắc chắn muốn xóa ${idsToDelete.length} link đã chọn?",
+      onConfirm: () async {
+        Get.back();
+        for (final id in idsToDelete) {
+          await LinkRepository.delete(id);
+        }
+        listLink.removeWhere((item) => idsToDelete.contains(item.id));
+        exitSelectionMode();
+        Fluttertoast.showToast(msg: 'Đã xóa ${idsToDelete.length} link');
+      },
+      onCancel: () => Get.back(),
+    );
+  }
+
   // --- Pagination Variables ---
   final ScrollController scrollController = ScrollController();
   int _currentPage = 0;

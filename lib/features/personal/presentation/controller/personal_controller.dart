@@ -19,6 +19,7 @@ import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
+import 'package:keep_link/features/friend/presentation/controller/friend_controller.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
 import 'package:keep_link/features/personal/di/feedback_binding.dart';
 import 'package:keep_link/features/personal/presentation/controller/feedback_controller.dart';
@@ -151,6 +152,7 @@ class PersonalController extends GetxController {
       SessionSyncService.instance.clearOnSignOut();
       await DbHelper.resetDatabase();
       AppCache.invalidateAll();
+      AppGetStorage.clearUserData();
       _refreshDataControllers();
       AppToast.showToast(
         'Signed out successfully'.tr,
@@ -162,13 +164,19 @@ class PersonalController extends GetxController {
     }
   }
 
-  /// Refresh [LinkCollectionController] and [CategoryController] if they are
+  /// Refresh [LinkCollectionController], [CategoryController] and [FriendController] if they are
+  /// registered. Called after login and logout.
   void _refreshDataControllers() {
     if (Get.isRegistered<LinkCollectionController>()) {
       Get.find<LinkCollectionController>().refreshData();
     }
     if (Get.isRegistered<CategoryController>()) {
       Get.find<CategoryController>().fetchCategories();
+    }
+    // Reload friends for the newly logged-in user. Skip when signing out
+    // (currentUser is already null by this point).
+    if (FirebaseService.currentUser != null && Get.isRegistered<FriendController>()) {
+      Get.find<FriendController>().fetchFriends();
     }
   }
 

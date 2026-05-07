@@ -7,6 +7,7 @@ import 'package:keep_link/core/extension/colors.dart';
 import 'package:keep_link/core/ui/image/cache_image.dart';
 import 'package:keep_link/core/ui/text/text_widget.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
+import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/page/link_detail.dart';
 
 class LinkItem extends StatelessWidget {
@@ -42,101 +43,149 @@ class LinkItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ctrl = Get.find<LinkCollectionController>();
     final meta = item.metaDataModel;
     final host = _extractHost(meta?.url);
     final favicon = meta?.favicon ?? meta?.appleIcon ?? '';
     final appIcon = _resolveAppIcon(host);
 
-    return GestureDetector(
-      onTap: () {
-        Get.bottomSheet(
-          LinkDetailPage(link: item),
-          barrierColor: AppColors.black.withOpacityCompat(.8),
-          isScrollControlled: true,
-          backgroundColor: AppColors.transparent,
-        );
-      },
-      child: Container(
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: CacheImageWidget(
-                borderRadius: BorderRadius.circular(12),
-                imageUrl: item.metaDataModel?.imageUrl ?? "/",
-              ),
-            ),
-            Align(
-              alignment: Alignment.center,
-              child: Container(
-                margin: EdgeInsets.all(12),
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: AppColors.white.withOpacityCompat(.8),
-                ),
-                child: TextWidget(
-                  text: item.name ?? "",
-                  textAlign: TextAlign.center,
-                  textStyle: AppTextStyle.semiBold14,
-                  color: AppColors.t700,
-                  maxLines: 5,
+    return Obx(() {
+      final isSelectionMode = ctrl.isSelectionMode.value;
+      final isSelected = ctrl.selectedIds.contains(item.id);
+
+      return GestureDetector(
+        onLongPress: () {
+          if (!isSelectionMode) ctrl.enterSelectionMode(item.id);
+        },
+        onTap: () {
+          if (isSelectionMode) {
+            ctrl.toggleSelectItem(item.id);
+          } else {
+            Get.bottomSheet(
+              LinkDetailPage(link: item),
+              barrierColor: AppColors.black.withOpacityCompat(.8),
+              isScrollControlled: true,
+              backgroundColor: AppColors.transparent,
+            );
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CacheImageWidget(
+                  borderRadius: BorderRadius.circular(isSelected ? 10 : 12),
+                  imageUrl: item.metaDataModel?.imageUrl ?? "/",
                 ),
               ),
-            ),
-            if (host.isNotEmpty)
-              Positioned(
-                bottom: 8,
-                left: 8,
+              // Dimming overlay when selected
+              if (isSelected)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: AppColors.black.withOpacityCompat(0.35),
+                    ),
+                  ),
+                ),
+              Align(
+                alignment: Alignment.center,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  margin: EdgeInsets.all(12),
+                  padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.black.withOpacityCompat(0.55),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.white.withOpacityCompat(.8),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Leading icon: asset > favicon network > globe
-                      if (appIcon != null) ...[
-                        appIcon,
-                        const SizedBox(width: 4),
-                      ] else if (favicon.isNotEmpty) ...[
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: Image.network(
-                            favicon,
-                            width: 12,
-                            height: 12,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                const Icon(Icons.language_rounded, size: 12, color: AppColors.n80),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                      ] else ...[
-                        const Icon(Icons.language_rounded, size: 12, color: AppColors.n80),
-                        const SizedBox(width: 4),
-                      ],
-                      TextWidget(
-                        text: host,
-                        color: AppColors.white,
-                        size: 10,
-                        fontWeight: FontWeight.w500,
-                        maxLines: 1,
-                      ),
-                    ],
+                  child: TextWidget(
+                    text: item.name ?? "",
+                    textAlign: TextAlign.center,
+                    textStyle: AppTextStyle.semiBold14,
+                    color: AppColors.t700,
+                    maxLines: 5,
                   ),
                 ),
               ),
-          ],
+              if (host.isNotEmpty)
+                Positioned(
+                  bottom: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.black.withOpacityCompat(0.55),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Leading icon: asset > favicon network > globe
+                        if (appIcon != null) ...[
+                          appIcon,
+                          const SizedBox(width: 4),
+                        ] else if (favicon.isNotEmpty) ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: Image.network(
+                              favicon,
+                              width: 12,
+                              height: 12,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.language_rounded,
+                                size: 12,
+                                color: AppColors.n80,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                        ] else ...[
+                          const Icon(Icons.language_rounded, size: 12, color: AppColors.n80),
+                          const SizedBox(width: 4),
+                        ],
+                        TextWidget(
+                          text: host,
+                          color: AppColors.white,
+                          size: 10,
+                          fontWeight: FontWeight.w500,
+                          maxLines: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              // Checkmark for selection mode
+              if (isSelectionMode)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isSelected
+                          ? AppColors.primaryDim
+                          : AppColors.black.withOpacityCompat(0.45),
+                      border: Border.all(color: AppColors.white, width: 2),
+                    ),
+                    child: isSelected
+                        ? const Icon(Icons.check_rounded, size: 14, color: AppColors.white)
+                        : null,
+                  ),
+                ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
 

@@ -1,22 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:keep_link/core/config/app_colors.dart';
 import 'package:keep_link/core/extension/colors.dart';
+import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/widgets/bottom_bar.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/widgets/header_link_collection.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/widgets/list_link_collection.dart';
+import 'package:keep_link/features/link/module/link_colections/presentation/widgets/selection_action_bar.dart';
 
-class LinkCollectionPage extends StatelessWidget {
+class LinkCollectionPage extends GetView<LinkCollectionController> {
   static const String routeName = "/LinkCollectionPage";
 
   const LinkCollectionPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: const _BodyBuilder(),
-      extendBody: true,
-      floatingActionButton: GlassBottomBar(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    return Obx(
+      () => PopScope(
+        canPop: !controller.isSelectionMode.value,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && controller.isSelectionMode.value) {
+            controller.exitSelectionMode();
+          }
+        },
+        child: Scaffold(
+          body: const _BodyBuilder(),
+          extendBody: true,
+          floatingActionButton: controller.isSelectionMode.value
+              ? const SelectionActionBar()
+              : GlassBottomBar(),
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+        ),
+      ),
     );
   }
 }

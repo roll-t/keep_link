@@ -74,6 +74,30 @@ class AppGetStorage {
     _box.remove(_userKey);
   }
 
+  /// Xoá toàn bộ dữ liệu của user (dùng khi đăng xuất hoặc cài mới).
+  /// Giữ lại các tuỳ chọn chung như theme và ngôn ngữ.
+  static void clearUserData() {
+    _box.remove(_tokenKey);
+    _box.remove(_userKey);
+    _box.remove(_isLoggedIn);
+    _box.remove(_pinKey);
+    _box.remove(_securityEnabledKey);
+    _box.remove(_fingerprintEnabledKey);
+    _box.remove(_categorySecurityEnabledKey);
+    _box.remove(_searchHistoryKey);
+    _box.remove(_guestDefaultCategoryKey);
+    _box.remove(_pinnedCategoryIdsKey);
+  }
+
+  // ========== First Launch ========== //
+  static const String _firstLaunchKey = 'app_first_launch_done';
+
+  /// Trả về true nếu đây là lần đầu tiên app chạy sau khi cài đặt.
+  static bool isFirstLaunch() => _box.read<bool>(_firstLaunchKey) != true;
+
+  /// Đánh dấu đã chạy lần đầu; gọi ngay sau khi xử lý xong first-launch.
+  static void markLaunched() => _box.write(_firstLaunchKey, true);
+
   // ========== Language ========== //
   static void setLanguage(String language) {
     _box.write(_selectedLanguageKey, language);

@@ -58,6 +58,7 @@ class FriendController extends GetxController {
     _authSub = FirebaseService.authStateChanges.listen((user) {
       currentUser.value = user;
       if (user != null) {
+        fetchFriends();
         _startRequestWatcher();
         _startSharedCategoryWatcher();
         _startFriendsWatcher();
@@ -465,6 +466,14 @@ class FriendController extends GetxController {
       onConfirm: () async {
         await FirebaseService.removeFriend(friend.friendUserId);
         await _syncRemoteFriendState();
+        // Xoá bạn khỏi sharedWithCache để ShareCategorySheet cập nhật ngay.
+        AppCache.removeSharedFriendFromAll(friend.friendUserId);
+        // Invalidate SharedCategoriesPage cache để lần mở tiếp sẽ fetch lại.
+        SharedCategoryController.invalidateCache();
+        // Nếu SharedCategoryController đang active, load lại ngay.
+        if (Get.isRegistered<SharedCategoryController>()) {
+          Get.find<SharedCategoryController>().loadSharedCategories();
+        }
         Get.back();
         Fluttertoast.showToast(msg: 'friend_deleted_success'.tr);
       },
