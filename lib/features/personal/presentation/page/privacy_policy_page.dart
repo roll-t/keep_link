@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/ui/appbar/custom_app_bar.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/presentation/widgets/appbar/custom_app_bar.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/personal/presentation/widget/contact_links_widget.dart';
 
 class PrivacyPolicyPage extends StatelessWidget {

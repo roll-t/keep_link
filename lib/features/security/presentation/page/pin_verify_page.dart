@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/app_text_styles.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/core/config/theme/app_text_styles.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/security/application/controller/pin_verify_controller.dart';
 import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
 

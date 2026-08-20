@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/config/app_text_styles.dart';
-import 'package:keep_link/core/config/app_vectors.dart';
-import 'package:keep_link/core/extension/colors.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/config/theme/app_text_styles.dart';
+import 'package:keep_link/core/config/assets/app_vectors.dart';
+import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/controller/link_detail_controller.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/widgets/destination_card.dart';
@@ -29,41 +29,57 @@ class LinkDetailPage extends StatelessWidget {
         child: Scaffold(
           backgroundColor: const Color(0xFF121212),
           appBar: _buildAppBar(context, controller),
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              HeroMediaWidget(),
-              const SizedBox(height: 16),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (controller.title.isNotEmpty)
-                        TextWidget(
-                          text: controller.title,
-                          textStyle: AppTextStyle.bold22,
-                          color: Colors.white,
-                          maxLines: 2,
-                        ),
-                      const SizedBox(height: 8),
-                      if (controller.description.isNotEmpty)
-                        TextWidget(
-                          text: controller.description,
-                          textStyle: AppTextStyle.regular12,
-                          color: const Color(0xFFA0A0A0),
-                          maxLines: 3,
-                        ),
-                      const SizedBox(height: 18),
-                      DestinationCard(),
-                      const SizedBox(height: 24),
-                    ],
+          body: Obx(() {
+            // While the webview player is expanded it needs the full body
+            // height (it fills via Expanded, no fixed height of its own —
+            // see _ExpandedWebView). Keeping the info section mounted below
+            // it here would force the Column to lay out more content than
+            // the sheet's own maxHeight allows, overflowing the bottom edge.
+            final isFullscreenPlayer = controller.isPlayingVideo.value && controller.isExpanded.value;
+
+            // Scaffold.body already receives bounded constraints filling the
+            // whole body area, so HeroMediaWidget can go straight in here —
+            // wrapping it in Expanded would be invalid outside a Flex parent.
+            if (isFullscreenPlayer) {
+              return const HeroMediaWidget();
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                HeroMediaWidget(),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (controller.title.isNotEmpty)
+                          TextWidget(
+                            text: controller.title,
+                            textStyle: AppTextStyle.bold22,
+                            color: Colors.white,
+                            maxLines: 2,
+                          ),
+                        const SizedBox(height: 8),
+                        if (controller.description.isNotEmpty)
+                          TextWidget(
+                            text: controller.description,
+                            textStyle: AppTextStyle.regular12,
+                            color: const Color(0xFFA0A0A0),
+                            maxLines: 3,
+                          ),
+                        const SizedBox(height: 18),
+                        DestinationCard(),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            );
+          }),
         ),
       ),
     );
@@ -149,22 +165,6 @@ enum _MenuAction {
         controller.deleteLink();
     }
   }
-}
-
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  const _MenuRow(this.icon, this.label, this.color);
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Icon(icon, color: color, size: 18),
-      const SizedBox(width: 12),
-      TextWidget(text: label, textStyle: AppTextStyle.semiBold16, color: color),
-    ],
-  );
 }
 
 class _DragHandle extends StatelessWidget {

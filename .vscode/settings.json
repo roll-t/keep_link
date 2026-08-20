@@ -1,12 +1,14 @@
 {
-  // --- Flutter & Dart (FVM) ---
-  "dart.flutterSdkPath": ".fvm/versions/3.38.3",
+  "dart.flutterSdkPath": ".fvm/versions/3.47.1",
   "dart.lineLength": 100,
   "dart.showTodos": true,
   "dart.flutterHotReloadOnSave": "all",
   "dart.previewFlutterUiGuides": true,
   "dart.previewFlutterUiGuidesCustomTracking": true,
   "dart.allowTestsOutsideTestFolder": true,
+  "dart.debugSdkLibraries": false,
+  "dart.debugExternalPackageLibraries": false,
+  "dart.runPubGetOnPubspecChanges": "prompt",
   "dart.analysisExcludedFolders": [
     "build/",
     ".dart_tool/",
@@ -14,11 +16,14 @@
     "ios/Flutter",
     "android/app/build"
   ],
-  // --- Editor ---
   "editor.tabSize": 2,
   "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
   "editor.formatOnSave": true,
   "editor.formatOnType": true,
+  "editor.rulers": [
+    100
+  ],
   "editor.bracketPairColorization.enabled": true,
   "editor.guides.bracketPairs": false,
   "editor.stickyScroll.enabled": true,
@@ -26,13 +31,11 @@
   "editor.codeActionsOnSave": {
     "source.organizeImports": "explicit"
   },
-  // --- UI / UX ---
   "editor.cursorBlinking": "expand",
   "editor.cursorSmoothCaretAnimation": "on",
   "editor.fontLigatures": false,
   "editor.minimap.enabled": false,
   "editor.renderWhitespace": "selection",
-  // --- Language Specifics ---
   "[dart]": {
     "editor.defaultFormatter": "Dart-Code.dart-code",
     "editor.formatOnSave": true,
@@ -42,7 +45,13 @@
   "[kotlin]": {
     "editor.formatOnSave": true
   },
-  // --- File & Search Management ---
+  "[json][jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.eol": "\n",
   "files.exclude": {
     "**/.git": true,
     "**/.dart_tool": true,
@@ -57,7 +66,12 @@
     "**/build": true,
     "**/generated": true
   },
-  // --- Spell Check ---
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "pubspec.yaml": "pubspec.lock, .flutter-plugins, .flutter-plugins-dependencies, .metadata, .packages",
+    "*.dart": "${capture}.g.dart, ${capture}.freezed.dart"
+  },
   "cSpell.words": [
     "Getx",
     "Rxn",
@@ -70,10 +84,18 @@
     "interceptor",
     "repository",
     "datasource",
-    "payload"
+    "payload",
+    "fvm"
   ],
-  // --- Terminal ---
   "terminal.integrated.defaultProfile.windows": "PowerShell",
   "terminal.integrated.copyOnSelection": true,
   "terminal.integrated.cursorStyle": "line",
+  // Put the FVM-pinned SDK (.fvmrc) first on PATH for every terminal opened
+  // in this workspace, so a bare `flutter`/`dart` command here always
+  // resolves to the pinned version instead of whatever is on the system
+  // PATH — that mismatch previously churned pubspec.lock into an
+  // unresolvable state (see .fvmrc vs. system `flutter --version`).
+  "terminal.integrated.env.windows": {
+    "PATH": "${workspaceFolder}\\.fvm\\flutter_sdk\\bin;${env:PATH}"
+  }
 }

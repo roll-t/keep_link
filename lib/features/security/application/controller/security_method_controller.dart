@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:get/get.dart';
-import 'package:keep_link/core/cache/app_get_storage.dart';
-import 'package:keep_link/core/service/biometric_service.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
+import 'package:keep_link/core/services/platform/biometric_service.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/presentation/controller/custom_popup_controller.dart';
@@ -87,8 +87,7 @@ class SecurityMethodController extends GetxController {
   }
 
   Future<bool> _ensurePinExists() async {
-    final savedPin = AppGetStorage.getPin();
-    if (savedPin != null && savedPin.isNotEmpty) return true;
+    if (AppGetStorage.hasPin()) return true;
 
     final newPin = await Get.toNamed(PinVerifyPage.routeName);
     return newPin != null;
@@ -154,8 +153,7 @@ class SecurityMethodController extends GetxController {
       return;
     }
 
-    final savedPin = AppGetStorage.getPin();
-    if (savedPin == null || savedPin.isEmpty) {
+    if (!AppGetStorage.hasPin()) {
       Utils.showToast('Vui lòng thiết lập mã PIN trước');
       return;
     }
@@ -190,10 +188,8 @@ class SecurityMethodController extends GetxController {
   // ─── 4. ĐỔI MÃ PIN ──────────────────────────────────────────────────────────
 
   Future<void> changePin() async {
-    final savedPin = AppGetStorage.getPin();
-
     // Chưa có PIN → tạo mới ngay
-    if (savedPin == null || savedPin.isEmpty) {
+    if (!AppGetStorage.hasPin()) {
       await Get.toNamed(PinVerifyPage.routeName);
       return;
     }

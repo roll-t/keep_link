@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/cache/app_cache.dart';
-import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/extension/colors.dart';
-import 'package:keep_link/core/service/firebase_service.dart';
-import 'package:keep_link/core/ui/image/cache_image.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/core/data/cache/app_cache.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/services/backend/firebase_service.dart';
+import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
 

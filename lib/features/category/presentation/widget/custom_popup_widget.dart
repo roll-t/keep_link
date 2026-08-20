@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/cache/app_cache.dart';
-import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/config/app_enum.dart';
-import 'package:keep_link/core/config/app_text_styles.dart';
-import 'package:keep_link/core/config/app_vectors.dart';
-import 'package:keep_link/core/library/custom_popup.dart';
-import 'package:keep_link/core/model/item_model.dart';
-import 'package:keep_link/core/ui/image/cache_image.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/core/data/cache/app_cache.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/config/theme/app_text_styles.dart';
+import 'package:keep_link/core/config/assets/app_vectors.dart';
+import 'package:keep_link/core/presentation/widgets/popup/custom_popup.dart';
+import 'package:keep_link/core/data/models/item_model.dart';
+import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/category/presentation/controller/custom_popup_controller.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/friend/presentation/controller/friend_controller.dart';
@@ -89,8 +89,9 @@ class CustomPopupWidget extends StatelessWidget {
                     final isLastItem = index == displayItems.length - 1;
                     return GestureDetector(
                       onTap: () async {
+                        final nav = Navigator.of(context);
                         await controller.selectItem(item);
-                        Navigator.of(context).pop();
+                        nav.pop();
                         onSelected?.call();
                       },
                       child: Container(

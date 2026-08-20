@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/config/app_icons.dart';
-import 'package:keep_link/core/config/app_vectors.dart';
-import 'package:keep_link/core/extension/colors.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
-import 'package:keep_link/core/ui/text_field/simple_input_textfield.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/config/assets/app_icons.dart';
+import 'package:keep_link/core/config/assets/app_vectors.dart';
+import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
+import 'package:keep_link/core/presentation/widgets/text_field/simple_input_textfield.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/widgets/link_item.dart';
 import 'package:keep_link/features/link/module/link_search/presentation/controller/search_link_controller.dart';
 

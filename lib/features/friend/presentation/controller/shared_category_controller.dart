@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/cache/app_get_storage.dart';
-import 'package:keep_link/core/service/firebase_service.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
+import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 
@@ -28,6 +28,17 @@ class SharedCategoryController extends GetxController {
   // ── Instance state ────────────────────────────────────────────────────────
   final RxList<SharedCategoryModel> sharedCategories = <SharedCategoryModel>[].obs;
   final RxBool isLoading = false.obs;
+  final RxString searchQuery = ''.obs;
+
+  List<SharedCategoryModel> get visibleCategories {
+    final query = searchQuery.value.trim().toLowerCase();
+    if (query.isEmpty) return sharedCategories;
+    return sharedCategories.where((cat) {
+      return cat.categoryName.toLowerCase().contains(query) ||
+          cat.ownerDisplayName.toLowerCase().contains(query) ||
+          (cat.categoryDescription?.toLowerCase().contains(query) ?? false);
+    }).toList();
+  }
 
   /// Keys ("ownerUid/catId") chưa được user mở xem chi tiết
   final RxSet<String> unviewedKeys = <String>{}.obs;

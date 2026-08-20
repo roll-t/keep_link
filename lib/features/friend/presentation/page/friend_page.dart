@@ -2,108 +2,275 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/config/app_text_styles.dart';
-import 'package:keep_link/core/extension/colors.dart';
-import 'package:keep_link/core/ui/appbar/custom_app_bar.dart';
-import 'package:keep_link/core/ui/image/cache_image.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
-import 'package:keep_link/core/ui/text_field/simple_input_textfield.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
+import 'package:keep_link/core/services/backend/firebase_service.dart';
+import 'package:keep_link/core/services/backend/friend_connection_service.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/friend/application/model/friend_request_model.dart';
+import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
 import 'package:keep_link/features/friend/presentation/controller/friend_controller.dart';
+import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
 import 'package:keep_link/features/friend/presentation/page/shared_categories_page.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
-class FriendPage extends GetView<FriendController> {
+class FriendPage extends StatefulWidget {
   static const routeName = '/FriendPage';
 
   const FriendPage({super.key});
 
   @override
+  State<FriendPage> createState() => _FriendPageState();
+}
+
+class _FriendPageState extends State<FriendPage> with SingleTickerProviderStateMixin {
+  late final FriendController controller;
+  late final SharedCategoryController sharedController;
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<FriendController>();
+    sharedController = Get.find<SharedCategoryController>();
+    _tabController = TabController(length: 2, vsync: this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.fetchFriends();
+      sharedController.loadSharedCategories();
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: SafeArea(
-        top: false,
-        child: Scaffold(
+    return SafeArea(
+      top: false,
+      child: Scaffold(
+        backgroundColor: AppColors.bg700,
+        appBar: AppBar(
+          elevation: 0,
           backgroundColor: AppColors.bg700,
-          appBar: CustomAppBar(
-            title: 'Friends'.tr,
-            actions: [
-              Obx(() {
-                final count = FriendController.pendingSharedCount.value;
-                return Stack(
-                  alignment: Alignment.center,
-                  clipBehavior: Clip.none,
-                  children: [
-                    IconButton(
-                      tooltip: 'shared_with_me'.tr,
-                      onPressed: () {
-                        FriendController.markSharedCategoriesAsSeen();
-                        Get.toNamed(SharedCategoriesPage.routeName);
-                      },
-                      icon: const Icon(Icons.folder_shared_rounded, color: AppColors.n70),
-                    ),
-                    if (count > 0)
-                      Positioned(
-                        right: 6,
-                        top: 6,
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            count > 99 ? '99+' : '$count',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              height: 1,
+          automaticallyImplyLeading: false,
+          titleSpacing: 0,
+          centerTitle: false,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.t200, size: 20),
+            onPressed: () => Get.back(),
+          ),
+          title: TextWidget(
+            text: 'Friends & Shared'.tr,
+            color: AppColors.white,
+            size: 18,
+            fontWeight: FontWeight.w700,
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'Scan QR'.tr,
+              icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.n70, size: 22),
+              onPressed: () => _openQrScanner(context),
+            ),
+            IconButton(
+              tooltip: 'Add Friend'.tr,
+              icon: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.n70, size: 22),
+              onPressed: () => _openAddFriendMethodsSheet(context),
+            ),
+            const SizedBox(width: 4),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(48),
+            child: Container(
+              height: 40,
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              decoration: BoxDecoration(
+                color: AppColors.d500,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Obx(() {
+                final sharedCount = sharedController.sharedCategories.length;
+                final requestCount = controller.incomingRequests.length;
+
+                return TabBar(
+                  controller: _tabController,
+                  dividerColor: Colors.transparent,
+                  indicator: BoxDecoration(
+                    color: AppColors.primary.withOpacityCompat(0.18),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.primary),
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelColor: AppColors.primary,
+                  unselectedLabelColor: AppColors.n70,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  tabs: [
+                    // Tab 1: Được chia sẻ
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.folder_shared_rounded, size: 16),
+                          const SizedBox(width: 6),
+                          Flexible(child: Text('Shared'.tr, overflow: TextOverflow.ellipsis)),
+                          if (sharedCount > 0) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '$sharedCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                          ],
+                        ],
                       ),
+                    ),
+                    // Tab 2: Bạn bè
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.people_alt_rounded, size: 16),
+                          const SizedBox(width: 6),
+                          Flexible(child: Text('Friends'.tr, overflow: TextOverflow.ellipsis)),
+                          if (requestCount > 0) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '$requestCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ],
                 );
               }),
-            ],
+            ),
           ),
-          body: Obx(() {
-            if (controller.isLoading.value) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-            }
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                  child: _StatsRow(
-                    totalFriends: controller.totalFriends,
-                    onTapAddFriend: () => _openAddFriendMethodsSheet(context),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _FriendTabBar(requestCount: controller.incomingRequests.length),
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _FriendsTabContent(
-                        controller: controller,
-                        onPaste: () => _openAddByLinkSheet(context),
-                        onScan: () => _openQrScanner(context),
-                      ),
-                      _RequestsTabContent(controller: controller),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          }),
         ),
+        body: Obx(() {
+          if (controller.isLoading.value || sharedController.isLoading.value) {
+            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+          }
+
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              // ── Tab 1: Danh mục được chia sẻ ──────────────────────────────
+              _SharedCategoriesTab(
+                controller: sharedController,
+                onRefresh: () => Future.wait([
+                  controller.fetchFriends(),
+                  sharedController.loadSharedCategories(),
+                ]),
+              ),
+
+              // ── Tab 2: Quản lý bạn bè & Lời mời ───────────────────────────
+              _FriendsManageTab(
+                controller: controller,
+                onRefresh: () => Future.wait([
+                  controller.fetchFriends(),
+                  sharedController.loadSharedCategories(),
+                ]),
+                onOpenRequests: () => _openRequestsSheet(context),
+                onOpenMyQr: () => _openMyPersonalQrSheet(context),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  // ── Bottom Sheets ──────────────────────────────────────────────────────────
+
+  Future<void> _openRequestsSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bg700,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 46,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.n500,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextWidget(
+              text: 'Friend Requests'.tr,
+              color: AppColors.white,
+              size: 18,
+              fontWeight: FontWeight.w700,
+            ),
+            const SizedBox(height: 8),
+            Expanded(child: _RequestsTabContent(controller: controller)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openMyPersonalQrSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.d500,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _MyPersonalQrSheet(controller: controller),
+    );
+  }
+
+  Future<void> _openAddFriendMethodsSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.d500,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _AddFriendMethodsSheet(
+        onAddByGmail: () => _openAddByGmailSheet(context),
+        onAddByLink: () => _openAddByLinkSheet(context),
+        onAddByQr: () => _openQrScanner(context),
       ),
     );
   }
@@ -132,21 +299,6 @@ class FriendPage extends GetView<FriendController> {
     );
   }
 
-  Future<void> _openAddFriendMethodsSheet(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.d500,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => _AddFriendMethodsSheet(
-        onAddByGmail: () => _openAddByGmailSheet(context),
-        onAddByLink: () => _openAddByLinkSheet(context),
-        onAddByQr: () => _openQrScanner(context),
-      ),
-    );
-  }
-
   Future<void> _openQrScanner(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -160,56 +312,455 @@ class FriendPage extends GetView<FriendController> {
   }
 }
 
-class _FriendTabBar extends StatelessWidget {
-  const _FriendTabBar({required this.requestCount});
+// ── Tab 1: Shared Categories View ────────────────────────────────────────────
 
-  final int requestCount;
+class _SharedCategoriesTab extends StatelessWidget {
+  const _SharedCategoriesTab({required this.controller, required this.onRefresh});
+
+  final SharedCategoryController controller;
+  final RefreshCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      color: AppColors.primary,
+      backgroundColor: AppColors.d500,
+      onRefresh: onRefresh,
+      child: Obx(() {
+        final categories = controller.sharedCategories;
+
+        if (categories.isEmpty) {
+          return LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: const _EmptySharedView(),
+              ),
+            ),
+          );
+        }
+
+        return ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          itemCount: categories.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (ctx, index) {
+            final cat = categories[index];
+            final key = '${cat.ownerUid}/${cat.categoryId}';
+            final isUnviewed = controller.unviewedKeys.contains(key);
+
+            return _SharedCategoryCard(
+              category: cat,
+              isUnviewed: isUnviewed,
+              onTap: () => openSharedCategoryLinksSheet(context, controller, cat),
+            );
+          },
+        );
+      }),
+    );
+  }
+}
+
+// ── Tab 2: Friends Management View ───────────────────────────────────────────
+
+class _FriendsManageTab extends StatelessWidget {
+  const _FriendsManageTab({
+    required this.controller,
+    required this.onRefresh,
+    required this.onOpenRequests,
+    required this.onOpenMyQr,
+  });
+
+  final FriendController controller;
+  final RefreshCallback onRefresh;
+  final VoidCallback onOpenRequests;
+  final VoidCallback onOpenMyQr;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      color: AppColors.primary,
+      backgroundColor: AppColors.d500,
+      onRefresh: onRefresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: [
+          // ── Quick Action Cards (Requests & My QR) ─────────────────────────
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.d500,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.white.withOpacityCompat(0.06)),
+            ),
+            child: Column(
+              children: [
+                // 1. Lời mời kết bạn
+                Obx(() {
+                  final reqCount = controller.incomingRequests.length;
+                  return _ZaloTile(
+                    icon: Icons.person_add_alt_rounded,
+                    iconColor: const Color(0xFF2E86DE),
+                    iconBgColor: const Color(0xFF2E86DE).withOpacityCompat(0.18),
+                    title: 'Friend Requests'.tr,
+                    subtitle: reqCount > 0 ? '$reqCount ${'requests_pending'.tr}' : null,
+                    badgeCount: reqCount,
+                    onTap: onOpenRequests,
+                  );
+                }),
+                Divider(height: 1, color: AppColors.white.withOpacityCompat(0.05), indent: 56),
+                // 2. Mã QR & Link cá nhân
+                _ZaloTile(
+                  icon: Icons.qr_code_2_rounded,
+                  iconColor: const Color(0xFFFF9F43),
+                  iconBgColor: const Color(0xFFFF9F43).withOpacityCompat(0.18),
+                  title: 'My QR Code'.tr,
+                  subtitle: 'My Friend Link'.tr,
+                  onTap: onOpenMyQr,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // ── Section Title: Friends List ──────────────────────────────────
+          Obx(
+            () => TextWidget(
+              text: '${'Friends'.tr} (${controller.totalFriends}/${FriendController.maxFriends})',
+              color: AppColors.white,
+              size: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 12),
+          // ── Friends List Items ───────────────────────────────────────────
+          Obx(() {
+            final friends = controller.visibleFriends;
+            if (friends.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 36),
+                child: Center(
+                  child: Column(
+                    children: [
+                      const Icon(Icons.people_outline_rounded, size: 48, color: AppColors.n500),
+                      const SizedBox(height: 12),
+                      TextWidget(text: 'No friends found'.tr, color: AppColors.n70, size: 14),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: friends.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, index) {
+                final friend = friends[index];
+                return _FriendItem(
+                  friend: friend,
+                  onDelete: () => controller.confirmDeleteFriend(friend),
+                );
+              },
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Quick Tile Widget ────────────────────────────────────────────────────────
+
+class _ZaloTile extends StatelessWidget {
+  const _ZaloTile({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBgColor,
+    required this.title,
+    this.subtitle,
+    this.badgeCount = 0,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBgColor;
+  final String title;
+  final String? subtitle;
+  final int badgeCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: iconBgColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextWidget(
+                      text: title,
+                      color: AppColors.white,
+                      size: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      TextWidget(text: subtitle!, color: AppColors.n70, size: 12),
+                    ],
+                  ],
+                ),
+              ),
+              if (badgeCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  margin: const EdgeInsets.only(right: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: TextWidget(
+                    text: '$badgeCount',
+                    color: Colors.white,
+                    size: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.n500, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Shared Category Card ─────────────────────────────────────────────────────
+
+class _SharedCategoryCard extends StatelessWidget {
+  const _SharedCategoryCard({required this.category, required this.onTap, this.isUnviewed = false});
+
+  final SharedCategoryModel category;
+  final VoidCallback onTap;
+  final bool isUnviewed;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.d500,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.white.withOpacityCompat(0.06)),
+            ),
+            child: Row(
+              children: [
+                SharedOwnerAvatar(
+                  displayName: category.ownerDisplayName,
+                  photoUrl: category.ownerPhotoUrl,
+                  size: 44,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextWidget(
+                        text: category.categoryName,
+                        color: AppColors.white,
+                        size: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          const Icon(Icons.person_rounded, size: 12, color: AppColors.n70),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: TextWidget(
+                              text: category.ownerDisplayName,
+                              color: AppColors.n70,
+                              size: 12,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (category.categoryDescription != null &&
+                          category.categoryDescription!.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        TextWidget(
+                          text: category.categoryDescription!,
+                          color: AppColors.n500,
+                          size: 11,
+                          maxLines: 1,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacityCompat(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.link_rounded, size: 13, color: AppColors.primary),
+                      const SizedBox(width: 4),
+                      TextWidget(
+                        text: '${category.linkCount}',
+                        color: AppColors.primary,
+                        size: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.n500),
+              ],
+            ),
+          ),
+          if (isUnviewed)
+            Positioned(
+              top: -3,
+              right: -3,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Empty State ───────────────────────────────────────────────────────────────
+
+class _EmptySharedView extends StatelessWidget {
+  const _EmptySharedView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.d500,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.white.withOpacityCompat(0.08)),
+              ),
+              child: const Center(
+                child: Icon(Icons.folder_shared_rounded, size: 38, color: AppColors.primary),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextWidget(
+              text: 'no_shared_categories'.tr,
+              color: AppColors.white,
+              size: 16,
+              fontWeight: FontWeight.w700,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            TextWidget(
+              text: 'no_shared_categories_desc'.tr,
+              color: AppColors.n70,
+              size: 12,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Friend Item Card ─────────────────────────────────────────────────────────
+
+class _FriendItem extends StatelessWidget {
+  const _FriendItem({required this.friend, required this.onDelete});
+
+  final FriendModel friend;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 44,
-      decoration: BoxDecoration(color: AppColors.d500, borderRadius: BorderRadius.circular(12)),
-      child: TabBar(
-        dividerColor: Colors.transparent,
-        indicator: BoxDecoration(
-          color: AppColors.primary.withOpacityCompat(0.15),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.primary),
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        labelPadding: EdgeInsets.zero,
-        labelColor: AppColors.primary,
-        unselectedLabelColor: AppColors.n70,
-        tabs: [
-          Tab(
-            child: TextWidget(text: 'Friends'.tr, size: 13, fontWeight: FontWeight.w600),
-          ),
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.d500,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.white.withOpacityCompat(0.06)),
+      ),
+      child: Row(
+        children: [
+          SharedOwnerAvatar(displayName: friend.displayName, photoUrl: friend.photoUrl, size: 42),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextWidget(text: 'Requests'.tr, size: 13, fontWeight: FontWeight.w600),
-                if (requestCount > 0) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Text(
-                      '$requestCount',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.white,
-                      ),
+                TextWidget(
+                  text: friend.displayName,
+                  color: AppColors.white,
+                  size: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                if ((friend.email ?? '').isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: TextWidget(
+                      text: friend.email!,
+                      color: AppColors.n70,
+                      size: 12,
+                      maxLines: 1,
                     ),
                   ),
-                ],
               ],
             ),
+          ),
+          IconButton(
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
           ),
         ],
       ),
@@ -217,81 +768,7 @@ class _FriendTabBar extends StatelessWidget {
   }
 }
 
-class _FriendsTabContent extends StatelessWidget {
-  const _FriendsTabContent({required this.controller, required this.onPaste, required this.onScan});
-
-  final FriendController controller;
-  final VoidCallback onPaste;
-  final VoidCallback onScan;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-          child: Column(
-            children: [
-              _SearchBar(controller: controller),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Obx(
-                  () => FilterChip(
-                    // selected: controller.favoritesOnly.value,
-                    onSelected: (_) => controller.toggleFavoritesOnly(),
-                    selectedColor: AppColors.primary.withOpacityCompat(0.2),
-                    backgroundColor: AppColors.d500,
-                    side: BorderSide(
-                      color: controller.favoritesOnly.value
-                          ? AppColors.primary
-                          : AppColors.n500.withOpacityCompat(0.3),
-                    ),
-                    label: TextWidget(
-                      text: 'Favorite Friends'.tr,
-                      color: controller.favoritesOnly.value ? AppColors.primary : AppColors.white,
-                      size: 13,
-                    ),
-                    avatar: Icon(
-                      Icons.star_rounded,
-                      size: 18,
-                      color: controller.favoritesOnly.value ? AppColors.primary : AppColors.n70,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Obx(() {
-            final hasFriends = controller.visibleFriends.isNotEmpty;
-            if (!hasFriends) {
-              return _EmptyState(onPaste: onPaste, onScan: onScan);
-            }
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-              children: [
-                ...controller.visibleFriends.indexed.expand((entry) {
-                  final index = entry.$1;
-                  final friend = entry.$2;
-                  return [
-                    _FriendCard(
-                      friend: friend,
-                      onToggleFavorite: () => controller.toggleFavorite(friend),
-                      onDelete: () => controller.confirmDeleteFriend(friend),
-                    ),
-                    if (index != controller.visibleFriends.length - 1) const SizedBox(height: 12),
-                  ];
-                }),
-              ],
-            );
-          }),
-        ),
-      ],
-    );
-  }
-}
+// ── Requests Tab Content (in bottom sheet) ───────────────────────────────────
 
 class _RequestsTabContent extends StatelessWidget {
   const _RequestsTabContent({required this.controller});
@@ -305,28 +782,16 @@ class _RequestsTabContent extends StatelessWidget {
       if (requests.isEmpty) {
         return Center(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.all(32),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.mark_email_unread_outlined,
-                  size: 56,
-                  color: AppColors.n70.withOpacityCompat(0.7),
-                ),
-                const SizedBox(height: 16),
+                const Icon(Icons.mark_email_read_outlined, size: 48, color: AppColors.n500),
+                const SizedBox(height: 12),
                 TextWidget(
-                  text: 'No friend requests'.tr,
-                  color: AppColors.white,
-                  size: 18,
-                  fontWeight: FontWeight.w600,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                TextWidget(
-                  text: 'When someone sends you a friend request, it will appear here.'.tr,
+                  text: 'No pending requests'.tr,
                   color: AppColors.n70,
-                  size: 13,
+                  size: 14,
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -334,28 +799,19 @@ class _RequestsTabContent extends StatelessWidget {
           ),
         );
       }
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        children: [
-          TextWidget(
-            text: 'Review and respond to pending friend invitations.'.tr,
-            color: AppColors.n70,
-            size: 12,
-          ),
-          const SizedBox(height: 12),
-          ...requests.indexed.expand((entry) {
-            final index = entry.$1;
-            final request = entry.$2;
-            return [
-              _FriendRequestCard(
-                request: request,
-                onAccept: () => controller.acceptFriendRequest(request),
-                onDecline: () => controller.declineFriendRequest(request),
-              ),
-              if (index != requests.length - 1) const SizedBox(height: 10),
-            ];
-          }),
-        ],
+
+      return ListView.separated(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        itemCount: requests.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, index) {
+          final req = requests[index];
+          return _FriendRequestCard(
+            request: req,
+            onAccept: () => controller.acceptFriendRequest(req),
+            onDecline: () => controller.declineFriendRequest(req),
+          );
+        },
       );
     });
   }
@@ -376,10 +832,14 @@ class _FriendRequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.bg500, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(
+        color: AppColors.d500,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.white.withOpacityCompat(0.06)),
+      ),
       child: Row(
         children: [
-          _FriendRequestAvatar(request: request),
+          SharedOwnerAvatar(displayName: request.displayName, photoUrl: request.photoUrl, size: 42),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -410,8 +870,8 @@ class _FriendRequestCard extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.white,
               side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              minimumSize: const Size(0, 34),
             ),
             child: TextWidget(text: 'Decline'.tr, color: AppColors.white, size: 12),
           ),
@@ -421,384 +881,130 @@ class _FriendRequestCard extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              minimumSize: const Size(0, 36),
+              minimumSize: const Size(0, 34),
             ),
-            child: TextWidget(text: 'Accept'.tr, color: AppColors.white, size: 12),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FriendRequestAvatar extends StatelessWidget {
-  const _FriendRequestAvatar({required this.request});
-
-  final FriendRequestModel request;
-
-  @override
-  Widget build(BuildContext context) {
-    final photoUrl = request.photoUrl ?? '';
-    if (photoUrl.isNotEmpty) {
-      return CacheImageWidget(
-        imageUrl: photoUrl,
-        width: 44,
-        height: 44,
-        fit: BoxFit.cover,
-        borderRadius: BorderRadius.circular(22),
-        errorWidget: _FriendRequestInitial(request: request),
-      );
-    }
-    return _FriendRequestInitial(request: request);
-  }
-}
-
-class _FriendRequestInitial extends StatelessWidget {
-  const _FriendRequestInitial({required this.request});
-
-  final FriendRequestModel request;
-
-  @override
-  Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: 22,
-      backgroundColor: AppColors.primary.withOpacityCompat(0.2),
-      child: TextWidget(
-        text: request.displayName.isNotEmpty ? request.displayName[0].toUpperCase() : '?',
-        color: AppColors.primary,
-        size: 16,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-}
-
-class _StatsRow extends StatelessWidget {
-  const _StatsRow({required this.totalFriends, required this.onTapAddFriend});
-
-  final int totalFriends;
-  final VoidCallback onTapAddFriend;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            icon: Icons.people_alt_rounded,
-            label: 'Total Friends'.tr,
-            value: '$totalFriends/${FriendController.maxFriends}',
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.person_add_alt_1_rounded,
-            value: 'Add Friend'.tr,
-            onTap: onTapAddFriend,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({required this.icon, this.label, required this.value, this.onTap});
-
-  final IconData icon;
-  final String? label;
-  final String value;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final card = Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: AppColors.d500, borderRadius: BorderRadius.circular(14)),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacityCompat(0.18),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextWidget(
-                  text: value,
-                  color: AppColors.white,
-                  size: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-                const SizedBox(height: 2),
-                if (label != null) TextWidget(text: label ?? "", color: AppColors.n70, size: 12),
-              ],
+            child: TextWidget(
+              text: 'Accept'.tr,
+              color: AppColors.white,
+              size: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
       ),
     );
-
-    if (onTap == null) {
-      return card;
-    }
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(borderRadius: BorderRadius.circular(14), onTap: onTap, child: card),
-    );
   }
 }
 
-class _SearchBar extends StatelessWidget {
-  const _SearchBar({required this.controller});
+// ── My Personal QR Sheet ─────────────────────────────────────────────────────
+
+class _MyPersonalQrSheet extends StatelessWidget {
+  const _MyPersonalQrSheet({required this.controller});
 
   final FriendController controller;
 
   @override
   Widget build(BuildContext context) {
-    return SimpleInputTextField(
-      controller: controller.searchController,
-      hintText: 'Search friends'.tr,
-      hintColor: AppColors.n70,
-      prefixIcon: const Icon(Icons.search_rounded, color: AppColors.n70),
-      backgroundColor: AppColors.d500,
-      textColor: AppColors.white,
-      enableColor: AppColors.n500.withOpacityCompat(0.25),
-      focusedColor: AppColors.primary,
-      radius: 14,
-    );
-  }
-}
+    final user = FirebaseService.currentUser;
+    final friendLink = user != null ? FriendConnectionService.buildLink(user) : null;
 
-// class _ActionPanel extends StatelessWidget {
-//   const _ActionPanel({required this.controller, required this.onPaste, required this.onScan});
-
-//   final FriendController controller;
-//   final VoidCallback onPaste;
-//   final VoidCallback onScan;
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Container(
-//       padding: const EdgeInsets.all(14),
-//       decoration: BoxDecoration(
-//         color: AppColors.d500,
-//         borderRadius: BorderRadius.circular(16),
-//         border: Border.all(color: AppColors.n500.withOpacityCompat(0.18)),
-//       ),
-//       child: Column(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           TextWidget(
-//             text: 'You can add friends by Gmail, personal link, or personal QR.'.tr,
-//             color: AppColors.white,
-//             size: 15,
-//             fontWeight: FontWeight.w600,
-//           ),
-//           const SizedBox(height: 6),
-//           TextWidget(
-//             text: 'Each account can keep up to @0 friends.'.trParams({
-//               '0': '${FriendController.maxFriends}',
-//             }),
-//             color: AppColors.n70,
-//             size: 13,
-//           ),
-//           const SizedBox(height: 14),
-//           Row(
-//             children: [
-//               Expanded(
-//                 child: ElevatedButton.icon(
-//                   onPressed: controller.hasReachedLimit ? null : onPaste,
-//                   icon: const Icon(Icons.link_rounded, color: AppColors.white, size: 18),
-//                   label: TextWidget(text: 'Paste Link'.tr, color: AppColors.white, size: 13),
-//                   style: ElevatedButton.styleFrom(
-//                     backgroundColor: AppColors.primary,
-//                     minimumSize: const Size(double.infinity, 46),
-//                   ),
-//                 ),
-//               ),
-//               const SizedBox(width: 10),
-//               Expanded(
-//                 child: OutlinedButton.icon(
-//                   onPressed: controller.hasReachedLimit ? null : onScan,
-//                   icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
-//                   label: TextWidget(text: 'Scan QR'.tr, color: AppColors.white, size: 13),
-//                   style: OutlinedButton.styleFrom(
-//                     minimumSize: const Size(double.infinity, 46),
-//                     foregroundColor: AppColors.white,
-//                     side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
-//                   ),
-//                 ),
-//               ),
-//             ],
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
-
-class _FriendCard extends StatelessWidget {
-  const _FriendCard({required this.friend, required this.onToggleFavorite, required this.onDelete});
-
-  final FriendModel friend;
-  final VoidCallback onToggleFavorite;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.d500,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.n500.withOpacityCompat(0.18)),
-      ),
-      child: Row(
-        children: [
-          _FriendAvatar(friend: friend),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextWidget(
-                  text: friend.displayName,
-                  color: AppColors.white,
-                  size: 16,
-                  fontWeight: FontWeight.w600,
-                  maxLines: 1,
-                ),
-                if ((friend.email ?? '').isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: TextWidget(
-                      text: friend.email!,
-                      color: AppColors.n70,
-                      size: 12,
-                      maxLines: 1,
-                    ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: TextWidget(
-                    maxLines: 1,
-                    text: 'ID: ${friend.friendUserId}',
-                    color: AppColors.n60,
-                    size: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: onToggleFavorite,
-            icon: Icon(
-              friend.isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
-              color: friend.isFavorite ? Colors.amber : AppColors.n70,
-            ),
-          ),
-          IconButton(
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFFF7A7A)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FriendAvatar extends StatelessWidget {
-  const _FriendAvatar({required this.friend});
-
-  final FriendModel friend;
-
-  @override
-  Widget build(BuildContext context) {
-    final photoUrl = friend.photoUrl ?? '';
-    if (photoUrl.isNotEmpty) {
-      return CacheImageWidget(
-        imageUrl: photoUrl,
-        width: 44,
-        height: 44,
-        fit: BoxFit.cover,
-        borderRadius: BorderRadius.circular(22),
-        errorWidget: _FriendInitial(friend: friend),
-      );
-    }
-    return _FriendInitial(friend: friend);
-  }
-}
-
-class _FriendInitial extends StatelessWidget {
-  const _FriendInitial({required this.friend});
-
-  final FriendModel friend;
-
-  @override
-  Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: 22,
-      backgroundColor: AppColors.primary.withOpacityCompat(0.2),
-      child: TextWidget(
-        text: friend.displayName.isNotEmpty ? friend.displayName[0].toUpperCase() : '?',
-        color: AppColors.primary,
-        size: 16,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onPaste, required this.onScan});
-
-  final VoidCallback onPaste;
-  final VoidCallback onScan;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.people_outline_rounded,
-              size: 56,
-              color: AppColors.n70.withOpacityCompat(0.7),
+            Container(
+              width: 46,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.n500,
+                borderRadius: BorderRadius.circular(99),
+              ),
             ),
             const SizedBox(height: 16),
             TextWidget(
-              text: 'No friends yet'.tr,
+              text: 'My QR Code'.tr,
               color: AppColors.white,
               size: 18,
-              fontWeight: FontWeight.w600,
-              textAlign: TextAlign.center,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             TextWidget(
-              text: 'Paste a personal link or scan a personal QR to send a request.'.tr,
+              text: 'Let your friends scan this QR to connect.'.tr,
               color: AppColors.n70,
               size: 13,
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 20),
+            if (friendLink != null) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacityCompat(0.2),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: QrImageView(
+                  data: friendLink,
+                  version: QrVersions.auto,
+                  size: 200,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: friendLink));
+                    AppToast.showToast(
+                      'personal_link_copied'.tr,
+                      Icons.check_circle_rounded,
+                      color: Colors.green,
+                    );
+                  },
+                  icon: const Icon(Icons.copy_rounded, size: 18),
+                  label: TextWidget(
+                    text: 'Copy Personal Link'.tr,
+                    color: Colors.white,
+                    size: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ] else ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: TextWidget(
+                  text: 'Please sign in to view your QR code.'.tr,
+                  color: AppColors.n70,
+                  size: 14,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 }
+
+// ── Add Friend Methods BottomSheet ───────────────────────────────────────────
 
 class _AddFriendMethodsSheet extends StatelessWidget {
   const _AddFriendMethodsSheet({
@@ -815,8 +1021,9 @@ class _AddFriendMethodsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -910,8 +1117,8 @@ class _MethodTile extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacityCompat(0.16),
-                  borderRadius: BorderRadius.circular(10),
+                  color: AppColors.primary.withOpacityCompat(0.18),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: AppColors.primary, size: 20),
               ),
@@ -931,7 +1138,7 @@ class _MethodTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.n70),
+              const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.n500, size: 14),
             ],
           ),
         ),
@@ -939,6 +1146,8 @@ class _MethodTile extends StatelessWidget {
     );
   }
 }
+
+// ── Add via Gmail Sheet ──────────────────────────────────────────────────────
 
 class _AddFriendByGmailSheet extends StatefulWidget {
   const _AddFriendByGmailSheet({required this.controller});
@@ -950,119 +1159,112 @@ class _AddFriendByGmailSheet extends StatefulWidget {
 }
 
 class _AddFriendByGmailSheetState extends State<_AddFriendByGmailSheet> {
-  late final TextEditingController _gmailController;
-  bool _isSubmitting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _gmailController = TextEditingController();
-  }
+  final _emailCtrl = TextEditingController();
+  bool _submitting = false;
 
   @override
   void dispose() {
-    _gmailController.dispose();
+    _emailCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty) {
+      AppToast.showToast('Please enter an email'.tr, Icons.warning_rounded, color: Colors.orange);
+      return;
+    }
+    setState(() => _submitting = true);
+    final success = await widget.controller.addFriendFromEmail(email);
+    setState(() => _submitting = false);
+    if (success && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Center(
-            child: Container(
-              width: 46,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.n500,
-                borderRadius: BorderRadius.circular(99),
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 46,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.n500,
+                  borderRadius: BorderRadius.circular(99),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 18),
-          TextWidget(
-            text: 'Add Friend by Gmail'.tr,
-            color: AppColors.white,
-            size: 20,
-            fontWeight: FontWeight.w700,
-          ),
-          const SizedBox(height: 6),
-          TextWidget(
-            text: 'Enter your friend\'s Gmail to find and send them a request.'.tr,
-            color: AppColors.n70,
-            size: 13,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _gmailController,
-            keyboardType: TextInputType.emailAddress,
-            autofillHints: const [AutofillHints.email],
-            style: const TextStyle(color: AppColors.white),
-            decoration: InputDecoration(
-              hintText: 'example@gmail.com',
-              hintStyle: const TextStyle(color: AppColors.n70),
-              filled: true,
-              fillColor: AppColors.bg700,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: AppColors.n500.withOpacityCompat(0.2)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: AppColors.n500.withOpacityCompat(0.2)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.primary),
+            const SizedBox(height: 16),
+            TextWidget(
+              text: 'Add via Gmail'.tr,
+              color: AppColors.white,
+              size: 18,
+              fontWeight: FontWeight.w700,
+            ),
+            const SizedBox(height: 6),
+            TextWidget(
+              text: 'Find a friend account with their Gmail.'.tr,
+              color: AppColors.n70,
+              size: 13,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              style: const TextStyle(color: AppColors.white, fontSize: 14),
+              cursorColor: AppColors.primary,
+              decoration: InputDecoration(
+                hintText: 'name@gmail.com',
+                hintStyle: const TextStyle(color: AppColors.n500),
+                filled: true,
+                fillColor: AppColors.bg700,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _isSubmitting
-                  ? null
-                  : () async {
-                      final navigator = Navigator.of(context);
-                      setState(() => _isSubmitting = true);
-                      final input = _gmailController.text.trim();
-                      final email = input.contains('@') ? input : '$input@gmail.com';
-                      final success = await widget.controller.addFriendFromEmail(email);
-                      if (!mounted) return;
-                      setState(() => _isSubmitting = false);
-                      if (success) {
-                        navigator.pop();
-                      }
-                    },
-              icon: _isSubmitting
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
-                    )
-                  : const Icon(Icons.send_rounded, color: AppColors.white),
-              label: TextWidget(text: 'Send Request'.tr, color: AppColors.white),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 46),
-                backgroundColor: AppColors.primary,
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                onPressed: _submitting ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : TextWidget(
+                        text: 'Send Request'.tr,
+                        color: Colors.white,
+                        size: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
+
+// ── Add via Link Sheet ───────────────────────────────────────────────────────
 
 class _AddFriendByLinkSheet extends StatefulWidget {
   const _AddFriendByLinkSheet({required this.controller});
@@ -1074,159 +1276,127 @@ class _AddFriendByLinkSheet extends StatefulWidget {
 }
 
 class _AddFriendByLinkSheetState extends State<_AddFriendByLinkSheet> {
-  late final TextEditingController _linkController;
-  bool _isSubmitting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _linkController = TextEditingController();
-    _loadClipboard();
-  }
-
-  Future<void> _loadClipboard() async {
-    final clipboard = await widget.controller.readClipboardLink();
-    if (!mounted || clipboard == null || clipboard.isEmpty) return;
-    setState(() {
-      _linkController.text = clipboard;
-    });
-  }
+  final _linkCtrl = TextEditingController();
+  bool _submitting = false;
 
   @override
   void dispose() {
-    _linkController.dispose();
+    _linkCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim() ?? '';
+    if (text.isNotEmpty) {
+      _linkCtrl.text = text;
+    }
+  }
+
+  Future<void> _submit() async {
+    final raw = _linkCtrl.text.trim();
+    if (raw.isEmpty) {
+      AppToast.showToast(
+        'Please enter a friend link'.tr,
+        Icons.warning_rounded,
+        color: Colors.orange,
+      );
+      return;
+    }
+    setState(() => _submitting = true);
+    final success = await widget.controller.addFriendFromLink(raw);
+    setState(() => _submitting = false);
+    if (success && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Center(
-            child: Container(
-              width: 46,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.n500,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          TextWidget(
-            text: 'Paste Friend Link'.tr,
-            color: AppColors.white,
-            size: 20,
-            fontWeight: FontWeight.w700,
-          ),
-          const SizedBox(height: 6),
-          TextWidget(
-            text: 'Paste the personal link your friend sent you to send a request.'.tr,
-            color: AppColors.n70,
-            size: 13,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _linkController,
-            minLines: 3,
-            maxLines: 5,
-            style: const TextStyle(color: AppColors.white),
-            decoration: InputDecoration(
-              hintText: 'keeplink://open/friend?...',
-              hintStyle: const TextStyle(color: AppColors.n70),
-              filled: true,
-              fillColor: AppColors.bg700,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: AppColors.n500.withOpacityCompat(0.2)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: AppColors.n500.withOpacityCompat(0.2)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.primary),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    final clipboard = await widget.controller.readClipboardLink();
-                    if (!mounted) return;
-                    if (clipboard == null) {
-                      messenger.showSnackBar(SnackBar(content: Text('friend_clipboard_empty'.tr)));
-                      return;
-                    }
-                    setState(() {
-                      _linkController.text = clipboard;
-                    });
-                  },
-                  icon: const Icon(Icons.content_paste_rounded),
-                  label: TextWidget(
-                    text: 'Paste from Clipboard'.tr,
-                    color: AppColors.white,
-                    textStyle: AppTextStyle.regular12,
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.white,
-                    side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
-                  ),
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 46,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.n500,
+                  borderRadius: BorderRadius.circular(99),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _isSubmitting
-                      ? null
-                      : () async {
-                          final navigator = Navigator.of(context);
-                          setState(() => _isSubmitting = true);
-                          final success = await widget.controller.addFriendFromLink(
-                            _linkController.text,
-                          );
-                          if (!mounted) return;
-                          setState(() => _isSubmitting = false);
-                          if (success) {
-                            navigator.pop();
-                          }
-                        },
-                  icon: _isSubmitting
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
-                        )
-                      : const Icon(Icons.send_rounded, color: AppColors.white),
-                  label: TextWidget(
-                    text: 'Send Request'.tr,
-                    color: AppColors.white,
-                    textStyle: AppTextStyle.regular12,
-                  ),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            ),
+            const SizedBox(height: 16),
+            TextWidget(
+              text: 'Add via Link'.tr,
+              color: AppColors.white,
+              size: 18,
+              fontWeight: FontWeight.w700,
+            ),
+            const SizedBox(height: 6),
+            TextWidget(
+              text: 'Paste your friend\'s personal link.'.tr,
+              color: AppColors.n70,
+              size: 13,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _linkCtrl,
+              style: const TextStyle(color: AppColors.white, fontSize: 14),
+              cursorColor: AppColors.primary,
+              decoration: InputDecoration(
+                hintText: 'keeplink://open/friend?data=...',
+                hintStyle: const TextStyle(color: AppColors.n500),
+                filled: true,
+                fillColor: AppColors.bg700,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.content_paste_rounded, color: AppColors.primary),
+                  onPressed: _pasteFromClipboard,
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                onPressed: _submitting ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : TextWidget(
+                        text: 'Send Request'.tr,
+                        color: Colors.white,
+                        size: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+
+// ── QR Scanner Sheet ─────────────────────────────────────────────────────────
 
 class _QrScannerSheet extends StatefulWidget {
   const _QrScannerSheet({required this.controller});
@@ -1238,186 +1408,95 @@ class _QrScannerSheet extends StatefulWidget {
 }
 
 class _QrScannerSheetState extends State<_QrScannerSheet> {
-  final MobileScannerController _scannerController = MobileScannerController();
-  final ImagePicker _imagePicker = ImagePicker();
-  bool _isHandling = false;
-  bool _isPickingImage = false;
+  final MobileScannerController _scannerCtrl = MobileScannerController();
+  final ImagePicker _picker = ImagePicker();
+  bool _handled = false;
 
   @override
   void dispose() {
-    _scannerController.dispose();
+    _scannerCtrl.dispose();
     super.dispose();
   }
 
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  Future<void> _handleBarcode(BarcodeCapture capture) async {
+    if (_handled) return;
+    for (final barcode in capture.barcodes) {
+      final raw = barcode.rawValue?.trim() ?? '';
+      if (raw.isNotEmpty) {
+        _handled = true;
+        Navigator.of(context).pop();
+        await widget.controller.addFriendFromLink(raw);
+        break;
+      }
+    }
   }
 
-  Future<void> _pickImageAndScan() async {
-    if (_isHandling || _isPickingImage) return;
-
-    final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _isPickingImage = true);
-    var shouldResumeScanner = true;
-
-    try {
-      await _scannerController.stop();
-
-      final picked = await _imagePicker.pickImage(source: ImageSource.gallery);
-      if (picked == null) {
-        return;
-      }
-
-      final capture = await _scannerController.analyzeImage(picked.path);
-      final value = capture?.barcodes.firstOrNull?.rawValue?.trim();
-
-      if (value == null || value.isEmpty) {
-        messenger.showSnackBar(SnackBar(content: Text('friend_no_qr_found_in_image'.tr)));
-        return;
-      }
-
-      _isHandling = true;
-      final added = await widget.controller.addFriendFromLink(value);
-      if (!mounted) return;
-      if (added) {
-        shouldResumeScanner = false;
-        navigator.pop();
-        return;
-      }
-
-      _isHandling = false;
-    } catch (_) {
-      messenger.showSnackBar(SnackBar(content: Text('friend_scan_image_failed'.tr)));
-    } finally {
-      if (mounted) {
-        setState(() => _isPickingImage = false);
-      }
-      if (mounted && shouldResumeScanner) {
-        await _scannerController.start();
-      }
+  Future<void> _pickFromGallery() async {
+    final image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+    final barcodeCapture = await _scannerCtrl.analyzeImage(image.path);
+    if (barcodeCapture != null && mounted) {
+      await _handleBarcode(barcodeCapture);
+    } else {
+      AppToast.showToast('No QR code found'.tr, Icons.error_outline_rounded, color: Colors.red);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.72,
-        child: Column(
-          children: [
-            const SizedBox(height: 14),
-            Container(
-              width: 46,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.n500,
-                borderRadius: BorderRadius.circular(99),
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.75,
+      child: Column(
+        children: [
+          const SizedBox(height: 14),
+          Container(
+            width: 46,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.n500,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextWidget(
+            text: 'Add via QR'.tr,
+            color: AppColors.white,
+            size: 18,
+            fontWeight: FontWeight.w700,
+          ),
+          const SizedBox(height: 6),
+          TextWidget(
+            text: 'Scan your friend\'s personal QR code.'.tr,
+            color: AppColors.n70,
+            size: 13,
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: MobileScanner(controller: _scannerCtrl, onDetect: _handleBarcode),
               ),
             ),
-            const SizedBox(height: 14),
-            TextWidget(
-              text: 'Scan Personal QR'.tr,
-              color: AppColors.white,
-              size: 18,
-              fontWeight: FontWeight.w700,
-            ),
-            const SizedBox(height: 8),
-            TextWidget(
-              text: 'Point the camera at your friend\'s personal QR code.'.tr,
-              color: AppColors.n70,
-              size: 13,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: MobileScanner(
-                    controller: _scannerController,
-                    onDetect: (capture) async {
-                      final navigator = Navigator.of(context);
-                      if (_isHandling) return;
-                      final value = capture.barcodes.firstOrNull?.rawValue?.trim();
-                      if (value == null || value.isEmpty) return;
-
-                      _isHandling = true;
-                      final added = await widget.controller.addFriendFromLink(value);
-                      if (!mounted) return;
-                      if (added) {
-                        navigator.pop();
-                        return;
-                      }
-                      _isHandling = false;
-                    },
-                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: OutlinedButton.icon(
+                onPressed: _pickFromGallery,
+                icon: const Icon(Icons.photo_library_rounded, color: AppColors.white, size: 18),
+                label: TextWidget(text: 'Pick from Gallery'.tr, color: AppColors.white, size: 14),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: AppColors.white.withOpacityCompat(0.2)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _isPickingImage
-                          ? null
-                          : () async {
-                              final navigator = Navigator.of(context);
-                              final data = await Clipboard.getData('text/plain');
-                              final text = data?.text?.trim() ?? '';
-                              if (text.isEmpty) {
-                                _showMessage('friend_clipboard_empty'.tr);
-                                return;
-                              }
-                              final added = await widget.controller.addFriendFromLink(text);
-                              if (!mounted) return;
-                              if (added) {
-                                navigator.pop();
-                              }
-                            },
-                      icon: const Icon(Icons.content_paste_rounded, color: AppColors.white),
-                      label: TextWidget(text: 'Paste from Clipboard'.tr, color: AppColors.white),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.white,
-                        side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _isPickingImage ? null : _pickImageAndScan,
-                      icon: _isPickingImage
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.white,
-                              ),
-                            )
-                          : const Icon(Icons.photo_library_rounded, color: AppColors.white),
-                      label: TextWidget(
-                        text: _isPickingImage ? 'Scanning image...'.tr : 'Scan from Gallery'.tr,
-                        color: AppColors.white,
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.white,
-                        side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

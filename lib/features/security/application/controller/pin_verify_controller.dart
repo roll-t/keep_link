@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/cache/app_get_storage.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
 
 class PinVerifyController extends GetxController {
@@ -23,9 +23,7 @@ class PinVerifyController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    final savedPin = AppGetStorage.getPin();
-
-    if (savedPin != null && savedPin.isNotEmpty) {
+    if (AppGetStorage.hasPin()) {
       if (Get.arguments == FromType.changePassword) {
         mode.value = FromType.changePassword;
       } else {
@@ -93,8 +91,7 @@ class PinVerifyController extends GetxController {
   // XÁC THỰC PIN CŨ
   // ========================================================
   void _verifyOldPin(String pin) {
-    final savedPin = AppGetStorage.getPin();
-    if (pin != savedPin) {
+    if (!AppGetStorage.verifyPin(pin)) {
       _toast("PIN không đúng");
       _resetAllInput();
       isPINCorrect = false;

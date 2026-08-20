@@ -1,14 +1,14 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/cache/app_cache.dart';
-import 'package:keep_link/core/cache/app_get_storage.dart';
-import 'package:keep_link/core/config/app_enum.dart';
-import 'package:keep_link/core/repository/category_repository.dart';
-import 'package:keep_link/core/repository/link_repository.dart';
-import 'package:keep_link/core/utils/binding/dependency_utils.dart';
+import 'package:keep_link/core/data/cache/app_cache.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
+import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/data/repositories/category_repository.dart';
+import 'package:keep_link/core/data/repositories/link_repository.dart';
+import 'package:keep_link/core/di/dependency_utils.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
 import 'package:keep_link/features/category/presentation/controller/custom_popup_controller.dart';
@@ -68,7 +68,7 @@ class LinkCollectionController extends GetxController {
         }
         listLink.removeWhere((item) => idsToDelete.contains(item.id));
         exitSelectionMode();
-        Fluttertoast.showToast(msg: 'Đã xóa ${idsToDelete.length} link');
+        AppToast.showToast('Đã xóa ${idsToDelete.length} link', Icons.delete_outline_rounded);
       },
       onCancel: () => Get.back(),
     );
@@ -108,7 +108,7 @@ class LinkCollectionController extends GetxController {
     await fetchAllLinks(isInitial: true);
 
     if (showToast) {
-      Fluttertoast.showToast(msg: "Refreshed".tr);
+      AppToast.showToast("Refreshed".tr, Icons.check_circle_rounded, color: Colors.green);
     }
   }
 
@@ -154,7 +154,7 @@ class LinkCollectionController extends GetxController {
         if (page.length < _pageSize) _canLoadMore = false;
       }
 
-      log('Page ${_currentPage - 1} loaded (cache). Total displayed: ${listLink.length}');
+      log('Page $_currentPage loaded (cache). Total displayed: ${listLink.length}');
     } catch (e) {
       log('Error fetching links: $e');
     } finally {
@@ -178,7 +178,7 @@ class LinkCollectionController extends GetxController {
           listLink.removeWhere((item) => item.id == id);
           Get.back();
           Get.back();
-          Fluttertoast.showToast(msg: "Deleted".tr);
+          AppToast.showToast("Deleted".tr, Icons.delete_outline_rounded);
         },
         onCancel: () => Get.back(),
       );

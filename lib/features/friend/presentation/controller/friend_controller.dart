@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/cache/app_cache.dart';
-import 'package:keep_link/core/cache/app_get_storage.dart';
-import 'package:keep_link/core/config/app_enum.dart';
-import 'package:keep_link/core/repository/friend_repository.dart';
-import 'package:keep_link/core/service/firebase_service.dart';
-import 'package:keep_link/core/service/friend_connection_service.dart';
-import 'package:keep_link/core/service/local_notification_service.dart';
+import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/data/cache/app_cache.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
+import 'package:keep_link/core/data/repositories/friend_repository.dart';
+import 'package:keep_link/core/services/backend/firebase_service.dart';
+import 'package:keep_link/core/services/backend/friend_connection_service.dart';
+import 'package:keep_link/core/services/platform/local_notification_service.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/friend/application/model/friend_request_model.dart';
@@ -24,7 +24,9 @@ class FriendController extends GetxController {
   static final Rxn<User> currentUser = Rxn<User>();
 
   final searchController = TextEditingController();
+  final RxString searchQuery = ''.obs;
   final RxBool isLoading = false.obs;
+  final RxBool isSearching = false.obs;
   final RxBool favoritesOnly = false.obs;
   final RxList<FriendModel> visibleFriends = <FriendModel>[].obs;
   final RxList<FriendRequestModel> incomingRequests = <FriendRequestModel>[].obs;
@@ -48,14 +50,26 @@ class FriendController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    currentUser.value = FirebaseService.currentUser;
-    searchController.addListener(_applyFilters);
+    final initialUser = FirebaseService.currentUser;
+    currentUser.value = initialUser;
+    searchController.addListener(() {
+      searchQuery.value = searchController.text;
+    });
+    debounce(searchQuery, (_) => _applyFilters(), time: const Duration(milliseconds: 200));
     ever(AppCache.friends, (_) => _applyFilters());
     fetchFriends();
     _startRequestWatcher();
     _startSharedCategoryWatcher();
     _startFriendsWatcher();
+    // `authStateChanges` always replays the current auth state as its first
+    // event. Without this guard that first event repeats the exact fetch +
+    // watcher setup already done above, doubling every Firebase read on init.
+    var isFirstAuthEvent = true;
     _authSub = FirebaseService.authStateChanges.listen((user) {
+      if (isFirstAuthEvent) {
+        isFirstAuthEvent = false;
+        if (user?.uid == initialUser?.uid) return;
+      }
       currentUser.value = user;
       if (user != null) {
         fetchFriends();
@@ -71,7 +85,9 @@ class FriendController extends GetxController {
         _sharedCategoryWatcher = null;
         _knownSharedKeys = {};
         pendingSharedCount.value = 0;
-        for (final sub in _linkCountWatchers.values) sub.cancel();
+        for (final sub in _linkCountWatchers.values) {
+          sub.cancel();
+        }
         _linkCountWatchers.clear();
         _knownLinkCounts.clear();
         _friendsWatcher?.cancel();
@@ -86,9 +102,10 @@ class FriendController extends GetxController {
     _requestWatcher?.cancel();
     _sharedCategoryWatcher?.cancel();
     _friendsWatcher?.cancel();
-    for (final sub in _linkCountWatchers.values) sub.cancel();
+    for (final sub in _linkCountWatchers.values) {
+      sub.cancel();
+    }
     _linkCountWatchers.clear();
-    searchController.removeListener(_applyFilters);
     searchController.dispose();
     super.onClose();
   }
@@ -126,20 +143,20 @@ class FriendController extends GetxController {
     if (FirebaseService.currentUser == null) return;
     _friendsWatcher?.cancel();
     _isFriendsInitialLoad = true;
-    int _lastCount = AppCache.friends.length;
+    int lastCount = AppCache.friends.length;
     _friendsWatcher = FirebaseService.watchFriendsCount().listen(
       (remoteCount) async {
         if (_isFriendsInitialLoad) {
-          _lastCount = remoteCount;
+          lastCount = remoteCount;
           _isFriendsInitialLoad = false;
           return;
         }
         // Khi số lượng tăng (bị ai đó chấp nhận lời mời) → sync lại
-        if (remoteCount > _lastCount) {
-          _lastCount = remoteCount;
+        if (remoteCount > lastCount) {
+          lastCount = remoteCount;
           await _syncRemoteFriendState();
         } else {
-          _lastCount = remoteCount;
+          lastCount = remoteCount;
         }
       },
       onError: (Object _) {
@@ -210,7 +227,7 @@ class FriendController extends GetxController {
     }
   }
 
-  /// Group keys ("ownerUid/catId") by ownerUid → Set<catId>
+  /// Group keys ("ownerUid/catId") by ownerUid -> Set of catIds
   Map<String, Set<String>> _ownerCatMap(Set<String> keys) {
     final map = <String, Set<String>>{};
     for (final key in keys) {
@@ -301,6 +318,9 @@ class FriendController extends GetxController {
       await FriendRepository.ensureLoaded();
       await _syncRemoteFriendState();
       _applyFilters();
+      if (Get.isRegistered<SharedCategoryController>()) {
+        Get.find<SharedCategoryController>().loadSharedCategories();
+      }
     } finally {
       isLoading.value = false;
     }
@@ -308,6 +328,15 @@ class FriendController extends GetxController {
 
   void toggleFavoritesOnly() {
     favoritesOnly.value = !favoritesOnly.value;
+    _applyFilters();
+  }
+
+  void openSearch() => isSearching.value = true;
+
+  void closeSearch() {
+    isSearching.value = false;
+    searchController.clear();
+    searchQuery.value = '';
     _applyFilters();
   }
 

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/extension/colors.dart';
-import 'package:keep_link/core/ui/appbar/custom_app_bar.dart';
-import 'package:keep_link/core/ui/image/cache_image.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/presentation/widgets/appbar/custom_app_bar.dart';
+import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
 import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
@@ -51,10 +51,7 @@ class SharedCategoriesPage extends GetView<SharedCategoryController> {
                 return _SharedCategoryCard(
                   category: cat,
                   isUnviewed: isUnviewed,
-                  onTap: () {
-                    controller.markCategoryViewed(cat);
-                    _openLinksSheet(context, cat);
-                  },
+                  onTap: () => openSharedCategoryLinksSheet(context, controller, cat),
                 );
               });
             },
@@ -62,19 +59,6 @@ class SharedCategoriesPage extends GetView<SharedCategoryController> {
         }),
       ),
     );
-  }
-
-  void _openLinksSheet(BuildContext context, SharedCategoryModel category) {
-    controller.openSharedCategory(category);
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.d500,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => _SharedLinksSheet(controller: controller, category: category),
-    ).whenComplete(controller.closeSharedCategory);
   }
 }
 
@@ -142,7 +126,7 @@ class _SharedCategoryCard extends StatelessWidget {
             child: Row(
               children: [
                 // Owner avatar
-                _OwnerAvatar(
+                SharedOwnerAvatar(
                   displayName: category.ownerDisplayName,
                   photoUrl: category.ownerPhotoUrl,
                 ),
@@ -233,11 +217,31 @@ class _SharedCategoryCard extends StatelessWidget {
   }
 }
 
-class _OwnerAvatar extends StatelessWidget {
-  const _OwnerAvatar({required this.displayName, this.photoUrl});
+/// Opens the bottom sheet listing the links inside [category].
+/// Shared between [SharedCategoriesPage] and the "shared with you" preview
+/// section on the Friends page so both use identical behaviour.
+void openSharedCategoryLinksSheet(
+  BuildContext context,
+  SharedCategoryController controller,
+  SharedCategoryModel category,
+) {
+  controller.markCategoryViewed(category);
+  controller.openSharedCategory(category);
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppColors.d500,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (_) => _SharedLinksSheet(controller: controller, category: category),
+  ).whenComplete(controller.closeSharedCategory);
+}
+
+class SharedOwnerAvatar extends StatelessWidget {
+  const SharedOwnerAvatar({super.key, required this.displayName, this.photoUrl, this.size = 44});
 
   final String displayName;
   final String? photoUrl;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -245,14 +249,14 @@ class _OwnerAvatar extends StatelessWidget {
     if (url.isNotEmpty) {
       return CacheImageWidget(
         imageUrl: url,
-        width: 44,
-        height: 44,
-        borderRadius: BorderRadius.circular(22),
+        width: size,
+        height: size,
+        borderRadius: BorderRadius.circular(size / 2),
       );
     }
     return Container(
-      width: 44,
-      height: 44,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: AppColors.primary.withOpacityCompat(0.2),
         shape: BoxShape.circle,
@@ -261,7 +265,7 @@ class _OwnerAvatar extends StatelessWidget {
       child: TextWidget(
         text: displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
         color: AppColors.primary,
-        size: 18,
+        size: size * 0.4,
         fontWeight: FontWeight.w700,
       ),
     );
@@ -300,7 +304,7 @@ class _SharedLinksSheet extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             child: Row(
               children: [
-                _OwnerAvatar(
+                SharedOwnerAvatar(
                   displayName: category.ownerDisplayName,
                   photoUrl: category.ownerPhotoUrl,
                 ),

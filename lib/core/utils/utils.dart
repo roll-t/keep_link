@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/cache/app_get_storage.dart';
-import 'package:keep_link/core/config/app_icons.dart';
-import 'package:keep_link/core/service/biometric_service.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
+import 'package:keep_link/core/config/assets/app_icons.dart';
+import 'package:keep_link/core/services/platform/biometric_service.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -17,19 +17,28 @@ class Utils {
   }
 
   static void ignoreException() {
+    final originalOnError = FlutterError.onError;
     FlutterError.onError = (FlutterErrorDetails details) {
       final exception = details.exception;
       if (exception is HttpException && exception.message.contains('403')) {
         return;
       }
-      FlutterError.presentError(details);
+      if (originalOnError != null) {
+        originalOnError(details);
+      } else {
+        FlutterError.presentError(details);
+      }
     };
+  }
+
+  static Future<void> launchUrlString(String url, {BuildContext? context}) async {
+    await lanchUrl(url, context: context);
   }
 
   static Future<void> lanchUrl(String url, {BuildContext? context}) async {
     final Uri uri = Uri.tryParse(url) ?? Uri();
     if (uri.toString().isEmpty) {
-      if (context != null) {
+      if (context != null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Invalid URL".tr)));
       }
       return;
@@ -38,14 +47,14 @@ class Utils {
     try {
       if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
         // fallback nếu không mở được
-        if (context != null) {
+        if (context != null && context.mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text("Unable to open URL".tr)));
         }
       }
     } catch (e) {
-      if (context != null) {
+      if (context != null && context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text("${'Error opening URL'.tr}: $e")));

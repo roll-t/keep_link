@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/config/app_icons.dart';
-import 'package:keep_link/core/config/app_text_styles.dart';
-import 'package:keep_link/core/extension/colors.dart';
-import 'package:keep_link/core/ui/image/cache_image.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/config/assets/app_icons.dart';
+import 'package:keep_link/core/config/theme/app_text_styles.dart';
+import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/page/link_detail.dart';
@@ -132,12 +132,13 @@ class LinkItem extends StatelessWidget {
                         ] else if (favicon.isNotEmpty) ...[
                           ClipRRect(
                             borderRadius: BorderRadius.circular(2),
-                            child: Image.network(
-                              favicon,
+                            child: CacheImageWidget(
+                              imageUrl: favicon,
                               width: 12,
                               height: 12,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(
+                              borderRadius: BorderRadius.circular(2),
+                              errorWidget: const Icon(
                                 Icons.language_rounded,
                                 size: 12,
                                 color: AppColors.n80,
@@ -251,14 +252,13 @@ class LinkListItem extends StatelessWidget {
             // Thumbnail bên trái
             ClipRRect(
               borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
-              child: imageUrl.isNotEmpty
-                  ? CacheImageWidget(imageUrl: imageUrl, width: 110, height: 110, fit: BoxFit.cover)
-                  : Container(
-                      width: 110,
-                      height: 110,
-                      color: AppColors.surface,
-                      child: const Icon(Icons.language_rounded, color: AppColors.d100, size: 28),
-                    ),
+              child: CacheImageWidget(
+                imageUrl: imageUrl,
+                width: 110,
+                height: 110,
+                fit: BoxFit.cover,
+                emptyIcon: Icons.photo_outlined,
+              ),
             ),
             // Nội dung bên phải
             Expanded(

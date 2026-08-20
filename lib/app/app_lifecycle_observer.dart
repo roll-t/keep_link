@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:keep_link/core/service/deep_link_service.dart';
-import 'package:keep_link/core/service/in_app_update_service.dart';
-import 'package:keep_link/core/service/session_sync_service.dart';
+import 'package:keep_link/core/services/platform/deep_link_service.dart';
+import 'package:keep_link/core/services/platform/in_app_update_service.dart';
+import 'package:keep_link/core/services/backend/session_sync_service.dart';
 
 class AppLifecycleHandler extends WidgetsBindingObserver {
   @override

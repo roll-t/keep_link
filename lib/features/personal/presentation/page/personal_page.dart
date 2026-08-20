@@ -5,16 +5,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/cache/app_cache.dart';
-import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/config/app_enum.dart';
-import 'package:keep_link/core/config/app_images.dart';
-import 'package:keep_link/core/config/app_text_styles.dart';
-import 'package:keep_link/core/extension/colors.dart';
-import 'package:keep_link/core/lang/translation_service.dart';
-import 'package:keep_link/core/ui/appbar/custom_app_bar.dart';
-import 'package:keep_link/core/ui/image/cache_image.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/core/data/cache/app_cache.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/config/assets/app_images.dart';
+import 'package:keep_link/core/config/theme/app_text_styles.dart';
+import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/localization/translation_service.dart';
+import 'package:keep_link/core/presentation/widgets/appbar/custom_app_bar.dart';
+import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/personal/presentation/controller/personal_controller.dart';
 import 'package:keep_link/features/personal/presentation/page/privacy_policy_page.dart';
 import 'package:keep_link/features/personal/presentation/page/terms_page.dart';
@@ -296,14 +296,9 @@ class PersonalPage extends GetView<PersonalController> {
                       onTap: controller.rateApp,
                     ),
                     _SupportTile(
-                      icon: Icons.feedback_rounded,
-                      label: 'Send Feedback'.tr,
-                      onTap: controller.sendFeedback,
-                    ),
-                    _SupportTile(
-                      icon: Icons.bug_report_rounded,
-                      label: 'Report a Bug'.tr,
-                      onTap: controller.reportBug,
+                      icon: Icons.chat_bubble_outline_rounded,
+                      label: 'Feedback & Bug Report'.tr,
+                      onTap: controller.openFeedbackAndBugReport,
                     ),
                   ],
                 ),

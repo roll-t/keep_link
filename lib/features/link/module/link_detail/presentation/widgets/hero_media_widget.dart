@@ -3,12 +3,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/config/app_text_styles.dart';
-import 'package:keep_link/core/extension/colors.dart';
-import 'package:keep_link/core/ui/image/cache_image.dart';
-import 'package:keep_link/core/ui/image/full_screen_image_page.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/config/theme/app_text_styles.dart';
+import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
+import 'package:keep_link/core/presentation/widgets/image/full_screen_image_page.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/link/application/model/link_type.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/controller/link_detail_controller.dart';
@@ -229,6 +229,8 @@ class _InlineWebView extends GetView<LinkDetailController> {
               onLoadStop: (webCtrl, url) {
                 controller.onPageFinished(url?.toString());
               },
+              onConsoleMessage: (webCtrl, consoleMessage) {},
+              onRenderProcessGone: (webCtrl, detail) async => true,
               shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
                 return controller.shouldOverrideUrlLoading(navigationAction);
               },
@@ -245,38 +247,42 @@ class _ExpandedWebView extends GetView<LinkDetailController> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.81,
-      width: double.infinity,
-      child: Column(
-        children: [
-          const _WebViewNavigationBar(),
-          const SizedBox(height: 8),
-          Expanded(
-            child: InAppWebView(
-              initialUrlRequest: URLRequest(url: WebUri(controller.url)),
-              initialSettings: controller.webViewSettings,
-              gestureRecognizers: const {
-                Factory<TapGestureRecognizer>(TapGestureRecognizer.new),
-                Factory<VerticalDragGestureRecognizer>(VerticalDragGestureRecognizer.new),
-                Factory<HorizontalDragGestureRecognizer>(HorizontalDragGestureRecognizer.new),
-              },
-              onWebViewCreated: (webCtrl) {
-                controller.webViewController = webCtrl;
-              },
-              onLoadStart: (webCtrl, url) {
-                controller.onPageStarted(url?.toString());
-              },
-              onLoadStop: (webCtrl, url) {
-                controller.onPageFinished(url?.toString());
-              },
-              shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
-                return controller.shouldOverrideUrlLoading(navigationAction);
-              },
-            ),
+    // No fixed height here — this is placed inside an `Expanded` by
+    // LinkDetailPage when expanded, so it always fills exactly the space
+    // actually available in the bottom sheet. A hardcoded fraction of
+    // MediaQuery.size.height used to be used instead, which ignored the
+    // sheet's own maxHeight cap, the app bar and the surrounding padding,
+    // causing a bottom overflow.
+    return Column(
+      children: [
+        const _WebViewNavigationBar(),
+        const SizedBox(height: 8),
+        Expanded(
+          child: InAppWebView(
+            initialUrlRequest: URLRequest(url: WebUri(controller.url)),
+            initialSettings: controller.webViewSettings,
+            gestureRecognizers: const {
+              Factory<TapGestureRecognizer>(TapGestureRecognizer.new),
+              Factory<VerticalDragGestureRecognizer>(VerticalDragGestureRecognizer.new),
+              Factory<HorizontalDragGestureRecognizer>(HorizontalDragGestureRecognizer.new),
+            },
+            onWebViewCreated: (webCtrl) {
+              controller.webViewController = webCtrl;
+            },
+            onLoadStart: (webCtrl, url) {
+              controller.onPageStarted(url?.toString());
+            },
+            onLoadStop: (webCtrl, url) {
+              controller.onPageFinished(url?.toString());
+            },
+            onConsoleMessage: (webCtrl, consoleMessage) {},
+            onRenderProcessGone: (webCtrl, detail) async => true,
+            shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
+              return controller.shouldOverrideUrlLoading(navigationAction);
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -439,7 +445,7 @@ class _FallbackThumbnail extends GetView<LinkDetailController> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
+                    color: Colors.white.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white24, width: 1.5),
                   ),

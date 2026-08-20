@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/config/app_images.dart';
-import 'package:keep_link/core/config/app_vectors.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
-import 'package:keep_link/core/utils/binding/dependency_utils.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/config/assets/app_images.dart';
+import 'package:keep_link/core/config/assets/app_vectors.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
+import 'package:keep_link/core/di/dependency_utils.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
 import 'package:keep_link/features/splash/presentation/controller/splash_controller.dart';

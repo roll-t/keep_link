@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/cache/app_get_storage.dart';
-import 'package:keep_link/core/config/app_enum.dart';
-import 'package:keep_link/core/model/item_model.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
+import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/data/models/item_model.dart';
 import 'package:keep_link/core/utils/utils.dart';
 
 class CustomPopupController extends GetxController {

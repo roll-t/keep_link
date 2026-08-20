@@ -234,4 +234,10 @@ class LinkDetailController extends GetxController {
     // Dọn observer sau 15s để không giữ task chạy mãi.
     setTimeout(() => observer.disconnect(), 15000);
   ''';
+
+  @override
+  void onClose() {
+    webViewController = null;
+    super.onClose();
+  }
 }

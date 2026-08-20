@@ -8,14 +8,14 @@ import 'package:get/get.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:in_app_review/in_app_review.dart';
-import 'package:keep_link/core/cache/app_cache.dart';
-import 'package:keep_link/core/cache/app_get_storage.dart';
-import 'package:keep_link/core/cache/sql_lite.dart';
-import 'package:keep_link/core/service/firebase_service.dart';
-import 'package:keep_link/core/service/friend_connection_service.dart';
-import 'package:keep_link/core/service/image_kit_service.dart';
-import 'package:keep_link/core/service/session_sync_service.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
+import 'package:keep_link/core/data/cache/app_cache.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
+import 'package:keep_link/core/data/cache/sql_lite.dart';
+import 'package:keep_link/core/services/backend/firebase_service.dart';
+import 'package:keep_link/core/services/backend/friend_connection_service.dart';
+import 'package:keep_link/core/services/backend/image_kit_service.dart';
+import 'package:keep_link/core/services/backend/session_sync_service.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
@@ -81,11 +81,20 @@ class PersonalController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    user.value = FirebaseService.currentUser;
-    if (user.value != null) {
+    final initialUser = FirebaseService.currentUser;
+    user.value = initialUser;
+    if (initialUser != null) {
       Future<void>(() => FirebaseService.syncFriendLookupProfile());
     }
+    // `authStateChanges` always replays the current auth state as its first
+    // event. Without this guard that first event triggers a second, identical
+    // syncFriendLookupProfile() write right after the one above.
+    var isFirstAuthEvent = true;
     _authSub = FirebaseService.authStateChanges.listen((u) {
+      if (isFirstAuthEvent) {
+        isFirstAuthEvent = false;
+        if (u?.uid == initialUser?.uid) return;
+      }
       user.value = u;
       if (u != null) {
         Future<void>(() => FirebaseService.syncFriendLookupProfile());
@@ -182,33 +191,44 @@ class PersonalController extends GetxController {
 
   // ── Support ────────────────────────────────────────────────────────────
 
-  Future<void> sendFeedback() async {
+  Future<void> openFeedbackAndBugReport({FeedbackType initialType = FeedbackType.feedback}) async {
     return Get.to(
       () => const FeedbackPage(),
-      binding: FeedbackBinding(type: FeedbackType.feedback),
+      binding: FeedbackBinding(type: initialType),
     );
   }
 
-  Future<void> reportBug() async {
-    return Get.to(
-      () => const FeedbackPage(),
-      binding: FeedbackBinding(type: FeedbackType.bugReport),
-    );
-  }
+  @Deprecated('Use openFeedbackAndBugReport')
+  Future<void> sendFeedback() => openFeedbackAndBugReport(initialType: FeedbackType.feedback);
+
+  @Deprecated('Use openFeedbackAndBugReport')
+  Future<void> reportBug() => openFeedbackAndBugReport(initialType: FeedbackType.bugReport);
 
   Future<void> rateApp() async {
     final inAppReview = InAppReview.instance;
-    if (await inAppReview.isAvailable()) {
-      await inAppReview.requestReview();
-      AppToast.showToast(
-        'Review request sent. Google Play may decide not to show the dialog every time.'.tr,
-        Icons.info_outline_rounded,
-        color: Colors.orange,
-      );
-    } else {
-      await inAppReview.openStoreListing(appStoreId: 'com.phamtruong.keeplink');
-      final uid = FirebaseService.currentUserId;
-      AppGetStorage.setHasRatedApp(userId: uid);
+    final uid = FirebaseService.currentUserId;
+    AppGetStorage.setHasRatedApp(userId: uid);
+
+    try {
+      if (await inAppReview.isAvailable()) {
+        await inAppReview.openStoreListing();
+        return;
+      }
+    } catch (_) {}
+
+    // Fallback nếu InAppReview không mở được (mở trực tiếp store URL)
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final packageName =
+          packageInfo.packageName.isNotEmpty ? packageInfo.packageName : 'com.phamtruong.keeplink';
+
+      final storeUrl = Platform.isIOS
+          ? 'https://apps.apple.com/app/id$packageName'
+          : 'https://play.google.com/store/apps/details?id=$packageName';
+
+      await Utils.lanchUrl(storeUrl);
+    } catch (_) {
+      await Utils.lanchUrl('https://play.google.com/store/apps/details?id=com.phamtruong.keeplink');
     }
   }
 

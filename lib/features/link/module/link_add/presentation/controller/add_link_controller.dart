@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/app_enum.dart';
-import 'package:keep_link/core/repository/link_repository.dart';
-import 'package:keep_link/core/service/deep_link_service.dart';
-import 'package:keep_link/core/utils/controller/deep_link_controller.dart';
+import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/data/repositories/link_repository.dart';
+import 'package:keep_link/core/services/platform/deep_link_service.dart';
+import 'package:keep_link/core/state/controllers/deep_link_controller.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
-import 'package:keep_link/core/utils/mixin/argument_handle_mixin_controller.dart';
+import 'package:keep_link/core/state/mixins/argument_handle_mixin_controller.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/presentation/controller/custom_popup_controller.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
@@ -291,11 +291,6 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ===============================================================
   void onCancel({dynamic arg}) async {
     if (DeepLinkService.isOpenedFromShare) {
-      // final isBubbleEnabled = AppGetStorage.read<bool>('bubble_enabled') ?? false;
-      // if (isBubbleEnabled) {
-      //   await BubbleService.startBubble();
-      // }
-
       if (Platform.isAndroid) {
         SystemNavigator.pop();
         return;

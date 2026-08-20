@@ -1,5 +1,5 @@
-import 'package:keep_link/core/config/app_enum.dart';
-import 'package:keep_link/core/model/db_model.dart';
+import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/data/models/db_model.dart';
 
 class CategoryModel implements DbModel {
   @override

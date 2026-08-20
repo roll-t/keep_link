@@ -1,9 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/app_colors.dart';
-import 'package:keep_link/core/ui/text/text_widget.dart';
-import 'package:keep_link/core/utils/controller/deep_link_controller.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
+import 'package:keep_link/core/state/controllers/deep_link_controller.dart';
 
 class DeepLinkPreview extends StatelessWidget {
   const DeepLinkPreview({super.key});
@@ -18,50 +18,13 @@ class DeepLinkPreview extends StatelessWidget {
         }
         final data = controller.metaData.value;
         if (data == null) {
-          return SizedBox.shrink();
-        }
-        if (data.imageUrl == "" && data.title == "") {
-          return SizedBox.shrink();
+          return const SizedBox.shrink();
         }
 
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.primary, width: 1.0),
-          ),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (data.imageUrl.isNotEmpty) _buildImage(data.imageUrl),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 4, 12, 4),
-                    child: Column(
-                      spacing: 8.0,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (data.title.isNotEmpty)
-                          TextWidget(
-                            text: data.title,
-                            size: 14,
-                            maxLines: 2,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        TextWidget(
-                          text: data.description,
-                          fontWeight: FontWeight.w400,
-                          size: 14,
-                          maxLines: 2,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        return _buildPreview(
+          title: data.title,
+          description: data.description,
+          imageUrl: data.imageUrl,
         );
       },
     );
@@ -69,17 +32,69 @@ class DeepLinkPreview extends StatelessWidget {
 
   Widget _buildLoading() {
     return Container(
-      height: 92,
-      decoration: BoxDecoration(color: AppColors.d200, borderRadius: BorderRadius.circular(10)),
-      child: Row(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.d300,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.horizontal(left: Radius.circular(7)),
-              color: AppColors.d100,
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 12),
+          TextWidget(
+            text: "Đang tải bản xem trước...",
+            color: AppColors.t100,
+            size: 14,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreview({
+    required String title,
+    required String description,
+    required String imageUrl,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      height: 90,
+      decoration: BoxDecoration(
+        color: AppColors.d300,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.d200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (imageUrl.isNotEmpty) _buildImage(imageUrl),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextWidget(
+                    text: title.isNotEmpty ? title : "KeepLink Preview",
+                    maxLines: 1,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  const SizedBox(height: 4),
+                  TextWidget(
+                    text: description,
+                    maxLines: 2,
+                    color: AppColors.t200,
+                    size: 12,
+                  ),
+                ],
+              ),
             ),
-            width: 110,
-            height: 90,
           ),
         ],
       ),
@@ -87,17 +102,12 @@ class DeepLinkPreview extends StatelessWidget {
   }
 
   Widget _buildImage(String imageUrl) {
-    return ClipRRect(
+    return CacheImageWidget(
+      imageUrl: imageUrl,
+      width: 110,
+      height: 90,
+      fit: BoxFit.cover,
       borderRadius: const BorderRadius.horizontal(left: Radius.circular(7)),
-      child: CachedNetworkImage(
-        imageUrl: imageUrl,
-        width: 110,
-        height: 90,
-        fit: BoxFit.cover,
-        placeholder: (_, __) => Container(color: AppColors.d200),
-        errorWidget: (_, __, ___) =>
-            const SizedBox(width: 110, child: Icon(Icons.broken_image, color: AppColors.d100)),
-      ),
     );
   }
 }

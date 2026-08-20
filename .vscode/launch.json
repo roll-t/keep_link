@@ -2,19 +2,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "keep_link (debug mode)",
+            "name": "🐛 Keep Link — Debug",
             "request": "launch",
             "type": "dart",
             "flutterMode": "debug"
         },
         {
-            "name": "keep_link (profile mode)",
+            "name": "⚡ Keep Link — Profile",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile"
         },
         {
-            "name": "keep_link (release mode)",
+            "name": "🚀 Keep Link — Release",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"

@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-import 'package:keep_link/core/routes/not_found/not_found_page.dart';
+import 'package:keep_link/core/routes/not_found_page.dart';
 import 'package:keep_link/features/category/application/di/category_binding.dart';
 import 'package:keep_link/features/friend/application/di/friend_binding.dart';
 import 'package:keep_link/features/friend/application/di/shared_category_binding.dart';

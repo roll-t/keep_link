@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-import 'package:keep_link/core/utils/controller/theme_controller.dart';
+import 'package:keep_link/core/state/controllers/theme_controller.dart';
 
 class AppBinding extends Bindings {
   @override
