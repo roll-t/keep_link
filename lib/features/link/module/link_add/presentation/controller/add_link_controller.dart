@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/data/models/item_model.dart';
 import 'package:keep_link/core/data/repositories/link_repository.dart';
 import 'package:keep_link/core/services/platform/deep_link_service.dart';
 import 'package:keep_link/core/state/controllers/deep_link_controller.dart';
@@ -26,10 +27,24 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   final linkText = "".obs;
   final titleText = "".obs;
   final isEditModel = false.obs;
+  final isSaving = false.obs;
+
+  // `popup` is the SAME global CustomPopupController the main collection
+  // header uses to filter its list. Picking a category here is only meant to
+  // choose where THIS link is saved — it must not permanently change what
+  // category the collection screen is browsing underneath. Remember it here
+  // and put it back on the way out (see onClose).
+  ItemModel? _previousSelection;
+
+  // True once the user has actually typed into the title field (as opposed
+  // to it being auto-filled by our own code). Guards the metadata listener
+  // below from overwriting a title the user is in the middle of typing.
+  bool _titleEditedByUser = false;
 
   @override
   void onInit() async {
     super.onInit();
+    _previousSelection = popup.selectedItem.value;
     _setupWorkers();
     Future.microtask(_loadInitialData);
   }
@@ -56,15 +71,23 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
     }, time: const Duration(milliseconds: 150));
 
     ever(_deepLink.metaData, (meta) {
-      if (meta != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!isEditModel.value) {
-            titleController.text = meta.title;
-            titleText.value = meta.title;
-          }
-        });
-        if ((meta.title).isNotEmpty) errorTitleMess.value = "";
-      }
+      if (meta == null) return;
+      if (meta.title.isNotEmpty) errorTitleMess.value = "";
+
+      // Đừng tự điền tiêu đề nếu: đang sửa link có sẵn, user đã tự gõ gì đó
+      // rồi (kể cả khi đang gõ dở, fetch xong lúc đó không được ghi đè), hoặc
+      // fetch fail/rỗng (title="" thì giữ nguyên tiêu đề đang có thay vì xoá
+      // trắng nó đi — trước đây dòng này luôn set title = "" khi fetch lỗi,
+      // xoá mất cả tiêu đề user vừa gõ hoặc phần text đoán được từ clipboard).
+      if (isEditModel.value) return;
+      if (_titleEditedByUser) return;
+      if (meta.title.isEmpty) return;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_titleEditedByUser) return; // user có thể đã gõ trong lúc chờ frame này
+        titleController.text = meta.title;
+        titleText.value = meta.title;
+      });
     });
   }
 
@@ -89,7 +112,11 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
 
         // set link & title fallback
         linkController.text = argsData!.metaDataModel?.url.trim() ?? "";
-        _queryLink.value = linkController.text;
+        // KHÔNG set _queryLink ở đây — nó sẽ kích hoạt debounce fetch lại
+        // metadata từ mạng dù URL không đổi. Ta đã có sẵn metadata gốc
+        // (dòng phía trên), và nếu fetch lại chẳng may lỗi/timeout thì
+        // preview + title sẽ bị thay bằng dữ liệu rỗng dù dữ liệu cũ vẫn
+        // còn tốt. Chỉ fetch lại khi user thực sự sửa URL (qua onChangeLink).
         linkText.value = linkController.text;
 
         if (titleController.text.isEmpty) {
@@ -153,6 +180,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // ACTION: ADD / UPDATE LINK
   // ===============================================================
   void onSave() {
+    if (isSaving.value) return; // chặn bấm Lưu nhiều lần tạo trùng link
     if (isEditModel.value) {
       updateLink();
     } else {
@@ -162,6 +190,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
 
   Future<void> addLink() async {
     if (!validateInput()) return;
+    isSaving.value = true;
     try {
       final now = DateTime.now();
       final link = LinkModel(
@@ -179,12 +208,14 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
     } catch (e, s) {
       log("Error add link => $e\n$s");
       Fluttertoast.showToast(msg: "Failed to add, please try again".tr);
+    } finally {
+      isSaving.value = false;
     }
   }
 
   Future<void> updateLink() async {
     if (!validateInput()) return;
-
+    isSaving.value = true;
     try {
       final now = DateTime.now();
       final link = LinkModel(
@@ -204,6 +235,8 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
     } catch (e, s) {
       log("Error updating link => $e\n$s");
       Fluttertoast.showToast(msg: "Failed to update, please try again".tr);
+    } finally {
+      isSaving.value = false;
     }
   }
 
@@ -282,6 +315,7 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   }
 
   void onChangeTitle(String v) {
+    _titleEditedByUser = true;
     titleText.value = v;
     if (errorTitleMess.value.isNotEmpty) errorTitleMess.value = "";
   }
@@ -290,6 +324,13 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // EXIT HANDLER
   // ===============================================================
   void onCancel({dynamic arg}) async {
+    // Khôi phục lại category đang browse ở màn danh sách chính TRƯỚC KHI
+    // Get.back() trả kết quả — nếu không, .then((success) => refreshData())
+    // ở màn danh sách sẽ refresh nhầm sang category vừa chọn cho link này.
+    // (onClose() bên dưới cũng gọi lại hàm này — phòng trường hợp user thoát
+    // bằng nút back hệ thống thay vì nút Huỷ/Lưu, không đi qua onCancel().)
+    _restorePreviousSelection();
+
     if (DeepLinkService.isOpenedFromShare) {
       if (Platform.isAndroid) {
         SystemNavigator.pop();
@@ -302,8 +343,16 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
     }
   }
 
+  void _restorePreviousSelection() {
+    popup.selectedItem.value = _previousSelection;
+  }
+
   @override
   void onClose() {
+    // Safety net: guarantees the restore happens no matter how this page was
+    // left (Huỷ/Lưu already call onCancel(), but the Android system back
+    // button pops the route directly and skips it entirely).
+    _restorePreviousSelection();
     linkController.dispose();
     titleController.dispose();
     super.onClose();

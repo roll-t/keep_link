@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/config/assets/app_icons.dart';
 import 'package:keep_link/core/config/assets/app_vectors.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/core/presentation/widgets/text_field/simple_input_textfield.dart';
@@ -31,7 +31,7 @@ class SearchLinkPage extends GetView<SearchLinkController> {
                 return Column(
                   children: [
                     _CategorySection(ctrl: controller),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
                     Expanded(child: _ResultBody(ctrl: controller)),
                   ],
                 );
@@ -71,16 +71,18 @@ class _SearchBar extends StatelessWidget {
               backgroundColor: AppColors.d300,
               enableColor: AppColors.white.withOpacityCompat(0.08),
               focusedColor: AppColors.primary.withOpacityCompat(0.3),
+              textInputAction: TextInputAction.search,
+              // Bấm nút "Tìm kiếm" trên bàn phím mới thực sự "chốt" 1 lượt tìm
+              // kiếm và lưu vào lịch sử — trước đây chỉ có tap vào gợi ý mới
+              // được lưu, còn gõ tay xong bấm tìm thì không bao giờ vào
+              // "Recent searches" cả dù đây mới là cách dùng phổ biến nhất.
+              onCompleted: (text) {
+                if (text.trim().isNotEmpty) ctrl.applyQuery(text.trim());
+              },
               suffixIcon: Obx(() {
                 if (ctrl.searchText.value.isEmpty) return const SizedBox.shrink();
                 return GestureDetector(
-                  onTap: () {
-                    ctrl.searchTec.clear();
-                    ctrl.searchText.value = '';
-                    ctrl.suggestions.clear();
-                    ctrl.isFieldFocused.value = false;
-                    ctrl.searchFocusNode.unfocus();
-                  },
+                  onTap: ctrl.clearSearch,
                   child: Icon(
                     Icons.close_rounded,
                     size: 18,
@@ -135,21 +137,22 @@ class _CategorySection extends StatelessWidget {
       children: [
         Obx(() {
           final cats = ctrl.categories;
-
           return SizedBox(
             width: double.infinity,
             child: SingleChildScrollView(
               controller: ctrl.categoryScrollController,
               scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  // Chip "All"
                   _ScrollItem(
                     onSelected: () => ctrl.selectCategory(null),
-                    child: _CategoryChip(
-                      label: 'All',
-                      selected: ctrl.selectedCategoryId.value == null,
+                    child: Obx(
+                      () => _CategoryChip(
+                        label: 'All'.tr,
+                        selected: ctrl.selectedCategoryId.value == null,
+                      ),
                     ),
                   ),
                   ...cats.map((cat) {
@@ -190,12 +193,21 @@ class _ScrollItem extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         onSelected();
-        Scrollable.ensureVisible(
-          context,
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeInOut,
-          alignment: 0.5,
-        );
+        // Đợi 1 frame để layout chạy xong với trạng thái "selected" mới rồi
+        // mới đo vị trí để scroll tới. Gọi ensureVisible ngay lập tức (như
+        // trước) sẽ tính toán target dựa trên bề rộng chip LÚC CHƯA selected
+        // — nhưng chip selected lại đổi sang fontWeight đậm hơn nên rộng ra
+        // ngay sau đó, khiến vị trí "giữa khung" bị lệch so với target đã
+        // tính, tạo cảm giác vừa scroll vừa bị xê dịch/giật.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+          Scrollable.ensureVisible(
+            context,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            alignment: 0.5,
+          );
+        });
       },
       child: child,
     );
@@ -262,10 +274,18 @@ class _ResultBody extends StatelessWidget {
         );
       }
 
+      // Không còn padding ngang — item tự lo padding riêng bên trong
+      // (LinkListItem) để thumbnail/nội dung tràn sát mép màn hình, giống
       return ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        padding: const EdgeInsets.only(top: 4, bottom: 24),
         itemCount: ctrl.searchResults.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        separatorBuilder: (_, __) => Divider(
+          height: .5,
+          thickness: 0.8,
+          indent: 0,
+          endIndent: 0,
+          color: AppColors.white.withOpacityCompat(0.10),
+        ),
         itemBuilder: (_, i) => LinkListItem(index: i, item: ctrl.searchResults[i]),
       );
     });
@@ -709,11 +729,17 @@ class _DateRangeSection extends StatelessWidget {
   }
 
   Future<void> _pickFrom(BuildContext context) async {
+    // "lastDate" here is capped to the already-picked "To" date when it's in
+    // the past — showDatePicker asserts initialDate <= lastDate, and
+    // defaulting initialDate to DateTime.now() (as before) breaks that as
+    // soon as "To" is set to any date earlier than today.
+    final lastDate = ctrl.dateTo.value ?? DateTime.now();
+    final initialDate = ctrl.dateFrom.value ?? lastDate;
     final picked = await showDatePicker(
       context: context,
-      initialDate: ctrl.dateFrom.value ?? DateTime.now(),
+      initialDate: initialDate.isAfter(lastDate) ? lastDate : initialDate,
       firstDate: DateTime(2020),
-      lastDate: ctrl.dateTo.value ?? DateTime.now(),
+      lastDate: lastDate,
       builder: _darkTheme,
     );
     if (picked != null) ctrl.selectDateRange(picked, ctrl.dateTo.value);

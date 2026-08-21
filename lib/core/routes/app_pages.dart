@@ -4,16 +4,20 @@ import 'package:keep_link/features/category/application/di/category_binding.dart
 import 'package:keep_link/features/friend/application/di/friend_binding.dart';
 import 'package:keep_link/features/friend/application/di/shared_category_binding.dart';
 import 'package:keep_link/features/friend/presentation/page/friend_page.dart';
+import 'package:keep_link/features/friend/presentation/page/my_qr_page.dart';
 import 'package:keep_link/features/friend/presentation/page/shared_categories_page.dart';
 import 'package:keep_link/features/link/module/link_add/di/add_link_binding.dart';
 import 'package:keep_link/features/link/module/link_add/presentation/page/add_link_page.dart';
 import 'package:keep_link/features/link/module/link_colections/di/link_collection_binding.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/page/link_collection_page.dart';
+import 'package:keep_link/features/link/module/link_detail/di/link_detail_binding.dart';
+import 'package:keep_link/features/link/module/link_detail/presentation/page/link_detail.dart';
 import 'package:keep_link/features/link/module/link_search/di/search_link_binding.dart';
 import 'package:keep_link/features/link/module/link_search/presentation/page/search_link_page.dart';
 import 'package:keep_link/features/personal/di/personal_binding.dart';
 import 'package:keep_link/features/personal/presentation/page/personal_page.dart';
 import 'package:keep_link/features/personal/presentation/page/privacy_policy_page.dart';
+import 'package:keep_link/features/personal/presentation/page/settings_page.dart';
 import 'package:keep_link/features/personal/presentation/page/terms_page.dart';
 import 'package:keep_link/features/security/application/di/pin_verify_binding.dart';
 import 'package:keep_link/features/security/application/di/security_method_binding.dart';
@@ -35,6 +39,12 @@ final appPage = [
 
     page: () => const LinkCollectionPage(),
     bindings: [CategoryBinding(), LinkCollectionBinding()],
+  ),
+  GetPage(
+    name: LinkDetailPage.routeName,
+    page: () => const LinkDetailPage(),
+    transition: Transition.downToUp,
+    binding: LinkDetailBinding(),
   ),
   GetPage(
     name: AddLinkPage.routeName,
@@ -68,8 +78,13 @@ final appPage = [
     binding: PersonalBinding(),
   ),
   GetPage(
-    name: FriendPage.routeName,
+    name: SettingsPage.routeName,
     transition: Transition.rightToLeft,
+    page: () => const SettingsPage(),
+  ),
+  GetPage(
+    name: FriendPage.routeName,
+    transition: Transition.leftToRight,
     page: () => const FriendPage(),
     binding: FriendBinding(),
   ),
@@ -88,5 +103,10 @@ final appPage = [
     name: TermsPage.routeName,
     transition: Transition.rightToLeft,
     page: () => const TermsPage(),
+  ),
+  GetPage(
+    name: MyQrPage.routeName,
+    transition: Transition.rightToLeft,
+    page: () => const MyQrPage(),
   ),
 ];

@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 import 'package:keep_link/features/link/application/model/link_type.dart';
@@ -17,6 +19,10 @@ class LinkDetailController extends GetxController {
   final canGoForward = false.obs;
   final currentUrl = ''.obs;
   final isWebLoading = false.obs;
+  // Trang chính (không phải sub-resource) tải lỗi — vd. site chặn kết nối,
+  // SSL handshake fail... Không có cờ này thì người dùng chỉ thấy màn hình
+  // đen im lìm không rõ đang tải hay đã hỏng, không biết phải làm gì tiếp.
+  final hasLoadError = false.obs;
   InAppWebViewController? webViewController;
 
   late final String url = link.metaDataModel?.url ?? '';
@@ -29,6 +35,58 @@ class LinkDetailController extends GetxController {
   bool get isTikTok => url.contains("tiktok.com");
   String get address => link.metaDataModel?.address ?? '';
   bool get hasLocation => address.isNotEmpty;
+
+  // ── Ad / tracker blocking ────────────────────────────────────────────────
+
+  /// Domain quảng cáo/tracker chặn ở tầng network (request bị huỷ trước khi
+  /// tải) — dùng chung cho cả điều hướng trang (shouldOverrideUrlLoading) lẫn
+  /// từng sub-resource (ảnh/script/iframe quảng cáo) trong shouldInterceptRequest.
+  /// Chặn ở đây rẻ hơn nhiều so với JS xoá DOM sau khi đã tải xong: khỏi tốn
+  /// băng thông + thời gian parse/layout cho nội dung quảng cáo, trang đỡ giật/lag.
+  static const List<String> _adDomains = [
+    'doubleclick.net',
+    'googleadservices.com',
+    'googlesyndication.com',
+    'google-analytics.com',
+    'googletagmanager.com',
+    'googletagservices.com',
+    'moatads.com',
+    'taboola.com',
+    'outbrain.com',
+    'adnxs.com',
+    'popads.net',
+    'popcash.net',
+    'propellerads.com',
+    'exoclick.com',
+    'adsterra.com',
+    'hilltopads.net',
+    'mgid.com',
+    'revcontent.com',
+    'adskeeper.com',
+    'clickadu.com',
+    'admaven.com',
+  ];
+
+  static bool _isAdHost(String host) => _adDomains.any((domain) => host.contains(domain));
+
+  static String get _adDomainsJsArray => '[${_adDomains.map((d) => "'$d'").join(',')}]';
+
+  // ── Domain lock (chỉ cho điều hướng trong cùng trang gốc) ──────────────────
+
+  /// Domain của trang đang xem, "khoá" lại sau lần tải thành công đầu tiên.
+  /// Null nghĩa là còn đang trong chuỗi redirect ban đầu (vd. motchilltv.ltd
+  /// → motchilltv.yt) nên chưa chặn gì — chặn sớm quá sẽ chặn nhầm chính
+  /// redirect hợp lệ của trang, y hệt lỗi từng gặp với shouldInterceptRequest.
+  String? _lockedHost;
+
+  /// true nếu [host] cùng domain (hoặc là subdomain) với trang đang khoá.
+  /// Còn null (chưa khoá) thì cho qua hết — domain lock chỉ có tác dụng SAU
+  /// khi trang gốc đã tải xong, để không chặn nhầm redirect ban đầu của site.
+  bool _isAllowedHost(String host) {
+    final locked = _lockedHost;
+    if (locked == null || locked.isEmpty) return true;
+    return host == locked || host.endsWith('.$locked');
+  }
 
   // ── Shared WebView configuration ────────────────────────────────────────────
 
@@ -72,6 +130,14 @@ class LinkDetailController extends GetxController {
     // ── Misc ─────────────────────────────────────────────────────────────
     disableDefaultErrorPage: true, // tự xử lý trang lỗi nếu cần
     safeBrowsingEnabled: true, // bảo vệ người dùng khỏi trang độc hại
+    // Bật để shouldInterceptRequest được gọi — chặn quảng cáo ở tầng network.
+    useShouldInterceptRequest: true,
+    // Giữ true (mặc định): nhiều trang phim/streaming tự mở window.open()
+    // không qua cử chỉ người dùng để nhúng player thật, không chỉ ads dùng
+    // cách này. Việc lọc ads/popup giờ nằm ở onCreateWindow (chỉ huỷ khi
+    // đích đến là domain quảng cáo) — set false ở đây sẽ chặn cứng ở tầng
+    // native trước khi onCreateWindow kịp phân biệt, chặn nhầm cả nội dung.
+    javaScriptCanOpenWindowsAutomatically: true,
   );
 
   // --- WebView Logic ---
@@ -91,6 +157,7 @@ class LinkDetailController extends GetxController {
   // CÁC CALLBACK ĐƯỢC DỜI TỪ _initWebViewController ĐỂ UI GỌI
   void onPageStarted(String? newUrl) {
     isWebLoading.value = true;
+    hasLoadError.value = false;
     currentUrl.value = newUrl ?? '';
     _updateNavState();
   }
@@ -99,6 +166,14 @@ class LinkDetailController extends GetxController {
     isWebLoading.value = false;
     currentUrl.value = newUrl ?? '';
     _updateNavState();
+
+    // Khoá domain vào đúng lúc trang gốc (hoặc trang đã redirect tới) tải
+    // xong — từ giờ mọi điều hướng sang domain khác (ads, shopee, link rác...)
+    // sẽ bị chặn ở shouldOverrideUrlLoading/onCreateWindow bên dưới. Cập nhật
+    // lại mỗi lần tải xong (không chỉ lần đầu) để tự "đi theo" nếu người dùng
+    // điều hướng hợp lệ trong cùng site (đổi tập phim...).
+    final finishedHost = Uri.tryParse(newUrl ?? '')?.host ?? '';
+    if (finishedHost.isNotEmpty) _lockedHost = finishedHost;
 
     // 1. Tiêm JS chặn quảng cáo chung cho mọi trang
     webViewController?.evaluateJavascript(source: _adBlockerJS);
@@ -109,32 +184,76 @@ class LinkDetailController extends GetxController {
     }
   }
 
+  /// Trang chính tải lỗi (mất kết nối, SSL handshake fail, site chặn...).
+  /// Chỉ set cờ khi lỗi thuộc về main frame — lỗi của 1 sub-resource lẻ
+  /// (ảnh, script quảng cáo bị chặn) không nên làm cả trang báo lỗi.
+  void onReceivedError(WebResourceRequest request) {
+    if (request.isForMainFrame ?? true) {
+      isWebLoading.value = false;
+      hasLoadError.value = true;
+    }
+  }
+
   Future<NavigationActionPolicy> shouldOverrideUrlLoading(NavigationAction navigationAction) async {
     final uri = navigationAction.request.url;
     if (uri == null) return NavigationActionPolicy.ALLOW;
 
-    // --- CHẶN QUẢNG CÁO TẦNG MẠNG ---
-    final adDomains = [
-      'doubleclick.net',
-      'googleadservices.com',
-      'googlesyndication.com',
-      'moatads.com',
-      'taboola.com',
-      'outbrain.com',
-      'adnxs.com',
-    ];
-
-    if (adDomains.any((domain) => uri.host.contains(domain))) {
-      return NavigationActionPolicy.CANCEL;
-    }
-    // ---------------------------------
+    if (_isAdHost(uri.host)) return NavigationActionPolicy.CANCEL;
 
     if (!uri.scheme.startsWith('http')) return NavigationActionPolicy.CANCEL;
 
     if (uri.host.contains('tiktok.com') && uri.path.contains('download')) {
       return NavigationActionPolicy.CANCEL;
     }
+
+    // Khoá điều hướng trong đúng domain của trang — chặn kiểu quảng cáo phổ
+    // biến trên site phim/đọc truyện: bấm bất kỳ đâu trên trang cũng bị đẩy
+    // sang shopee/link rác/domain lạ, dù domain đó không nằm trong danh sách
+    // ads cố định ở trên.
+    if (!_isAllowedHost(uri.host)) return NavigationActionPolicy.CANCEL;
+
     return NavigationActionPolicy.ALLOW;
+  }
+
+  /// Chặn từng sub-resource (ảnh/script/iframe quảng cáo, không phải chỉ
+  /// điều hướng trang) trước khi WebView tải — nguồn "lag" chính trên các
+  /// trang đọc truyện/tin tức thường là hàng chục request quảng cáo/tracker
+  /// chạy ngầm mỗi lần cuộn trang, không phải nội dung chính.
+  ///
+  /// Không bao giờ chặn request của chính main frame (kể cả khi nó bị
+  /// redirect qua domain trung gian) — nhiều site phim/streaming (vd.
+  /// motchilltv.ltd) tự chuyển hướng qua nhiều domain trước khi tới trang
+  /// thật; lỡ chặn nhầm 1 bước redirect ở đây thì cả trang không tải được
+  /// gì, chỉ còn nền đen — trong khi mục tiêu ban đầu chỉ là chặn ads/tracker
+  /// phụ, không phải nội dung chính.
+  Future<WebResourceResponse?> shouldInterceptRequest(WebResourceRequest request) async {
+    if (request.isForMainFrame ?? true) return null;
+    final host = request.url.host;
+    if (_isAdHost(host)) {
+      return WebResourceResponse(contentType: 'text/plain', data: Uint8List(0));
+    }
+    return null;
+  }
+
+  /// Nhiều trang phim/streaming dùng chính window.open()/target=_blank để
+  /// nhúng nội dung/player thật (không chỉ ads dùng cách này) — chặn tuyệt
+  /// đối mọi window mới trước đây vô tình chặn luôn nội dung chính, để lại
+  /// mỗi nền đen rỗng. Giờ chỉ huỷ khi đích đến là domain quảng cáo; còn lại
+  /// load ngay trong webview hiện tại (không tạo cửa sổ mới) để nội dung vẫn
+  /// hiển thị được.
+  Future<bool> onCreateWindow(
+    InAppWebViewController controller,
+    CreateWindowAction createWindowAction,
+  ) async {
+    final uri = createWindowAction.request.url;
+    if (uri == null) return false;
+    if (_isAdHost(uri.host)) return false;
+    // Cùng lý do domain lock ở shouldOverrideUrlLoading: popup ra khỏi
+    // domain đang khoá gần như chắc chắn là ads/redirect rác, kể cả khi
+    // domain đó không có trong danh sách ads cố định.
+    if (!_isAllowedHost(uri.host)) return false;
+    await controller.loadUrl(urlRequest: URLRequest(url: uri));
+    return true;
   }
 
   Future<void> _updateNavState() async {
@@ -163,12 +282,15 @@ class LinkDetailController extends GetxController {
     canGoForward.value = false;
     currentUrl.value = '';
     isWebLoading.value = false;
+    hasLoadError.value = false;
+    _lockedHost = null;
     webViewController = null;
   }
 
   void copyUrl() {
     if (url.isEmpty) return;
     Clipboard.setData(ClipboardData(text: url));
+    AppToast.showToast('link_copied'.tr, Icons.copy_rounded, color: Colors.green);
   }
 
   void openInApp() {
@@ -195,11 +317,33 @@ class LinkDetailController extends GetxController {
   // --- JAVASCRIPT BLOCKERS ---
 
   // JS Chặn quảng cáo chung
-  static const String _adBlockerJS = '''
+  String get _adBlockerJS =>
+      '''
     (function() {
+      // Chỉ chặn window.open() tới domain quảng cáo — nhiều trang (đặc biệt
+      // site phim/streaming) dùng chính window.open để nhúng nội dung/player
+      // thật, chặn vô điều kiện sẽ chặn luôn nội dung chính. Với URL hợp lệ,
+      // điều hướng ngay trong tab hiện tại (như target=_self) thay vì mở tab
+      // mới, để tránh popup rác mà vẫn không chặn nội dung thật.
+      const _adDomains = $_adDomainsJsArray;
+      function _isAdUrl(u) {
+        if (!u) return false;
+        return _adDomains.some(function(d) { return u.indexOf(d) !== -1; });
+      }
+      const _origOpen = window.open;
+      window.open = function(url) {
+        if (_isAdUrl(url)) return null;
+        if (url) {
+          window.location.href = url;
+          return window;
+        }
+        return _origOpen ? _origOpen.apply(window, arguments) : null;
+      };
+
       const adSelectors = [
-        '.adsbygoogle', 'ins.adsbygoogle', '[id^="google_ads_"]', 
-        'iframe[src*="doubleclick.net"]', '.ad-box', '.ad-container', '.ad-unit'
+        '.adsbygoogle', 'ins.adsbygoogle', '[id^="google_ads_"]',
+        'iframe[src*="doubleclick.net"]', '.ad-box', '.ad-container', '.ad-unit',
+        '[class*="popup-ads"]', '[id*="popup-ad"]', '.ads-container', '[class^="ads-"]'
       ];
       function removeAds() {
         adSelectors.forEach(s => {
@@ -213,7 +357,6 @@ class LinkDetailController extends GetxController {
 
   // JS Cho TikTok
   static const String _tiktokJS = '''
-    window.open = function() { return null; };
     var meta = document.querySelector('meta[name="viewport"]') || document.createElement('meta');
     meta.name = 'viewport';
     meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';

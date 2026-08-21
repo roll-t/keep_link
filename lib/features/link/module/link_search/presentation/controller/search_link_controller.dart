@@ -255,8 +255,12 @@ class SearchLinkController extends GetxController {
   }
 
   void clearSearch() {
+    // .clear() fires the listener in onInit(), which sets searchText to ''
+    // and re-runs _filterAndShow() — no need to duplicate that here.
     searchTec.clear();
-    searchResults.clear();
+    suggestions.clear();
+    isFieldFocused.value = false;
+    searchFocusNode.unfocus();
   }
 
   // ── History / Suggestions ──────────────────────────────────────────────────

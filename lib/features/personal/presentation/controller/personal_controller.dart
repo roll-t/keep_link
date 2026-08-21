@@ -11,19 +11,22 @@ import 'package:in_app_review/in_app_review.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/data/cache/sql_lite.dart';
+import 'package:keep_link/core/config/constants/app_enum.dart';
 import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/core/services/backend/friend_connection_service.dart';
 import 'package:keep_link/core/services/backend/image_kit_service.dart';
 import 'package:keep_link/core/services/backend/session_sync_service.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
+import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
-import 'package:keep_link/features/friend/presentation/controller/friend_controller.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
 import 'package:keep_link/features/personal/di/feedback_binding.dart';
 import 'package:keep_link/features/personal/presentation/controller/feedback_controller.dart';
 import 'package:keep_link/features/personal/presentation/page/feedback_page.dart';
+import 'package:keep_link/features/personal/presentation/page/personal_page.dart';
+import 'package:keep_link/features/personal/presentation/page/settings_page.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -129,22 +132,45 @@ class PersonalController extends GetxController {
           Icons.cancel_outlined,
           color: Colors.orange,
         );
-      } else {
-        AppToast.showToast(
-          'Signed in successfully'.tr,
-          Icons.check_circle_rounded,
-          color: Colors.green,
-        );
-        final uid = result.user?.uid;
-        if (uid != null) {
-          SessionSyncService.instance.syncAfterLogin(uid).then((_) {
-            _refreshDataControllers();
-          });
-        }
+        return;
       }
+      AppToast.showToast('Signed in successfully'.tr, Icons.check_circle_rounded, color: Colors.green);
+      final uid = result.user?.uid;
+      if (uid != null) {
+        SessionSyncService.instance.syncAfterLogin(uid).then((_) {
+          _refreshDataControllers();
+        });
+      }
+    } catch (e) {
+      // signInWithGoogle() now lets real failures (no network, bad config...)
+      // propagate instead of returning null like a plain cancel — this is
+      // what tells the two apart and shows the right message for each.
+      AppToast.showToast(
+        'Sign in failed, please try again'.tr,
+        Icons.error_outline_rounded,
+        color: Colors.red,
+      );
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// Shows a confirmation before signing out — this wipes all local data
+  /// (DB, cache, storage), so a stray tap shouldn't be able to trigger it
+  /// with no way back.
+  void confirmSignOut() {
+    DialogUtils.showConfirm(
+      alertType: AlertType.warning,
+      title: 'Sign Out'.tr,
+      content: 'sign_out_confirm'.tr,
+      confirmText: 'Sign Out'.tr,
+      cancelText: 'Cancel'.tr,
+      onConfirm: () {
+        Get.back();
+        signOut();
+      },
+      onCancel: () => Get.back(),
+    );
   }
 
   Future<void> signOut() async {
@@ -156,6 +182,9 @@ class PersonalController extends GetxController {
       if (uid != null) {
         await SessionSyncService.instance.flushCurrentSession(uid);
       }
+      // FirebaseService.signOut() now throws if the actual Firebase sign-out
+      // fails (it used to swallow that silently) — caught below so local
+      // data is only wiped once we're sure the account is really signed out.
       await FirebaseService.signOut();
       // Clear all local data so the next guest/account session starts fresh.
       SessionSyncService.instance.clearOnSignOut();
@@ -163,29 +192,36 @@ class PersonalController extends GetxController {
       AppCache.invalidateAll();
       AppGetStorage.clearUserData();
       _refreshDataControllers();
+      if (Get.currentRoute == SettingsPage.routeName || Get.isDialogOpen == true) {
+        Get.until((route) => route.settings.name == PersonalPage.routeName || route.isFirst);
+      }
       AppToast.showToast(
         'Signed out successfully'.tr,
         Icons.logout_rounded,
         color: Colors.blueGrey,
+      );
+    } catch (e) {
+      AppToast.showToast(
+        'Sign out failed, please try again'.tr,
+        Icons.error_outline_rounded,
+        color: Colors.red,
       );
     } finally {
       isLoading.value = false;
     }
   }
 
-  /// Refresh [LinkCollectionController], [CategoryController] and [FriendController] if they are
-  /// registered. Called after login and logout.
+  /// Refresh [LinkCollectionController] and [CategoryController] if they are
+  /// registered. Called after login and logout. FriendController is NOT
+  /// refreshed here — it already reacts to `authStateChanges` on its own via
+  /// its own listener, so calling fetchFriends() here too would just repeat
+  /// the same 3 Firebase reads a second time for every sign-in.
   void _refreshDataControllers() {
     if (Get.isRegistered<LinkCollectionController>()) {
       Get.find<LinkCollectionController>().refreshData();
     }
     if (Get.isRegistered<CategoryController>()) {
       Get.find<CategoryController>().fetchCategories();
-    }
-    // Reload friends for the newly logged-in user. Skip when signing out
-    // (currentUser is already null by this point).
-    if (FirebaseService.currentUser != null && Get.isRegistered<FriendController>()) {
-      Get.find<FriendController>().fetchFriends();
     }
   }
 
@@ -440,8 +476,13 @@ class _EditNameDialogState extends State<_EditNameDialog> {
       await FirebaseService.updateDisplayName(name);
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
+      // Trước đây lỗi bị nuốt hoàn toàn — spinner tắt, không có gì báo cho
+      // user biết là đã lưu thất bại, họ tưởng tên đã đổi xong.
       if (mounted) {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          _errorText = 'Failed to update username, please try again'.tr;
+        });
       }
     }
   }

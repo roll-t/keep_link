@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
-import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/core/services/backend/friend_connection_service.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/friend/application/model/friend_request_model.dart';
 import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
+import 'package:keep_link/features/friend/application/model/shared_individual_link_model.dart';
 import 'package:keep_link/features/friend/presentation/controller/friend_controller.dart';
 import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
+import 'package:keep_link/features/friend/presentation/page/qr_scanner_page.dart';
 import 'package:keep_link/features/friend/presentation/page/shared_categories_page.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:keep_link/features/link/module/link_detail/presentation/page/link_detail.dart';
 
 class FriendPage extends StatefulWidget {
   static const routeName = '/FriendPage';
@@ -34,14 +33,15 @@ class _FriendPageState extends State<FriendPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+    // FriendController/SharedCategoryController are persistent (bound from
+    // LinkCollectionPage, see FriendBinding) and stay synced in the
+    // background via Firebase realtime watchers for the whole session — so
+    // opening this page just reads whatever state is already there, no
+    // forced re-fetch. Pull-to-refresh below is the explicit manual escape
+    // hatch if the user wants to force a resync.
     controller = Get.find<FriendController>();
     sharedController = Get.find<SharedCategoryController>();
     _tabController = TabController(length: 2, vsync: this);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.fetchFriends();
-      sharedController.loadSharedCategories();
-    });
   }
 
   @override
@@ -88,51 +88,57 @@ class _FriendPageState extends State<FriendPage> with SingleTickerProviderStateM
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(48),
             child: Container(
-              height: 40,
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              height: 48,
               decoration: BoxDecoration(
-                color: AppColors.d500,
-                borderRadius: BorderRadius.circular(12),
+                border: Border(
+                  bottom: BorderSide(color: AppColors.white.withOpacityCompat(0.08), width: 1),
+                ),
               ),
               child: Obx(() {
-                final sharedCount = sharedController.sharedCategories.length;
+                final sharedCount =
+                    sharedController.sharedCategories.length +
+                    sharedController.sharedIndividualLinks.length;
                 final requestCount = controller.incomingRequests.length;
 
                 return TabBar(
                   controller: _tabController,
                   dividerColor: Colors.transparent,
-                  indicator: BoxDecoration(
-                    color: AppColors.primary.withOpacityCompat(0.18),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.primary),
+                  indicator: const UnderlineTabIndicator(
+                    borderSide: BorderSide(color: AppColors.primary, width: 3.0),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(3)),
                   ),
                   indicatorSize: TabBarIndicatorSize.tab,
                   labelColor: AppColors.primary,
                   unselectedLabelColor: AppColors.n70,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
                   tabs: [
                     // Tab 1: Được chia sẻ
                     Tab(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.folder_shared_rounded, size: 16),
-                          const SizedBox(width: 6),
+                          const Icon(Icons.folder_shared_rounded, size: 18),
+                          const SizedBox(width: 8),
                           Flexible(child: Text('Shared'.tr, overflow: TextOverflow.ellipsis)),
                           if (sharedCount > 0) ...[
                             const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                               decoration: BoxDecoration(
-                                color: AppColors.primary,
+                                color: AppColors.primary.withOpacityCompat(0.18),
                                 borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppColors.primary.withOpacityCompat(0.35),
+                                  width: 0.8,
+                                ),
                               ),
                               child: Text(
                                 '$sharedCount',
                                 style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
@@ -145,23 +151,23 @@ class _FriendPageState extends State<FriendPage> with SingleTickerProviderStateM
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.people_alt_rounded, size: 16),
-                          const SizedBox(width: 6),
+                          const Icon(Icons.people_alt_rounded, size: 18),
+                          const SizedBox(width: 8),
                           Flexible(child: Text('Friends'.tr, overflow: TextOverflow.ellipsis)),
                           if (requestCount > 0) ...[
                             const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF3B30),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
                                 '$requestCount',
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
@@ -200,7 +206,6 @@ class _FriendPageState extends State<FriendPage> with SingleTickerProviderStateM
                   sharedController.loadSharedCategories(),
                 ]),
                 onOpenRequests: () => _openRequestsSheet(context),
-                onOpenMyQr: () => _openMyPersonalQrSheet(context),
               ),
             ],
           );
@@ -247,18 +252,6 @@ class _FriendPageState extends State<FriendPage> with SingleTickerProviderStateM
     );
   }
 
-  Future<void> _openMyPersonalQrSheet(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.d500,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => _MyPersonalQrSheet(controller: controller),
-    );
-  }
-
   Future<void> _openAddFriendMethodsSheet(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -270,7 +263,6 @@ class _FriendPageState extends State<FriendPage> with SingleTickerProviderStateM
       builder: (_) => _AddFriendMethodsSheet(
         onAddByGmail: () => _openAddByGmailSheet(context),
         onAddByLink: () => _openAddByLinkSheet(context),
-        onAddByQr: () => _openQrScanner(context),
       ),
     );
   }
@@ -299,20 +291,12 @@ class _FriendPageState extends State<FriendPage> with SingleTickerProviderStateM
     );
   }
 
-  Future<void> _openQrScanner(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.bg700,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => _QrScannerSheet(controller: controller),
-    );
+  void _openQrScanner(BuildContext context) {
+    Get.to(() => QrScannerPage(controller: controller));
   }
 }
 
-// ── Tab 1: Shared Categories View ────────────────────────────────────────────
+// ── Tab 1: Shared Categories + Individual Links View ─────────────────────────
 
 class _SharedCategoriesTab extends StatelessWidget {
   const _SharedCategoriesTab({required this.controller, required this.onRefresh});
@@ -327,9 +311,27 @@ class _SharedCategoriesTab extends StatelessWidget {
       backgroundColor: AppColors.d500,
       onRefresh: onRefresh,
       child: Obx(() {
-        final categories = controller.sharedCategories;
+        // Danh mục và link lẻ được chia sẻ dùng 2 node Firebase khác nhau
+        // (xem shareCategory/shareLink trong FirebaseService) nên phải gộp
+        // lại thành 1 danh sách ở đây — trước đây tab này chỉ đọc
+        // sharedCategories, nên link chia sẻ đơn lẻ (không qua danh mục)
+        // không bao giờ hiện ra dù đã share thành công.
+        final items = <Object>[...controller.sharedCategories, ...controller.sharedIndividualLinks]
+          ..sort((a, b) {
+            final ta =
+                (a is SharedCategoryModel
+                    ? a.sharedAt
+                    : (a as SharedIndividualLinkModel).sharedAt) ??
+                DateTime.fromMillisecondsSinceEpoch(0);
+            final tb =
+                (b is SharedCategoryModel
+                    ? b.sharedAt
+                    : (b as SharedIndividualLinkModel).sharedAt) ??
+                DateTime.fromMillisecondsSinceEpoch(0);
+            return tb.compareTo(ta);
+          });
 
-        if (categories.isEmpty) {
+        if (items.isEmpty) {
           return LayoutBuilder(
             builder: (context, constraints) => SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -343,19 +345,38 @@ class _SharedCategoriesTab extends StatelessWidget {
 
         return ListView.separated(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-          itemCount: categories.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          padding: const EdgeInsets.only(top: 4, bottom: 32),
+          itemCount: items.length,
+          separatorBuilder: (_, __) =>
+              Divider(height: 1, thickness: 0.8, color: AppColors.white.withOpacityCompat(0.12)),
           itemBuilder: (ctx, index) {
-            final cat = categories[index];
-            final key = '${cat.ownerUid}/${cat.categoryId}';
-            final isUnviewed = controller.unviewedKeys.contains(key);
+            final item = items[index];
 
-            return _SharedCategoryCard(
-              category: cat,
-              isUnviewed: isUnviewed,
-              onTap: () => openSharedCategoryLinksSheet(context, controller, cat),
-            );
+            if (item is SharedCategoryModel) {
+              final key = '${item.ownerUid}/${item.categoryId}';
+              return Obx(() {
+                final isUnviewed = controller.unviewedKeys.contains(key);
+                return _SharedCategoryCard(
+                  category: item,
+                  isUnviewed: isUnviewed,
+                  onTap: () => openSharedCategoryLinksSheet(context, controller, item),
+                );
+              });
+            }
+
+            final linkItem = item as SharedIndividualLinkModel;
+            final key = '${linkItem.ownerUid}/${linkItem.linkId}';
+            return Obx(() {
+              final isUnviewed = controller.unviewedKeys.contains(key);
+              return _SharedLinkCard(
+                item: linkItem,
+                isUnviewed: isUnviewed,
+                onTap: () {
+                  controller.markLinkViewed(linkItem);
+                  Get.toNamed(LinkDetailPage.routeName, arguments: linkItem.link);
+                },
+              );
+            });
           },
         );
       }),
@@ -370,13 +391,11 @@ class _FriendsManageTab extends StatelessWidget {
     required this.controller,
     required this.onRefresh,
     required this.onOpenRequests,
-    required this.onOpenMyQr,
   });
 
   final FriendController controller;
   final RefreshCallback onRefresh;
   final VoidCallback onOpenRequests;
-  final VoidCallback onOpenMyQr;
 
   @override
   Widget build(BuildContext context) {
@@ -386,55 +405,41 @@ class _FriendsManageTab extends StatelessWidget {
       onRefresh: onRefresh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        padding: const EdgeInsets.only(bottom: 32),
         children: [
-          // ── Quick Action Cards (Requests & My QR) ─────────────────────────
+          // ── Quick Action Card (Friend Requests) ─────────────────────────
           Container(
             decoration: BoxDecoration(
               color: AppColors.d500,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.white.withOpacityCompat(0.06)),
+              border: Border(
+                bottom: BorderSide(color: AppColors.white.withOpacityCompat(0.12), width: 0.8),
+              ),
             ),
-            child: Column(
-              children: [
-                // 1. Lời mời kết bạn
-                Obx(() {
-                  final reqCount = controller.incomingRequests.length;
-                  return _ZaloTile(
-                    icon: Icons.person_add_alt_rounded,
-                    iconColor: const Color(0xFF2E86DE),
-                    iconBgColor: const Color(0xFF2E86DE).withOpacityCompat(0.18),
-                    title: 'Friend Requests'.tr,
-                    subtitle: reqCount > 0 ? '$reqCount ${'requests_pending'.tr}' : null,
-                    badgeCount: reqCount,
-                    onTap: onOpenRequests,
-                  );
-                }),
-                Divider(height: 1, color: AppColors.white.withOpacityCompat(0.05), indent: 56),
-                // 2. Mã QR & Link cá nhân
-                _ZaloTile(
-                  icon: Icons.qr_code_2_rounded,
-                  iconColor: const Color(0xFFFF9F43),
-                  iconBgColor: const Color(0xFFFF9F43).withOpacityCompat(0.18),
-                  title: 'My QR Code'.tr,
-                  subtitle: 'My Friend Link'.tr,
-                  onTap: onOpenMyQr,
-                ),
-              ],
-            ),
+            child: Obx(() {
+              final reqCount = controller.incomingRequests.length;
+              return _ZaloTile(
+                icon: Icons.group_add_rounded,
+                iconColor: Colors.white,
+                iconBgColor: const Color(0xFF0068FF),
+                title: 'Friend Requests'.tr,
+                subtitle: reqCount > 0 ? '$reqCount ${'requests_pending'.tr}' : null,
+                badgeCount: reqCount,
+                onTap: onOpenRequests,
+              );
+            }),
           ),
-          const SizedBox(height: 18),
-
           // ── Section Title: Friends List ──────────────────────────────────
-          Obx(
-            () => TextWidget(
-              text: '${'Friends'.tr} (${controller.totalFriends}/${FriendController.maxFriends})',
-              color: AppColors.white,
-              size: 15,
-              fontWeight: FontWeight.w700,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+            child: Obx(
+              () => TextWidget(
+                text: '${'Friends'.tr} (${controller.totalFriends}/${FriendController.maxFriends})',
+                color: AppColors.white,
+                size: 15,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          SizedBox(height: 12),
           // ── Friends List Items ───────────────────────────────────────────
           Obx(() {
             final friends = controller.visibleFriends;
@@ -457,7 +462,11 @@ class _FriendsManageTab extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: friends.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, __) => Divider(
+                height: 1,
+                thickness: 0.8,
+                color: AppColors.white.withOpacityCompat(0.12),
+              ),
               itemBuilder: (_, index) {
                 final friend = friends[index];
                 return _FriendItem(
@@ -502,17 +511,17 @@ class _ZaloTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: iconBgColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: iconColor, size: 20),
+                child: Icon(icon, color: iconColor, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -522,7 +531,7 @@ class _ZaloTile extends StatelessWidget {
                     TextWidget(
                       text: title,
                       color: AppColors.white,
-                      size: 14,
+                      size: 15,
                       fontWeight: FontWeight.w600,
                     ),
                     if (subtitle != null) ...[
@@ -567,101 +576,197 @@ class _SharedCategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.d500,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.white.withOpacityCompat(0.06)),
-            ),
-            child: Row(
-              children: [
-                SharedOwnerAvatar(
-                  displayName: category.ownerDisplayName,
-                  photoUrl: category.ownerPhotoUrl,
-                  size: 44,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextWidget(
-                        text: category.categoryName,
-                        color: AppColors.white,
-                        size: 14,
-                        fontWeight: FontWeight.w600,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SharedOwnerAvatar(
+                    displayName: category.ownerDisplayName,
+                    photoUrl: category.ownerPhotoUrl,
+                    size: 46,
+                  ),
+                  if (isUnviewed)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF3B30),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.bg700, width: 2),
+                        ),
                       ),
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          const Icon(Icons.person_rounded, size: 12, color: AppColors.n70),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: TextWidget(
-                              text: category.ownerDisplayName,
-                              color: AppColors.n70,
-                              size: 12,
-                              maxLines: 1,
-                            ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextWidget(
+                      text: category.categoryName,
+                      color: AppColors.white,
+                      size: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        const Icon(Icons.person_rounded, size: 13, color: AppColors.n70),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: TextWidget(
+                            text: category.ownerDisplayName,
+                            color: AppColors.n70,
+                            size: 13,
+                            maxLines: 1,
                           ),
-                        ],
-                      ),
-                      if (category.categoryDescription != null &&
-                          category.categoryDescription!.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        TextWidget(
-                          text: category.categoryDescription!,
-                          color: AppColors.n500,
-                          size: 11,
-                          maxLines: 1,
                         ),
                       ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacityCompat(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.link_rounded, size: 13, color: AppColors.primary),
-                      const SizedBox(width: 4),
+                    ),
+                    if (category.categoryDescription != null &&
+                        category.categoryDescription!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
                       TextWidget(
-                        text: '${category.linkCount}',
-                        color: AppColors.primary,
+                        text: category.categoryDescription!,
+                        color: AppColors.n500,
                         size: 12,
-                        fontWeight: FontWeight.w600,
+                        maxLines: 1,
                       ),
                     ],
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.n500),
-              ],
-            ),
-          ),
-          if (isUnviewed)
-            Positioned(
-              top: -3,
-              right: -3,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
               ),
-            ),
-        ],
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacityCompat(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.link_rounded, size: 13, color: AppColors.primary),
+                    const SizedBox(width: 4),
+                    TextWidget(
+                      text: '${category.linkCount}',
+                      color: AppColors.primary,
+                      size: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.n500),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Shared Individual Link Card ───────────────────────────────────────────────
+
+class _SharedLinkCard extends StatelessWidget {
+  const _SharedLinkCard({required this.item, required this.onTap, this.isUnviewed = false});
+
+  final SharedIndividualLinkModel item;
+  final VoidCallback onTap;
+  final bool isUnviewed;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = item.link.name ?? item.link.metaDataModel?.title ?? 'Link'.tr;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SharedOwnerAvatar(
+                    displayName: item.ownerDisplayName,
+                    photoUrl: item.ownerPhotoUrl,
+                    size: 46,
+                  ),
+                  if (isUnviewed)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF3B30),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.bg700, width: 2),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextWidget(
+                      text: title,
+                      color: AppColors.white,
+                      size: 15,
+                      fontWeight: FontWeight.w600,
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        const Icon(Icons.person_rounded, size: 13, color: AppColors.n70),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: TextWidget(
+                            text: item.ownerDisplayName,
+                            color: AppColors.n70,
+                            size: 13,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacityCompat(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.link_rounded, size: 14, color: AppColors.primary),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.n500),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -724,45 +829,43 @@ class _FriendItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.d500,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.white.withOpacityCompat(0.06)),
-      ),
-      child: Row(
-        children: [
-          SharedOwnerAvatar(displayName: friend.displayName, photoUrl: friend.photoUrl, size: 42),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextWidget(
-                  text: friend.displayName,
-                  color: AppColors.white,
-                  size: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-                if ((friend.email ?? '').isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: TextWidget(
-                      text: friend.email!,
-                      color: AppColors.n70,
-                      size: 12,
-                      maxLines: 1,
-                    ),
+    return Material(
+      color: Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            SharedOwnerAvatar(displayName: friend.displayName, photoUrl: friend.photoUrl, size: 44),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextWidget(
+                    text: friend.displayName,
+                    color: AppColors.white,
+                    size: 15,
+                    fontWeight: FontWeight.w600,
                   ),
-              ],
+                  if ((friend.email ?? '').isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: TextWidget(
+                        text: friend.email!,
+                        color: AppColors.n70,
+                        size: 13,
+                        maxLines: 1,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-          IconButton(
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
-          ),
-        ],
+            IconButton(
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -896,126 +999,13 @@ class _FriendRequestCard extends StatelessWidget {
   }
 }
 
-// ── My Personal QR Sheet ─────────────────────────────────────────────────────
-
-class _MyPersonalQrSheet extends StatelessWidget {
-  const _MyPersonalQrSheet({required this.controller});
-
-  final FriendController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final user = FirebaseService.currentUser;
-    final friendLink = user != null ? FriendConnectionService.buildLink(user) : null;
-
-    return SafeArea(
-      top: false,
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 46,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.n500,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextWidget(
-              text: 'My QR Code'.tr,
-              color: AppColors.white,
-              size: 18,
-              fontWeight: FontWeight.w700,
-            ),
-            const SizedBox(height: 6),
-            TextWidget(
-              text: 'Let your friends scan this QR to connect.'.tr,
-              color: AppColors.n70,
-              size: 13,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            if (friendLink != null) ...[
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacityCompat(0.2),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: QrImageView(
-                  data: friendLink,
-                  version: QrVersions.auto,
-                  size: 200,
-                  backgroundColor: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: friendLink));
-                    AppToast.showToast(
-                      'personal_link_copied'.tr,
-                      Icons.check_circle_rounded,
-                      color: Colors.green,
-                    );
-                  },
-                  icon: const Icon(Icons.copy_rounded, size: 18),
-                  label: TextWidget(
-                    text: 'Copy Personal Link'.tr,
-                    color: Colors.white,
-                    size: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ] else ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: TextWidget(
-                  text: 'Please sign in to view your QR code.'.tr,
-                  color: AppColors.n70,
-                  size: 14,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ── Add Friend Methods BottomSheet ───────────────────────────────────────────
 
 class _AddFriendMethodsSheet extends StatelessWidget {
-  const _AddFriendMethodsSheet({
-    required this.onAddByGmail,
-    required this.onAddByLink,
-    required this.onAddByQr,
-  });
+  const _AddFriendMethodsSheet({required this.onAddByGmail, required this.onAddByLink});
 
   final VoidCallback onAddByGmail;
   final VoidCallback onAddByLink;
-  final VoidCallback onAddByQr;
 
   @override
   Widget build(BuildContext context) {
@@ -1047,7 +1037,7 @@ class _AddFriendMethodsSheet extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             TextWidget(
-              text: 'You can add friends by Gmail, personal link, or personal QR.'.tr,
+              text: 'You can add friends by Gmail or personal link.'.tr,
               color: AppColors.n70,
               size: 13,
             ),
@@ -1069,16 +1059,6 @@ class _AddFriendMethodsSheet extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).pop();
                 onAddByLink();
-              },
-            ),
-            const SizedBox(height: 10),
-            _MethodTile(
-              icon: Icons.qr_code_scanner_rounded,
-              title: 'Add via QR'.tr,
-              subtitle: 'Scan your friend\'s personal QR code.'.tr,
-              onTap: () {
-                Navigator.of(context).pop();
-                onAddByQr();
               },
             ),
           ],
@@ -1303,6 +1283,19 @@ class _AddFriendByLinkSheetState extends State<_AddFriendByLinkSheet> {
       );
       return;
     }
+
+    // Parse trước để có thể hiện tên/ảnh cho user xác nhận trước khi thực sự
+    // gửi lời mời — payload này do link tự khai, không được xác thực bởi
+    // Firebase nên không nên gửi ngay lập tức mà không cho user xem qua.
+    final payload = FriendConnectionService.parseLink(raw);
+    if (payload == null) {
+      AppToast.showToast('friend_invalid_link'.tr, Icons.error_outline_rounded, color: Colors.red);
+      return;
+    }
+
+    final confirmed = await showFriendRequestConfirmSheet(context, payload);
+    if (!confirmed || !mounted) return;
+
     setState(() => _submitting = true);
     final success = await widget.controller.addFriendFromLink(raw);
     setState(() => _submitting = false);
@@ -1391,112 +1384,6 @@ class _AddFriendByLinkSheetState extends State<_AddFriendByLinkSheet> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ── QR Scanner Sheet ─────────────────────────────────────────────────────────
-
-class _QrScannerSheet extends StatefulWidget {
-  const _QrScannerSheet({required this.controller});
-
-  final FriendController controller;
-
-  @override
-  State<_QrScannerSheet> createState() => _QrScannerSheetState();
-}
-
-class _QrScannerSheetState extends State<_QrScannerSheet> {
-  final MobileScannerController _scannerCtrl = MobileScannerController();
-  final ImagePicker _picker = ImagePicker();
-  bool _handled = false;
-
-  @override
-  void dispose() {
-    _scannerCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleBarcode(BarcodeCapture capture) async {
-    if (_handled) return;
-    for (final barcode in capture.barcodes) {
-      final raw = barcode.rawValue?.trim() ?? '';
-      if (raw.isNotEmpty) {
-        _handled = true;
-        Navigator.of(context).pop();
-        await widget.controller.addFriendFromLink(raw);
-        break;
-      }
-    }
-  }
-
-  Future<void> _pickFromGallery() async {
-    final image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image == null) return;
-    final barcodeCapture = await _scannerCtrl.analyzeImage(image.path);
-    if (barcodeCapture != null && mounted) {
-      await _handleBarcode(barcodeCapture);
-    } else {
-      AppToast.showToast('No QR code found'.tr, Icons.error_outline_rounded, color: Colors.red);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.75,
-      child: Column(
-        children: [
-          const SizedBox(height: 14),
-          Container(
-            width: 46,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.n500,
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextWidget(
-            text: 'Add via QR'.tr,
-            color: AppColors.white,
-            size: 18,
-            fontWeight: FontWeight.w700,
-          ),
-          const SizedBox(height: 6),
-          TextWidget(
-            text: 'Scan your friend\'s personal QR code.'.tr,
-            color: AppColors.n70,
-            size: 13,
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: MobileScanner(controller: _scannerCtrl, onDetect: _handleBarcode),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: OutlinedButton.icon(
-                onPressed: _pickFromGallery,
-                icon: const Icon(Icons.photo_library_rounded, color: AppColors.white, size: 18),
-                label: TextWidget(text: 'Pick from Gallery'.tr, color: AppColors.white, size: 14),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: AppColors.white.withOpacityCompat(0.2)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -12,12 +12,16 @@ class CustomPopupController extends GetxController {
   final Rx<ItemModel?> selectedItem = Rx<ItemModel?>(null);
   final ScrollController scrollController = ScrollController();
   final RxBool isOpen = false.obs;
-  bool isEnableSecurity = false;
+  // RxBool (not a plain field) so the popup's lock icons refresh immediately
+  // when Category Security is toggled in Settings — SecurityMethodController
+  // updates this on an already-live CustomPopupController instance, and a
+  // plain field write wouldn't trigger the Obx that renders the dropdown.
+  final RxBool isEnableSecurity = false.obs;
 
   @override
   void onInit() {
     super.onInit();
-    isEnableSecurity = AppGetStorage.isCategorySecurity();
+    isEnableSecurity.value = AppGetStorage.isCategorySecurity();
   }
 
   Future<void> selectItem(ItemModel item) async {

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/data/cache/app_get_storage.dart';
-import 'package:keep_link/core/config/theme/app_colors.dart';
-import 'package:keep_link/core/config/constants/app_enum.dart';
 import 'package:keep_link/core/config/assets/app_vectors.dart';
+import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
 import 'package:keep_link/features/category/presentation/widget/category_dialog.dart';
 import 'package:keep_link/features/category/presentation/widget/custom_popup_widget.dart';
@@ -35,7 +35,7 @@ class HeaderLinkCollection extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: [
                   AppVectors.icFriends.show(
-                    size: 28,
+                    size: 24,
                     backgroundColor: AppColors.d300,
                     padding: const EdgeInsets.all(10),
                     widthParent: 44,

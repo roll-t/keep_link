@@ -8,6 +8,7 @@ import 'package:keep_link/core/config/constants/app_enum.dart';
 import 'package:keep_link/core/data/repositories/category_repository.dart';
 import 'package:keep_link/core/data/repositories/link_repository.dart';
 import 'package:keep_link/core/di/dependency_utils.dart';
+import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
@@ -67,6 +68,10 @@ class LinkCollectionController extends GetxController {
           await LinkRepository.delete(id);
         }
         listLink.removeWhere((item) => idsToDelete.contains(item.id));
+        // Giữ đồng bộ với cache lọc — nếu không, loadMore() sau đó sẽ cắt
+        // lát từ 1 danh sách còn dính các link vừa xoá, làm lệch offset và
+        // âm thầm bỏ sót/lặp item ở các trang tiếp theo.
+        _filteredLinks?.removeWhere((item) => idsToDelete.contains(item.id));
         exitSelectionMode();
         AppToast.showToast('Đã xóa ${idsToDelete.length} link', Icons.delete_outline_rounded);
       },
@@ -79,6 +84,13 @@ class LinkCollectionController extends GetxController {
   int _currentPage = 0;
   final int _pageSize = 20;
   bool _canLoadMore = true;
+
+  // Toàn bộ danh sách đã áp filter category/privacy hiện tại — tính 1 lần
+  // mỗi khi filter đổi (refreshData), các lần loadMore() sau chỉ cắt lát ra
+  // từ đây. Trước đây mỗi lần kéo thêm 1 trang là quét lại TOÀN BỘ
+  // AppCache.links từ đầu (LinkRepository.getFilteredPage) — cuộn hết 1 danh
+  // sách N link tốn O(N²) thay vì O(N).
+  List<LinkModel>? _filteredLinks;
 
   @override
   void onInit() {
@@ -104,6 +116,7 @@ class LinkCollectionController extends GetxController {
   Future<void> refreshData({bool showToast = false}) async {
     _currentPage = 0;
     _canLoadMore = true;
+    _filteredLinks = null;
     listLink.clear();
     await fetchAllLinks(isInitial: true);
 
@@ -125,26 +138,34 @@ class LinkCollectionController extends GetxController {
       // Ensure both caches are populated (DB query only on very first call).
       await Future.wait([LinkRepository.ensureLoaded(), CategoryRepository.ensureLoaded()]);
 
-      final selectedCategoryId = categoryPopup.selectedItem.value?.id;
-      final bool isSecurityEnabled = AppGetStorage.isCategorySecurity();
+      // Filter cache from AppCache — pure in-memory, no I/O. Computed once
+      // per filter (reset in refreshData()); loadMore() just slices pages
+      // out of it instead of re-scanning every link again each time.
+      if (_filteredLinks == null) {
+        final selectedCategoryId = categoryPopup.selectedItem.value?.id;
+        final bool isSecurityEnabled = AppGetStorage.isCategorySecurity();
 
-      // Compute private IDs from in-memory cache — no DB query.
-      final Set<String> privateCategoryIds = isSecurityEnabled
-          ? AppCache.privateCategoryIds
-          : const {};
+        // Compute private IDs from in-memory cache — no DB query.
+        final Set<String> privateCategoryIds = isSecurityEnabled
+            ? AppCache.privateCategoryIds
+            : const {};
 
-      // Page from cache — pure in-memory, no I/O.
-      // Only exclude private categories when browsing "All" — if the user has
-      // explicitly selected a specific (private) category they already passed
-      // the PIN/biometric check, so their links must be shown.
-      final bool isAllCategory = selectedCategoryId == null || selectedCategoryId == 'all';
-      final page = LinkRepository.getFilteredPage(
-        categoryId: selectedCategoryId,
-        privateCategoryIds: privateCategoryIds,
-        excludePrivate: isSecurityEnabled && isAllCategory,
-        page: _currentPage,
-        pageSize: _pageSize,
-      );
+        // Only exclude private categories when browsing "All" — if the user has
+        // explicitly selected a specific (private) category they already passed
+        // the PIN/biometric check, so their links must be shown.
+        final bool isAllCategory = selectedCategoryId == null || selectedCategoryId == 'all';
+        _filteredLinks = LinkRepository.getFiltered(
+          categoryId: selectedCategoryId,
+          privateCategoryIds: privateCategoryIds,
+          excludePrivate: isSecurityEnabled && isAllCategory,
+        );
+      }
+
+      final source = _filteredLinks!;
+      final offset = _currentPage * _pageSize;
+      final page = offset >= source.length
+          ? const <LinkModel>[]
+          : source.skip(offset).take(_pageSize).toList();
 
       if (page.isEmpty) {
         _canLoadMore = false;
@@ -175,7 +196,9 @@ class LinkCollectionController extends GetxController {
         content: "Bạn chắc chắn muốn xóa link!",
         onConfirm: () async {
           await LinkRepository.delete(id);
+          FirebaseService.revokeAllLinkShares(id);
           listLink.removeWhere((item) => item.id == id);
+          _filteredLinks?.removeWhere((item) => item.id == id);
           Get.back();
           Get.back();
           AppToast.showToast("Deleted".tr, Icons.delete_outline_rounded);
@@ -194,5 +217,8 @@ class LinkCollectionController extends GetxController {
     }
   }
 
-  void clearLinks() => listLink.clear();
+  void clearLinks() {
+    listLink.clear();
+    _filteredLinks = null;
+  }
 }

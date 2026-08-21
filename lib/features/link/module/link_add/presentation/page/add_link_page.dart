@@ -22,17 +22,28 @@ class AddLinkPage extends StatelessWidget {
     final addController = Get.find<AddLinkController>();
     final categoryController = Get.find<CategoryController>();
 
-    return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 12).copyWith(top: 40),
-        child: Column(
-          children: [
-            _buildHeader(addController, categoryController),
-            const SizedBox(height: 24),
-            const DeepLinkPreview(),
-            const SizedBox(height: 12),
-            _buildForm(addController),
-          ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        // Đưa cả nút back hệ thống đi qua onCancel() thay vì pop mặc định —
+        // onCancel() xử lý riêng trường hợp mở thẳng từ share (thoát hẳn app
+        // qua SystemNavigator.pop trên Android thay vì pop về màn trống phía
+        // sau, vì lúc đó không có route nào để quay lại).
+        if (didPop) return;
+        addController.onCancel();
+      },
+      child: Scaffold(
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 12).copyWith(top: 40),
+          child: Column(
+            children: [
+              _buildHeader(addController, categoryController),
+              const SizedBox(height: 24),
+              const DeepLinkPreview(),
+              const SizedBox(height: 12),
+              _buildForm(addController),
+            ],
+          ),
         ),
       ),
     );
@@ -115,22 +126,32 @@ class AddLinkPage extends StatelessWidget {
 
   // ---------------- BOTTOM BUTTONS ----------------
   Widget _buildActionButtons(AddLinkController controller) {
-    return Row(
-      spacing: 20,
-      children: [
-        Expanded(
-          child: PrimaryButton(
-            isMaxParent: true,
-            text: "Huỷ",
-            backgroundColor: AppColors.d300,
-            color: AppColors.red,
-            onPressed: controller.onCancel,
+    return Obx(() {
+      final saving = controller.isSaving.value;
+      return Row(
+        spacing: 20,
+        children: [
+          Expanded(
+            child: PrimaryButton(
+              isMaxParent: true,
+              text: "Huỷ",
+              backgroundColor: AppColors.d300,
+              color: AppColors.red,
+              // Khoá luôn nút Huỷ trong lúc đang lưu — thoát giữa chừng lúc
+              // request insert/update còn dang dở dễ tạo trạng thái mập mờ.
+              onPressed: saving ? null : controller.onCancel,
+            ),
           ),
-        ),
-        Expanded(
-          child: PrimaryButton(isMaxParent: true, text: "Lưu", onPressed: controller.onSave),
-        ),
-      ],
-    );
+          Expanded(
+            child: PrimaryButton(
+              isMaxParent: true,
+              text: "Lưu",
+              isLoading: saving,
+              onPressed: controller.onSave,
+            ),
+          ),
+        ],
+      );
+    });
   }
 }

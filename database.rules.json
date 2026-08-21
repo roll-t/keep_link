@@ -1,0 +1,65 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "friendDirectory": {
+      ".read": "auth != null",
+      "profiles": {
+        ".indexOn": ["email"],
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "categories": {
+          "$catId": {
+            ".read": "auth != null && (auth.uid === $uid || root.child('users/' + $uid + '/sharedWith/' + auth.uid + '/' + $catId).val() === true)"
+          }
+        },
+        "links": {
+          ".read": "auth != null && (auth.uid === $uid || root.child('users/' + $uid + '/sharedWith/' + auth.uid).exists() || root.child('users/' + $uid + '/sharedLinksWith/' + auth.uid).exists())",
+          ".indexOn": ["categoryId"]
+        },
+        "sharedWith": {
+          "$viewerUid": {
+            ".write": "auth != null && (auth.uid === $uid || (auth.uid === $viewerUid && !newData.exists()))"
+          }
+        },
+        "sharedCategoryAccess": {
+          "$ownerUid": {
+            ".write": "auth != null && auth.uid === $ownerUid"
+          }
+        },
+        "sharedLinksWith": {
+          "$viewerUid": {
+            ".write": "auth != null && (auth.uid === $uid || (auth.uid === $viewerUid && !newData.exists()))"
+          }
+        },
+        "sharedLinkAccess": {
+          "$ownerUid": {
+            ".write": "auth != null && auth.uid === $ownerUid"
+          }
+        },
+        "friendRequests": {
+          "$fromUid": {
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $fromUid)"
+          }
+        },
+        "sentFriendRequests": {
+          "$toUid": {
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $toUid)"
+          }
+        },
+        "friends": {
+          "$friendUid": {
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $friendUid)"
+          }
+        }
+      }
+    }
+  }
+}

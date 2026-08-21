@@ -115,7 +115,11 @@ class CategoryController extends GetxController {
   /// UPDATE
   /// -----------------------------
   Future<void> updateCategory() async {
-    if (!_validateCategory()) return;
+    // checkLimit: false — đây là sửa 1 category ĐÃ CÓ, không phải thêm mới.
+    // Dùng chung _validateCategory() mặc định sẽ luôn chặn vì "đang sửa 1
+    // trong 30 category" tức là count đã >= 30, khoá luôn cả việc đổi tên
+    // hay đổi visibility 1 khi đã chạm giới hạn.
+    if (!_validateCategory(checkLimit: false)) return;
 
     final selected = popupController.selectedItem.value;
     if (selected == null || selected.id == 'all') return;
@@ -170,6 +174,14 @@ class CategoryController extends GetxController {
         try {
           final id = selected.id ?? "";
           await CategoryRepository.delete(id);
+
+          // Dọn luôn các bản ghi share ở Firebase (sharedWith / sharedCategoryAccess)
+          // — nếu không, category đã xoá vẫn còn nằm rải rác trong node của
+          // mình và của bạn bè đã được share, tồn tại vĩnh viễn không ai dọn.
+          if (FirebaseService.currentUser != null) {
+            unawaited(FirebaseService.revokeAllCategoryShares(id));
+          }
+          AppCache.sharedWithCache.remove(id);
 
           categories.removeWhere((e) => e.id == id);
           final newSelectedId = categories.isNotEmpty ? categories.first.id : 'all';
@@ -236,8 +248,8 @@ class CategoryController extends GetxController {
     }
   }
 
-  bool _validateCategory() {
-    if (categories.length >= _maxCategories) {
+  bool _validateCategory({bool checkLimit = true}) {
+    if (checkLimit && categories.length >= _maxCategories) {
       Fluttertoast.showToast(msg: "max_categories_limit".trArgs(["$_maxCategories"]));
       return false;
     }

@@ -16,6 +16,9 @@ class SecurityMethodController extends GetxController {
   final isCategorySecurityEnabled = false.obs;
   final isVerified = false.obs;
 
+  // Chặn double-tap khi 1 thao tác bật/tắt (có thể phải chờ verify PIN/vân tay) đang xử lý dở.
+  final isBusy = false.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -96,58 +99,72 @@ class SecurityMethodController extends GetxController {
   // ─── 1. BẬT / TẮT BẢO MẬT ỨNG DỤNG ────────────────────────────────────────
 
   Future<void> toggleAppSecurity() async {
-    if (!isAppSecurityEnabled.value) {
-      final success = await _ensurePinExists();
-      if (!success) return;
+    if (isBusy.value) return;
+    isBusy.value = true;
+    try {
+      if (!isAppSecurityEnabled.value) {
+        final success = await _ensurePinExists();
+        if (!success) return;
 
-      isAppSecurityEnabled.value = true;
-      AppGetStorage.setSecurityEnabled(true);
-      Utils.showToast('Đã bật bảo mật ứng dụng');
-    } else {
-      await _verifyThenRun(() async {
-        isAppSecurityEnabled.value = false;
-        AppGetStorage.setSecurityEnabled(false);
+        isAppSecurityEnabled.value = true;
+        AppGetStorage.setSecurityEnabled(true);
+        Utils.showToast('Đã bật bảo mật ứng dụng');
+      } else {
+        await _verifyThenRun(() async {
+          isAppSecurityEnabled.value = false;
+          AppGetStorage.setSecurityEnabled(false);
 
-        // Tắt vân tay kèm theo nếu đang bật
-        if (isFingerprintEnabled.value) {
-          isFingerprintEnabled.value = false;
-          AppGetStorage.setFingerprintEnabled(false);
-        }
+          // Tắt vân tay kèm theo nếu đang bật
+          if (isFingerprintEnabled.value) {
+            isFingerprintEnabled.value = false;
+            AppGetStorage.setFingerprintEnabled(false);
+          }
 
-        Utils.showToast('Đã tắt bảo mật ứng dụng');
-      });
+          Utils.showToast('Đã tắt bảo mật ứng dụng');
+        });
+      }
+    } finally {
+      isBusy.value = false;
     }
   }
 
   // ─── 2. BẬT / TẮT BẢO MẬT DANH MỤC ────────────────────────────────────────
 
   Future<void> toggleCategorySecurity() async {
-    if (!isCategorySecurityEnabled.value) {
-      final success = await _ensurePinExists();
-      if (!success) return;
+    if (isBusy.value) return;
+    isBusy.value = true;
+    try {
+      if (!isCategorySecurityEnabled.value) {
+        final success = await _ensurePinExists();
+        if (!success) return;
 
-      isCategorySecurityEnabled.value = true;
-      AppGetStorage.setCategorySecurity(true);
-      Utils.showToast('Đã bật bảo mật danh mục');
-      _refreshCustomPopup();
-    } else {
-      await _verifyThenRun(() async {
-        isCategorySecurityEnabled.value = false;
-        AppGetStorage.setCategorySecurity(false);
-        Utils.showToast('Đã tắt bảo mật danh mục');
+        isCategorySecurityEnabled.value = true;
+        AppGetStorage.setCategorySecurity(true);
+        Utils.showToast('Đã bật bảo mật danh mục');
         _refreshCustomPopup();
-      });
+      } else {
+        await _verifyThenRun(() async {
+          isCategorySecurityEnabled.value = false;
+          AppGetStorage.setCategorySecurity(false);
+          Utils.showToast('Đã tắt bảo mật danh mục');
+          _refreshCustomPopup();
+        });
+      }
+    } finally {
+      isBusy.value = false;
     }
   }
 
   void _refreshCustomPopup() {
     if (!Get.isRegistered<CustomPopupController>()) return;
-    Get.find<CustomPopupController>().isEnableSecurity = isCategorySecurityEnabled.value;
+    Get.find<CustomPopupController>().isEnableSecurity.value = isCategorySecurityEnabled.value;
   }
 
   // ─── 3. BẬT / TẮT VÂN TAY ──────────────────────────────────────────────────
 
   Future<void> toggleFingerprint() async {
+    if (isBusy.value) return;
+
     if (!isAppSecurityEnabled.value) {
       Utils.showToast('Vui lòng bật bảo mật ứng dụng trước');
       return;
@@ -158,49 +175,63 @@ class SecurityMethodController extends GetxController {
       return;
     }
 
-    // Tắt vân tay
-    if (isFingerprintEnabled.value) {
-      isFingerprintEnabled.value = false;
-      AppGetStorage.setFingerprintEnabled(false);
-      Utils.showToast('Đã tắt đăng nhập bằng vân tay');
-      return;
-    }
+    isBusy.value = true;
+    try {
+      // Tắt vân tay — yêu cầu xác thực lại để nhất quán với việc tắt các bảo mật khác,
+      // tránh ai đó cầm máy lúc app đang mở tắt luôn lớp bảo vệ mà không cần xác nhận gì.
+      if (isFingerprintEnabled.value) {
+        await _verifyThenRun(() async {
+          isFingerprintEnabled.value = false;
+          AppGetStorage.setFingerprintEnabled(false);
+          Utils.showToast('Đã tắt đăng nhập bằng vân tay');
+        });
+        return;
+      }
 
-    // Bật vân tay — kiểm tra thiết bị trước
-    if (!await BiometricService.isSupported()) {
-      Utils.showToast('Thiết bị không hỗ trợ vân tay / Face ID');
-      return;
-    }
-    if (!await BiometricService.canCheck()) {
-      Utils.showToast('Vui lòng cài đặt vân tay trong Cài đặt máy');
-      return;
-    }
-    if (!await BiometricService.authenticate()) {
-      Utils.showToast('Xác nhận vân tay thất bại');
-      return;
-    }
+      // Bật vân tay — kiểm tra thiết bị trước
+      if (!await BiometricService.isSupported()) {
+        Utils.showToast('Thiết bị không hỗ trợ vân tay / Face ID');
+        return;
+      }
+      if (!await BiometricService.canCheck()) {
+        Utils.showToast('Vui lòng cài đặt vân tay trong Cài đặt máy');
+        return;
+      }
+      if (!await BiometricService.authenticate()) {
+        Utils.showToast('Xác nhận vân tay thất bại');
+        return;
+      }
 
-    isFingerprintEnabled.value = true;
-    AppGetStorage.setFingerprintEnabled(true);
-    Utils.showToast('Đã bật đăng nhập bằng vân tay');
+      isFingerprintEnabled.value = true;
+      AppGetStorage.setFingerprintEnabled(true);
+      Utils.showToast('Đã bật đăng nhập bằng vân tay');
+    } finally {
+      isBusy.value = false;
+    }
   }
 
   // ─── 4. ĐỔI MÃ PIN ──────────────────────────────────────────────────────────
 
   Future<void> changePin() async {
-    // Chưa có PIN → tạo mới ngay
-    if (!AppGetStorage.hasPin()) {
-      await Get.toNamed(PinVerifyPage.routeName);
-      return;
+    if (isBusy.value) return;
+    isBusy.value = true;
+    try {
+      // Chưa có PIN → tạo mới ngay
+      if (!AppGetStorage.hasPin()) {
+        await Get.toNamed(PinVerifyPage.routeName);
+        return;
+      }
+
+      // Đã có PIN → xác thực trước khi đổi
+      await _verifyThenRun(() async {
+        DialogUtils.showProgressDialog();
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (Get.isDialogOpen ?? false) Get.back();
+
+        await Get.toNamed(PinVerifyPage.routeName, arguments: FromType.changePassword);
+      });
+    } finally {
+      isBusy.value = false;
     }
-
-    // Đã có PIN → xác thực trước khi đổi
-    await _verifyThenRun(() async {
-      DialogUtils.showProgressDialog();
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (Get.isDialogOpen ?? false) Get.back();
-
-      await Get.toNamed(PinVerifyPage.routeName, arguments: FromType.changePassword);
-    });
   }
 }

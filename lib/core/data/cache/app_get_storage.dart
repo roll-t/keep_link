@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:get_storage/get_storage.dart';
@@ -22,6 +23,9 @@ class AppGetStorage {
 
   // Security Keys
   static const String _pinKey = 'app_pin';
+  static const String _pinSaltKey = 'app_pin_salt';
+  static const String _pinFailCountKey = 'app_pin_fail_count';
+  static const String _pinLockUntilKey = 'app_pin_lock_until';
   static const String _securityEnabledKey = 'security_enabled';
   static const String _fingerprintEnabledKey = 'fingerprint_enabled';
 
@@ -48,11 +52,31 @@ class AppGetStorage {
   // SỬA DÒNG NÀY: Mở khóa lại và cho phép đọc từ GetStorage
   static bool isFingerprintEnabled() => _box.read(_fingerprintEnabledKey) ?? false;
 
+  /// Salt ngẫu nhiên riêng cho từng máy cài đặt, sinh 1 lần và lưu lại.
+  /// Tránh dùng salt cố định trong source code (dễ bị precompute vì PIN chỉ có 10.000 khả năng).
+  static String _getOrCreateSalt() {
+    final existing = _box.read<String>(_pinSaltKey);
+    if (existing != null && existing.isNotEmpty) return existing;
+    final bytes = List<int>.generate(16, (_) => Random.secure().nextInt(256));
+    final salt = base64UrlEncode(bytes);
+    _box.write(_pinSaltKey, salt);
+    return salt;
+  }
+
   static String _hashPin(String pin) {
+    final salt = _getOrCreateSalt();
+    return sha256.convert(utf8.encode('$salt:$pin')).toString();
+  }
+
+  /// Hash kiểu cũ (salt cố định trong source) — chỉ dùng để migrate dữ liệu đã lưu trước đây.
+  static String _legacyHashPin(String pin) {
     return sha256.convert(utf8.encode('keep_link_salt_$pin')).toString();
   }
 
-  static void savePin(String pin) => _box.write(_pinKey, _hashPin(pin));
+  static void savePin(String pin) {
+    _box.write(_pinKey, _hashPin(pin));
+    resetPinFailCount();
+  }
 
   /// Check if a PIN has been set
   static bool hasPin() {
@@ -60,13 +84,17 @@ class AppGetStorage {
     return pin != null && pin.isNotEmpty;
   }
 
-  /// Verify if the given raw PIN matches the stored hash (migrating plaintext legacy PIN if present)
+  /// Verify if the given raw PIN matches the stored hash (migrating legacy hash/plaintext PIN if present)
   static bool verifyPin(String rawPin) {
     final stored = _box.read<String>(_pinKey);
     if (stored == null || stored.isEmpty) return false;
-    final hashed = _hashPin(rawPin);
-    if (stored == hashed) return true;
-    // Legacy migration for old plaintext PINs
+    if (stored == _hashPin(rawPin)) return true;
+    // Migration: PIN hashed with the old hardcoded-salt scheme
+    if (stored == _legacyHashPin(rawPin)) {
+      savePin(rawPin);
+      return true;
+    }
+    // Migration: very old plaintext PIN
     if (stored == rawPin) {
       savePin(rawPin);
       return true;
@@ -77,13 +105,48 @@ class AppGetStorage {
   @Deprecated('Use hasPin() or verifyPin() instead for security')
   static String? getPin() => _box.read(_pinKey);
 
+  // ========== PIN brute-force lockout ========== //
+  static const int _pinAttemptsPerLockTier = 5;
+  static const List<int> _pinLockTierSeconds = [30, 60, 300, 900];
+
+  /// Số lần nhập sai liên tiếp kể từ lần đúng/đặt PIN gần nhất.
+  static int getPinFailCount() => _box.read<int>(_pinFailCountKey) ?? 0;
+
+  /// Ghi nhận 1 lần nhập sai PIN và khoá tạm thời nếu vượt ngưỡng.
+  static void registerPinFailure() {
+    final count = getPinFailCount() + 1;
+    _box.write(_pinFailCountKey, count);
+    if (count % _pinAttemptsPerLockTier == 0) {
+      final tier = (count ~/ _pinAttemptsPerLockTier) - 1;
+      final seconds = _pinLockTierSeconds[min(tier, _pinLockTierSeconds.length - 1)];
+      _box.write(_pinLockUntilKey, DateTime.now().add(Duration(seconds: seconds)).millisecondsSinceEpoch);
+    }
+  }
+
+  static void resetPinFailCount() {
+    _box.remove(_pinFailCountKey);
+    _box.remove(_pinLockUntilKey);
+  }
+
+  /// Thời gian còn lại đang bị khoá nhập PIN, null nếu không bị khoá.
+  static Duration? pinLockRemaining() {
+    final untilMs = _box.read<int>(_pinLockUntilKey);
+    if (untilMs == null) return null;
+    final until = DateTime.fromMillisecondsSinceEpoch(untilMs);
+    final remaining = until.difference(DateTime.now());
+    return remaining.isNegative ? null : remaining;
+  }
+
+  static bool isPinLocked() => pinLockRemaining() != null;
+
   // ========== Category Security (New Logic) ========== //
 
   /// Bật/Tắt bảo mật riêng cho danh mục
   static void setCategorySecurity(bool value) => _box.write(_categorySecurityEnabledKey, value);
 
-  /// Kiểm tra xem bảo mật danh mục có đang bật không
-  /// Mặc định là TRUE (để an toàn, nếu user bật khóa app thì danh mục private cũng nên khóa)
+  /// Kiểm tra xem bảo mật danh mục có đang bật không.
+  /// Mặc định là FALSE — chỉ bật khi user chủ động bật ở màn Security Methods,
+  /// tránh việc yêu cầu tạo PIN ngoài ý muốn ngay khi họ mở 1 danh mục private lần đầu.
   static bool isCategorySecurity() => _box.read(_categorySecurityEnabledKey) ?? false;
 
   /// Helper: Kiểm tra tổng hợp có cần check PIN cho category không
@@ -114,6 +177,45 @@ class AppGetStorage {
     _box.remove(_searchHistoryKey);
     _box.remove(_guestDefaultCategoryKey);
     _box.remove(_pinnedCategoryIdsKey);
+  }
+
+  // ========== Saved Accounts for Quick Switch ========== //
+  static const String _savedAccountsKey = 'saved_accounts_list';
+
+  static List<Map<String, dynamic>> getSavedAccounts() {
+    final raw = _box.read<List>(_savedAccountsKey);
+    if (raw == null) return [];
+    return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  static void saveAccountProfile({
+    required String uid,
+    required String? email,
+    required String? displayName,
+    required String? photoUrl,
+  }) {
+    if (uid.isEmpty) return;
+    final list = getSavedAccounts();
+    final index = list.indexWhere((a) => a['uid'] == uid);
+    final accountData = {
+      'uid': uid,
+      'email': email ?? '',
+      'displayName': displayName ?? '',
+      'photoUrl': photoUrl ?? '',
+      'lastActiveAt': DateTime.now().millisecondsSinceEpoch,
+    };
+    if (index >= 0) {
+      list[index] = accountData;
+    } else {
+      list.add(accountData);
+    }
+    _box.write(_savedAccountsKey, list);
+  }
+
+  static void removeSavedAccount(String uid) {
+    final list = getSavedAccounts();
+    list.removeWhere((a) => a['uid'] == uid);
+    _box.write(_savedAccountsKey, list);
   }
 
   // ========== First Launch ========== //
@@ -256,11 +358,18 @@ class AppGetStorage {
   // ========== Viewed Shared Category Items (per-item red dot) ========== //
   static const String _viewedSharedItemsPrefix = 'viewed_shared_items_';
 
-  /// Lấy danh sách key đã mở chi tiết từng item (dạng "ownerUid/catId")
+  /// Lấy danh sách key đã mở chi tiết từng item (dạng "ownerUid/catId" hoặc "ownerUid/linkId")
   static Set<String> getViewedSharedItemKeys(String uid) {
     final raw = _box.read<List>('$_viewedSharedItemsPrefix$uid');
     if (raw == null) return {};
     return raw.cast<String>().toSet();
+  }
+
+  /// Thêm key của item đã mở xem
+  static void addViewedSharedItemKey(String uid, String key) {
+    final current = getViewedSharedItemKeys(uid);
+    current.add(key);
+    _box.write('$_viewedSharedItemsPrefix$uid', current.toList());
   }
 
   /// Lưu danh sách key đã mở chi tiết từng item

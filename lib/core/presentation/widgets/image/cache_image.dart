@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/presentation/extensions/colors.dart';
 
 class CacheImageWidget extends StatelessWidget {
   final String? imageUrl;
@@ -86,72 +87,23 @@ class _DefaultEmptyImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCompact = (width != null && width! < 60) || (height != null && height! < 60);
+    double iconSize = 24;
+    if (width != null && height != null) {
+      iconSize = (width! < height! ? width! : height!) * 0.35;
+      iconSize = iconSize.clamp(16.0, 30.0);
+    } else if (width != null) {
+      iconSize = (width! * 0.35).clamp(16.0, 30.0);
+    }
 
     return Container(
       width: width,
       height: height,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF252830),
-            Color(0xFF1B1D22),
-            Color(0xFF141519),
-          ],
-        ),
-      ),
-      child: Center(
-        child: isCompact
-            ? Icon(
-                icon,
-                color: AppColors.t300.withValues(alpha: 0.5),
-                size: (width != null) ? (width! * 0.45).clamp(10, 20) : 14,
-              )
-            : Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Subtle ambient glow in background
-                  Container(
-                    width: (width != null) ? width! * 0.6 : 50,
-                    height: (height != null) ? height! * 0.6 : 50,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          AppColors.primary.withValues(alpha: 0.12),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Modern glassmorphism badge
-                  Container(
-                    padding: const EdgeInsets.all(9),
-                    decoration: BoxDecoration(
-                      color: AppColors.white.withValues(alpha: 0.04),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.white.withValues(alpha: 0.08),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.25),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      icon,
-                      color: AppColors.t200.withValues(alpha: 0.75),
-                      size: (width != null && width! < 90) ? 18 : 22,
-                    ),
-                  ),
-                ],
-              ),
+      color: const Color(0xFF2C2E35),
+      alignment: Alignment.center,
+      child: Icon(
+        icon,
+        color: AppColors.n70.withOpacityCompat(0.65),
+        size: iconSize,
       ),
     );
   }

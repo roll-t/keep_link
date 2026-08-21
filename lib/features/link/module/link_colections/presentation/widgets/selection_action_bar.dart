@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
+import 'package:keep_link/features/link/module/link_detail/presentation/widgets/share_link_sheet.dart';
 
 class SelectionActionBar extends GetView<LinkCollectionController> {
   const SelectionActionBar({super.key});
@@ -78,6 +79,25 @@ class SelectionActionBar extends GetView<LinkCollectionController> {
                       ),
                     ),
                   ),
+
+                  // Share button (when 1 link is selected)
+                  if (count == 1)
+                    IconButton(
+                      icon: const Icon(Icons.share_rounded, color: AppColors.primary),
+                      onPressed: () {
+                        final selectedId = controller.selectedIds.first;
+                        final link = controller.listLink.firstWhereOrNull((l) => l.id == selectedId);
+                        if (link != null) {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => ShareLinkSheet(link: link),
+                          );
+                        }
+                      },
+                      tooltip: 'share_link'.tr,
+                    ),
 
                   // Delete button
                   AnimatedOpacity(

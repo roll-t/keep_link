@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
@@ -20,6 +22,15 @@ class PinVerifyController extends GetxController {
   bool isPINCorrect = false;
   final firstPin = "".obs;
 
+  // Lỗi hiển thị ngay trên khung PIN (viền đỏ + text), thay vì chỉ toast thoáng qua
+  final RxnString errorText = RxnString();
+
+  // Số giây còn lại bị khoá do nhập sai quá nhiều lần (0 = không bị khoá)
+  final RxInt lockRemainingSeconds = 0.obs;
+  Timer? _lockTicker;
+
+  bool get isLocked => lockRemainingSeconds.value > 0;
+
   @override
   void onInit() {
     super.onInit();
@@ -32,10 +43,12 @@ class PinVerifyController extends GetxController {
     } else {
       mode.value = FromType.create;
     }
+    _refreshLockState();
   }
 
   @override
   void onClose() {
+    _lockTicker?.cancel();
     pinController.dispose();
     focusNode.dispose();
 
@@ -45,6 +58,24 @@ class PinVerifyController extends GetxController {
     confirmPinController.dispose();
     confirmPinFocus.dispose();
     super.onClose();
+  }
+
+  void clearError() => errorText.value = null;
+
+  void _refreshLockState() {
+    _lockTicker?.cancel();
+    final remaining = AppGetStorage.pinLockRemaining()?.inSeconds ?? 0;
+    lockRemainingSeconds.value = remaining;
+    if (remaining <= 0) return;
+
+    _lockTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      final left = AppGetStorage.pinLockRemaining()?.inSeconds ?? 0;
+      lockRemainingSeconds.value = left;
+      if (left <= 0) {
+        _lockTicker?.cancel();
+        errorText.value = null;
+      }
+    });
   }
 
   // ========================================================
@@ -91,12 +122,31 @@ class PinVerifyController extends GetxController {
   // XÁC THỰC PIN CŨ
   // ========================================================
   void _verifyOldPin(String pin) {
-    if (!AppGetStorage.verifyPin(pin)) {
-      _toast("PIN không đúng");
-      _resetAllInput();
+    if (isLocked) {
       isPINCorrect = false;
+      // clear() trước vì nó tự kích hoạt onChanged -> clearError(); set message SAU để không bị ghi đè về null.
+      _resetAllInput();
+      errorText.value = "Đã khoá tạm thời, thử lại sau ${lockRemainingSeconds.value}s";
       return;
     }
+
+    if (!AppGetStorage.verifyPin(pin)) {
+      AppGetStorage.registerPinFailure();
+      _refreshLockState();
+      isPINCorrect = false;
+      _resetAllInput();
+
+      if (isLocked) {
+        errorText.value = "Sai PIN nhiều lần. Đã khoá ${lockRemainingSeconds.value}s";
+      } else {
+        errorText.value = "PIN không đúng";
+      }
+      _toast(errorText.value!);
+      return;
+    }
+
+    errorText.value = null;
+    AppGetStorage.resetPinFailCount();
 
     // Nếu đang đổi PIN → qua bước nhập PIN mới
     if (mode.value == FromType.changePassword) {
@@ -129,15 +179,18 @@ class PinVerifyController extends GetxController {
     if (pin == firstPin.value) {
       AppGetStorage.savePin(pin);
 
+      errorText.value = null;
       _toast("PIN đã được thiết lập");
       Get.back(result: pin);
       return;
     }
 
     // Không khớp
-    _toast("Hai lần nhập không khớp");
     firstPin.value = "";
+    // clear() trước vì nó tự kích hoạt onChanged -> clearError(); set message SAU để không bị ghi đè về null.
     pinController.clear();
+    errorText.value = "Hai lần nhập không khớp";
+    _toast(errorText.value!);
   }
 
   // Reset toàn bộ input

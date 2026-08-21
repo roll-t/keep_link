@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/config/theme/app_text_styles.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/presentation/widgets/button/primary_button.dart';
 import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
 import 'package:keep_link/core/presentation/widgets/image/full_screen_image_page.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
@@ -212,28 +213,42 @@ class _InlineWebView extends GetView<LinkDetailController> {
           child: SizedBox(
             height: Get.width * .8,
             width: double.infinity,
-            child: InAppWebView(
-              initialUrlRequest: URLRequest(url: WebUri(controller.url)),
-              initialSettings: controller.webViewSettings,
-              gestureRecognizers: const {
-                Factory<TapGestureRecognizer>(TapGestureRecognizer.new),
-                Factory<VerticalDragGestureRecognizer>(VerticalDragGestureRecognizer.new),
-                Factory<HorizontalDragGestureRecognizer>(HorizontalDragGestureRecognizer.new),
-              },
-              onWebViewCreated: (webCtrl) {
-                controller.webViewController = webCtrl;
-              },
-              onLoadStart: (webCtrl, url) {
-                controller.onPageStarted(url?.toString());
-              },
-              onLoadStop: (webCtrl, url) {
-                controller.onPageFinished(url?.toString());
-              },
-              onConsoleMessage: (webCtrl, consoleMessage) {},
-              onRenderProcessGone: (webCtrl, detail) async => true,
-              shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
-                return controller.shouldOverrideUrlLoading(navigationAction);
-              },
+            child: Stack(
+              children: [
+                InAppWebView(
+                  initialUrlRequest: URLRequest(url: WebUri(controller.url)),
+                  initialSettings: controller.webViewSettings,
+                  gestureRecognizers: const {
+                    Factory<TapGestureRecognizer>(TapGestureRecognizer.new),
+                    Factory<VerticalDragGestureRecognizer>(VerticalDragGestureRecognizer.new),
+                    Factory<HorizontalDragGestureRecognizer>(HorizontalDragGestureRecognizer.new),
+                  },
+                  onWebViewCreated: (webCtrl) {
+                    controller.webViewController = webCtrl;
+                  },
+                  onLoadStart: (webCtrl, url) {
+                    controller.onPageStarted(url?.toString());
+                  },
+                  onLoadStop: (webCtrl, url) {
+                    controller.onPageFinished(url?.toString());
+                  },
+                  onConsoleMessage: (webCtrl, consoleMessage) {},
+                  onRenderProcessGone: (webCtrl, detail) async => true,
+                  shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
+                    return controller.shouldOverrideUrlLoading(navigationAction);
+                  },
+                  shouldInterceptRequest: (webCtrl, request) {
+                    return controller.shouldInterceptRequest(request);
+                  },
+                  onCreateWindow: (webCtrl, createWindowAction) {
+                    return controller.onCreateWindow(webCtrl, createWindowAction);
+                  },
+                  onReceivedError: (webCtrl, request, error) {
+                    controller.onReceivedError(request);
+                  },
+                ),
+                const _WebViewErrorOverlay(),
+              ],
             ),
           ),
         ),
@@ -258,33 +273,88 @@ class _ExpandedWebView extends GetView<LinkDetailController> {
         const _WebViewNavigationBar(),
         const SizedBox(height: 8),
         Expanded(
-          child: InAppWebView(
-            initialUrlRequest: URLRequest(url: WebUri(controller.url)),
-            initialSettings: controller.webViewSettings,
-            gestureRecognizers: const {
-              Factory<TapGestureRecognizer>(TapGestureRecognizer.new),
-              Factory<VerticalDragGestureRecognizer>(VerticalDragGestureRecognizer.new),
-              Factory<HorizontalDragGestureRecognizer>(HorizontalDragGestureRecognizer.new),
-            },
-            onWebViewCreated: (webCtrl) {
-              controller.webViewController = webCtrl;
-            },
-            onLoadStart: (webCtrl, url) {
-              controller.onPageStarted(url?.toString());
-            },
-            onLoadStop: (webCtrl, url) {
-              controller.onPageFinished(url?.toString());
-            },
-            onConsoleMessage: (webCtrl, consoleMessage) {},
-            onRenderProcessGone: (webCtrl, detail) async => true,
-            shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
-              return controller.shouldOverrideUrlLoading(navigationAction);
-            },
+          child: Stack(
+            children: [
+              InAppWebView(
+                initialUrlRequest: URLRequest(url: WebUri(controller.url)),
+                initialSettings: controller.webViewSettings,
+                gestureRecognizers: const {
+                  Factory<TapGestureRecognizer>(TapGestureRecognizer.new),
+                  Factory<VerticalDragGestureRecognizer>(VerticalDragGestureRecognizer.new),
+                  Factory<HorizontalDragGestureRecognizer>(HorizontalDragGestureRecognizer.new),
+                },
+                onWebViewCreated: (webCtrl) {
+                  controller.webViewController = webCtrl;
+                },
+                onLoadStart: (webCtrl, url) {
+                  controller.onPageStarted(url?.toString());
+                },
+                onLoadStop: (webCtrl, url) {
+                  controller.onPageFinished(url?.toString());
+                },
+                onConsoleMessage: (webCtrl, consoleMessage) {},
+                onRenderProcessGone: (webCtrl, detail) async => true,
+                shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
+                  return controller.shouldOverrideUrlLoading(navigationAction);
+                },
+                shouldInterceptRequest: (webCtrl, request) {
+                  return controller.shouldInterceptRequest(request);
+                },
+                onCreateWindow: (webCtrl, createWindowAction) {
+                  return controller.onCreateWindow(webCtrl, createWindowAction);
+                },
+                onReceivedError: (webCtrl, request, error) {
+                  controller.onReceivedError(request);
+                },
+              ),
+              const _WebViewErrorOverlay(),
+            ],
           ),
         ),
       ],
     );
   }
+}
+
+// Đè lên WebView khi trang chính tải lỗi — nếu không, người dùng chỉ thấy
+// nền đen im lìm không rõ đang tải hay đã hỏng, không biết phải làm gì tiếp.
+class _WebViewErrorOverlay extends GetView<LinkDetailController> {
+  const _WebViewErrorOverlay();
+
+  @override
+  Widget build(BuildContext context) => Obx(() {
+    if (!controller.hasLoadError.value) return const SizedBox.shrink();
+    return Container(
+      color: const Color(0xFF121212),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off_rounded, color: Colors.white38, size: 44),
+          const SizedBox(height: 12),
+          TextWidget(
+            text: "webview_load_error".tr,
+            textStyle: AppTextStyle.regular14,
+            color: Colors.white70,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              OutlinedButton(
+                onPressed: controller.webReload,
+                child: TextWidget(text: "Reload".tr, color: AppColors.white),
+              ),
+              const SizedBox(width: 12),
+              PrimaryButton(text: "Open in App".tr, onPressed: controller.openInApp),
+            ],
+          ),
+        ],
+      ),
+    );
+  });
 }
 
 class _WebViewNavigationBar extends GetView<LinkDetailController> {
@@ -303,11 +373,7 @@ class _WebViewNavigationBar extends GetView<LinkDetailController> {
   Widget build(BuildContext context) => Obx(
     () => Container(
       height: 48,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(12),
-      ),
+      color: const Color(0xFF1E1E1E),
       child: Row(
         children: [
           _NavButton(

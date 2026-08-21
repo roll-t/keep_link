@@ -37,7 +37,11 @@ class Utils {
 
   static Future<void> lanchUrl(String url, {BuildContext? context}) async {
     final Uri uri = Uri.tryParse(url) ?? Uri();
-    if (uri.toString().isEmpty) {
+    // Chỉ cho phép http/https. url ở đây có thể đến từ dữ liệu chưa xác minh
+    // (vd: link trong danh mục được bạn bè chia sẻ), nên không được launch
+    // thẳng các scheme khác (intent://, content://, file://...) — kẻ xấu có
+    // thể lợi dụng để mở app/thành phần khác ngoài ý muốn người dùng.
+    if (uri.toString().isEmpty || (uri.scheme != 'http' && uri.scheme != 'https')) {
       if (context != null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Invalid URL".tr)));
       }

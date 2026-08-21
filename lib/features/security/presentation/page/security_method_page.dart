@@ -23,6 +23,9 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
         final isCatSecOn = controller.isCategorySecurityEnabled.value;
         final isFingerOn = controller.isFingerprintEnabled.value;
         final isPinActive = isAppSecOn || isCatSecOn;
+        // Trong lúc chờ xác thực PIN/vân tay cho 1 thao tác, khoá tạm các control khác
+        // để tránh double-tap tạo ra 2 luồng xác thực chồng nhau.
+        final isBusy = controller.isBusy.value;
         return Padding(
           padding: const EdgeInsets.all(16),
           child: SingleChildScrollView(
@@ -36,13 +39,14 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
                     _buildSwitchItem(
                       title: "App Security",
                       value: isAppSecOn,
+                      isEnabled: !isBusy,
                       onChanged: (_) => controller.toggleAppSecurity(),
                     ),
                     const SizedBox(height: 16),
                     _buildSwitchItem(
                       title: "Category Security",
                       value: isCatSecOn,
-                      isEnabled: true,
+                      isEnabled: !isBusy,
                       onChanged: (_) => controller.toggleCategorySecurity(),
                     ),
                   ],
@@ -62,7 +66,7 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
                         child: _buildBigOptionCard(
                           title: "PIN Code",
                           iconVector: AppVectors.icPin.path,
-                          isEnabled: isPinActive,
+                          isEnabled: isPinActive && !isBusy,
                           isActive: isPinActive,
                           onTap: () => controller.changePin(),
                         ),
@@ -75,7 +79,7 @@ class SecurityMethodPage extends GetView<SecurityMethodController> {
                         child: _buildBigOptionCard(
                           title: "Fingerprint",
                           iconVector: AppVectors.icFinger.path,
-                          isEnabled: isAppSecOn,
+                          isEnabled: isAppSecOn && !isBusy,
                           isActive: isFingerOn,
                           onTap: () => controller.toggleFingerprint(),
                         ),

@@ -1,25 +1,17 @@
-import 'dart:typed_data';
-import 'dart:ui' as ui;
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
-import 'package:keep_link/core/config/constants/app_enum.dart';
-import 'package:keep_link/core/config/assets/app_images.dart';
 import 'package:keep_link/core/config/theme/app_text_styles.dart';
+import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
-import 'package:keep_link/core/localization/translation_service.dart';
 import 'package:keep_link/core/presentation/widgets/appbar/custom_app_bar.dart';
 import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
+import 'package:keep_link/features/friend/presentation/page/my_qr_page.dart';
 import 'package:keep_link/features/personal/presentation/controller/personal_controller.dart';
-import 'package:keep_link/features/personal/presentation/page/privacy_policy_page.dart';
-import 'package:keep_link/features/personal/presentation/page/terms_page.dart';
-import 'package:keep_link/features/security/presentation/page/security_method_page.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:keep_link/features/personal/presentation/page/settings_page.dart';
 
 class PersonalPage extends GetView<PersonalController> {
   static const routeName = '/PersonalPage';
@@ -32,24 +24,40 @@ class PersonalPage extends GetView<PersonalController> {
       top: false,
       child: Scaffold(
         backgroundColor: AppColors.bg700,
-        appBar: CustomAppBar(title: "Personal".tr),
+        appBar: CustomAppBar(
+          title: "Personal".tr,
+          centerTitle: false,
+          titleStyle: AppTextStyle.bold20,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings_outlined, color: AppColors.n70, size: 22),
+              tooltip: 'Settings'.tr,
+              onPressed: () => Get.toNamed(SettingsPage.routeName),
+            ),
+            const SizedBox(width: 4),
+          ],
+        ),
         body: Obx(() {
           final currentUser = controller.user.value;
-          final loading = controller.isLoading.value;
           final isLoggedIn = currentUser != null;
           AppCache.links.length;
           AppCache.categories.length;
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.only(bottom: 32),
+            physics: const BouncingScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ── Profile card ─────────────────────────────────────────────
+                // ── Profile card (Edge-to-edge) ─────────────────────────────
+                SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
                   decoration: BoxDecoration(
                     color: AppColors.d500,
-                    borderRadius: BorderRadius.circular(14),
+                    border: Border(
+                      bottom: BorderSide(color: AppColors.white.withOpacityCompat(0.06), width: 1),
+                    ),
                   ),
                   child: Column(
                     children: [
@@ -57,31 +65,33 @@ class PersonalPage extends GetView<PersonalController> {
                       Obx(() {
                         final uploading = controller.isUploadingAvatar.value;
                         return GestureDetector(
-                          onTap: isLoggedIn && !uploading ? controller.changeAvatar : null,
+                          onTap: isLoggedIn && !uploading
+                              ? () => _showAvatarBottomSheet(context, currentUser)
+                              : null,
                           child: Stack(
                             children: [
                               CacheImageWidget(
                                 imageUrl: isLoggedIn && (currentUser.photoURL?.isNotEmpty == true)
                                     ? currentUser.photoURL!
                                     : '',
-                                width: 68,
-                                height: 68,
+                                width: 76,
+                                height: 76,
                                 fit: BoxFit.cover,
-                                borderRadius: BorderRadius.circular(34),
+                                borderRadius: BorderRadius.circular(38),
                                 errorWidget: Container(
-                                  width: 68,
-                                  height: 68,
+                                  width: 76,
+                                  height: 76,
                                   decoration: BoxDecoration(
                                     color: AppColors.primary.withOpacityCompat(0.2),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.person, size: 34, color: AppColors.white),
+                                  child: const Icon(Icons.person, size: 38, color: AppColors.white),
                                 ),
                               ),
                               if (uploading)
                                 Container(
-                                  width: 68,
-                                  height: 68,
+                                  width: 76,
+                                  height: 76,
                                   decoration: BoxDecoration(
                                     color: Colors.black.withOpacityCompat(0.5),
                                     shape: BoxShape.circle,
@@ -98,16 +108,16 @@ class PersonalPage extends GetView<PersonalController> {
                                   right: 0,
                                   bottom: 0,
                                   child: Container(
-                                    width: 20,
-                                    height: 20,
+                                    width: 24,
+                                    height: 24,
                                     decoration: BoxDecoration(
                                       color: AppColors.primary,
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: AppColors.d500, width: 1.5),
+                                      border: Border.all(color: AppColors.d500, width: 2),
                                     ),
                                     child: const Icon(
                                       Icons.edit_rounded,
-                                      size: 11,
+                                      size: 13,
                                       color: AppColors.white,
                                     ),
                                   ),
@@ -128,7 +138,7 @@ class PersonalPage extends GetView<PersonalController> {
                                 : 'Guest User'.tr,
                             color: AppColors.white,
                             size: 18,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                           if (isLoggedIn) ...[
                             const SizedBox(width: 6),
@@ -139,60 +149,95 @@ class PersonalPage extends GetView<PersonalController> {
                           ],
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       TextWidget(
                         text: isLoggedIn
                             ? (currentUser.email ?? 'No email'.tr)
                             : 'Not signed in'.tr,
                         color: AppColors.n70,
-                        size: 14,
+                        size: 13.5,
                       ),
-                      if (isLoggedIn) ...[
-                        const SizedBox(height: 6),
-                        TextWidget(
-                          text: 'UID: @0'.trParams({'0': currentUser.uid}),
-                          color: AppColors.n60,
-
-                          size: 12,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
 
-                // ── Sign in / out ─────────────────────────────────────────────
-                ElevatedButton.icon(
-                  onPressed: loading
-                      ? null
-                      : (isLoggedIn ? controller.signOut : controller.signInWithGoogle),
-                  icon: loading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(isLoggedIn ? Icons.logout_rounded : Icons.login_rounded),
-                  label: TextWidget(
-                    text: loading
-                        ? 'Please wait...'.tr
-                        : (isLoggedIn ? 'Sign Out'.tr : 'Sign In with Google'.tr),
-                    color: Colors.white,
+                // ── Guest Sign In Button ───────────────────────────────────
+                if (!isLoggedIn) ...[
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: ElevatedButton.icon(
+                      onPressed: controller.isLoading.value ? null : controller.signInWithGoogle,
+                      icon: controller.isLoading.value
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.login_rounded, size: 20, color: Colors.white),
+                      label: TextWidget(
+                        text: controller.isLoading.value
+                            ? 'Please wait...'.tr
+                            : 'Sign In with Google'.tr,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        size: 15,
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                    ),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 48),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // ── Friend Connection ──────────────────────────────────────
+                ],
+                // ── Stats (Flush Grid) ─────────────────────────────────────
                 if (isLoggedIn) ...[
-                  _SectionLabel(label: 'Friend Connection'.tr),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.d500,
+                      border: Border.symmetric(
+                        horizontal: BorderSide(
+                          color: AppColors.white.withOpacityCompat(0.06),
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _StatCell(
+                            icon: Icons.link_rounded,
+                            value: '${controller.totalLinks}',
+                            label: 'Total Links'.tr,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        Container(
+                          width: 0.5,
+                          height: 60,
+                          color: AppColors.white.withOpacityCompat(0.08),
+                        ),
+                        Expanded(
+                          child: _StatCell(
+                            icon: Icons.folder_rounded,
+                            value: '${controller.totalCategories}',
+                            label: 'Categories'.tr,
+                            color: const Color(0xFF9B59B6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // ── Friend Connection (Flush) ──────────────────────────────
+                if (isLoggedIn) ...[
+                  SizedBox(height: 12),
                   _SupportCard(
                     children: [
                       _SupportTile(
@@ -203,138 +248,11 @@ class PersonalPage extends GetView<PersonalController> {
                       _SupportTile(
                         icon: Icons.qr_code_2_rounded,
                         label: 'Show Personal QR'.tr,
-                        onTap: () {
-                          final link = controller.personalFriendLink;
-                          if (link != null) {
-                            _showPersonalQrSheet(context, currentUser, link);
-                          }
-                        },
+                        onTap: () => Get.toNamed(MyQrPage.routeName),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
                 ],
-
-                // ── Stats ─────────────────────────────────────────────────────
-                if (isLoggedIn) ...[
-                  _SectionLabel(label: 'Statistics'.tr),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StatCard(
-                          icon: Icons.link_rounded,
-                          value: '${controller.totalLinks}',
-                          label: 'Total Links'.tr,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _StatCard(
-                          icon: Icons.folder_rounded,
-                          value: '${controller.totalCategories}',
-                          label: 'Categories'.tr,
-                          color: const Color(0xFF9B59B6),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StatCard(
-                          icon: Icons.calendar_today_rounded,
-                          value: '${controller.linksThisWeek}',
-                          label: 'This Week'.tr,
-                          color: const Color(0xFF27AE60),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _StatCard(
-                          icon: Icons.local_fire_department_rounded,
-                          value: '${controller.currentStreak}',
-                          label: 'Day Streak'.tr,
-                          color: const Color(0xFFE67E22),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                ],
-
-                // ── Settings ──────────────────────────────────────────────────
-                _SectionLabel(label: 'Settings'.tr),
-                const SizedBox(height: 8),
-                _SupportCard(
-                  children: [
-                    _SupportTile(
-                      icon: Icons.language_rounded,
-                      label: 'Language'.tr,
-                      onTap: () => _showLanguageBottomSheet(context),
-                    ),
-                    _SupportTile(
-                      icon: Icons.lock_rounded,
-                      label: 'Security'.tr,
-                      onTap: () =>
-                          Get.toNamed(SecurityMethodPage.routeName, arguments: TypePage.create),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // ── Support ───────────────────────────────────────────────────
-                _SectionLabel(label: 'Support'.tr),
-                const SizedBox(height: 8),
-                _SupportCard(
-                  children: [
-                    _SupportTile(
-                      icon: Icons.star_rounded,
-                      label: 'Rate App'.tr,
-                      onTap: controller.rateApp,
-                    ),
-                    _SupportTile(
-                      icon: Icons.chat_bubble_outline_rounded,
-                      label: 'Feedback & Bug Report'.tr,
-                      onTap: controller.openFeedbackAndBugReport,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _SupportCard(
-                  children: [
-                    _SupportTile(
-                      icon: Icons.privacy_tip_rounded,
-                      label: 'Privacy Policy'.tr,
-                      onTap: () => Get.toNamed(PrivacyPolicyPage.routeName),
-                    ),
-                    _SupportTile(
-                      icon: Icons.description_rounded,
-                      label: 'Terms of Service'.tr,
-                      onTap: () => Get.toNamed(TermsPage.routeName),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _SupportCard(
-                  children: [
-                    Obx(
-                      () => _SupportTile(
-                        icon: Icons.info_outline_rounded,
-                        label: 'App Version'.tr,
-                        trailing: TextWidget(
-                          text: controller.appVersion.value,
-                          color: Colors.white38,
-                          size: 13,
-                        ),
-                        onTap: null,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
               ],
             ),
           );
@@ -343,199 +261,68 @@ class PersonalPage extends GetView<PersonalController> {
     );
   }
 
-  void _showLanguageBottomSheet(BuildContext context) {
+  void _showAvatarBottomSheet(BuildContext context, User currentUser) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      backgroundColor: AppColors.d500,
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextWidget(
-                text: 'Select Language'.tr,
-                textStyle: AppTextStyle.semiBold20,
-                color: AppColors.white,
-              ),
-              const SizedBox(height: 20),
-              ...LocalizationService.langs.entries.map((entry) {
-                final langCode = entry.key;
-                final langName = entry.value;
-                final isSelected = Get.locale?.languageCode == langCode;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: GestureDetector(
-                    onTap: () async {
-                      await LocalizationService.changeLocale(langCode);
-                      Get.back();
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: isSelected
-                            ? AppColors.primary.withOpacityCompat(0.2)
-                            : AppColors.bg700,
-                        border: Border.all(
-                          color: isSelected ? AppColors.primary : Colors.transparent,
-                          width: isSelected ? 2 : 0,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          TextWidget(
-                            text: langName,
-                            textStyle: AppTextStyle.semiBold16,
-                            color: isSelected ? AppColors.primary : AppColors.white,
-                          ),
-                          if (isSelected)
-                            const Icon(Icons.check_circle_rounded, color: AppColors.primary),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showPersonalQrSheet(BuildContext context, User currentUser, String link) {
-    final qrKey = GlobalKey();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
       backgroundColor: AppColors.d500,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.only(bottom: 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextWidget(
-                text: 'Your Personal QR'.tr,
-                textStyle: AppTextStyle.semiBold20,
-                color: AppColors.white,
-              ),
-              const SizedBox(height: 8),
-              TextWidget(
-                text: 'Let your friend scan this QR or copy the personal link below.'.tr,
-                color: AppColors.n70,
-                size: 13,
-                textAlign: TextAlign.center,
-              ),
-              RepaintBoundary(
-                key: qrKey,
+              const SizedBox(height: 12),
+              Center(
                 child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(21),
-                            child: Image.asset(
-                              AppImages.iLogo.path,
-                              width: 42,
-                              height: 42,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 42,
-                                height: 42,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacityCompat(0.2),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.person, color: AppColors.white),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                TextWidget(
-                                  text: currentUser.displayName ?? 'No display name'.tr,
-                                  color: AppColors.bg700,
-                                  size: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                TextWidget(
-                                  text: currentUser.email ?? '',
-                                  color: AppColors.n700,
-                                  size: 12,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      QrImageView(
-                        data: link,
-                        version: QrVersions.auto,
-                        size: 220,
-                        backgroundColor: Colors.white,
-                      ),
-                    ],
+                    color: AppColors.white.withOpacityCompat(0.2),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: TextWidget(
+                  text: 'Avatar'.tr,
+                  textStyle: AppTextStyle.bold18,
+                  color: AppColors.primary,
+                ),
+              ),
               const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        final pngBytes = await _captureQrPng(qrKey);
-                        if (pngBytes != null) {
-                          await controller.sharePersonalQr(pngBytes);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.n700),
-                      icon: const Icon(Icons.share_rounded, color: AppColors.white),
-                      label: TextWidget(text: 'Share'.tr, color: AppColors.white),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final pngBytes = await _captureQrPng(qrKey);
-                        if (pngBytes != null) {
-                          await controller.savePersonalQrToDevice(pngBytes);
-                        }
-                      },
-                      icon: const Icon(Icons.download_rounded, color: AppColors.white),
-                      label: TextWidget(text: 'Save QR'.tr, color: AppColors.white),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.white,
-                        side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
-                      ),
-                    ),
-                  ),
-                ],
+
+              // 1. Xem ảnh đại diện
+              _AvatarOptionTile(
+                icon: Icons.account_circle_outlined,
+                iconColor: AppColors.white.withOpacityCompat(0.7),
+                title: 'View Avatar'.tr,
+                onTap: () {
+                  Get.back();
+                  final photoUrl = currentUser.photoURL;
+                  if (photoUrl != null && photoUrl.isNotEmpty) {
+                    _viewAvatarFullScreen(context, photoUrl);
+                  } else {
+                    AppToast.showToast('No avatar available'.tr, Icons.info_outline_rounded);
+                  }
+                },
+              ),
+              Divider(height: 1, thickness: 0.5, color: AppColors.white.withOpacityCompat(0.06)),
+
+              // 2. Chọn ảnh trên máy
+              _AvatarOptionTile(
+                icon: Icons.add_photo_alternate_outlined,
+                iconColor: AppColors.white.withOpacityCompat(0.7),
+                title: 'Choose photo from device'.tr,
+                onTap: () {
+                  Get.back();
+                  controller.changeAvatar();
+                },
               ),
             ],
           ),
@@ -544,37 +331,42 @@ class PersonalPage extends GetView<PersonalController> {
     );
   }
 
-  Future<Uint8List?> _captureQrPng(GlobalKey boundaryKey) async {
-    try {
-      final context = boundaryKey.currentContext;
-      if (context == null) return null;
-
-      final boundary = context.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) return null;
-
-      final image = await boundary.toImage(pixelRatio: 3);
-      final data = await image.toByteData(format: ui.ImageByteFormat.png);
-      return data?.buffer.asUint8List();
-    } catch (_) {
-      return null;
-    }
+  void _viewAvatarFullScreen(BuildContext context, String imageUrl) {
+    Get.dialog(
+      Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+            onPressed: () => Get.back(),
+          ),
+          title: TextWidget(text: 'Avatar'.tr, color: Colors.white, textStyle: AppTextStyle.bold18),
+          centerTitle: true,
+        ),
+        body: Center(
+          child: InteractiveViewer(
+            panEnabled: true,
+            minScale: 0.8,
+            maxScale: 4.0,
+            child: CacheImageWidget(
+              imageUrl: imageUrl,
+              fit: BoxFit.contain,
+              errorWidget: const Icon(Icons.person, size: 100, color: Colors.white),
+            ),
+          ),
+        ),
+      ),
+      useSafeArea: false,
+    );
   }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextWidget(text: label, color: Colors.white54, size: 12, fontWeight: FontWeight.w600);
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
+class _StatCell extends StatelessWidget {
+  const _StatCell({
     required this.icon,
     required this.value,
     required this.label,
@@ -588,9 +380,8 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-      decoration: BoxDecoration(color: AppColors.d500, borderRadius: BorderRadius.circular(14)),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       child: Row(
         children: [
           Container(
@@ -603,17 +394,20 @@ class _StatCard extends StatelessWidget {
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextWidget(
-                text: value,
-                color: AppColors.white,
-                size: 20,
-                fontWeight: FontWeight.w700,
-              ),
-              TextWidget(text: label, color: AppColors.n60, size: 12),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextWidget(
+                  text: value,
+                  color: AppColors.white,
+                  size: 19,
+                  fontWeight: FontWeight.w700,
+                ),
+                TextWidget(text: label, color: AppColors.n60, size: 11.5, maxLines: 1),
+              ],
+            ),
           ),
         ],
       ),
@@ -628,13 +422,25 @@ class _SupportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(color: AppColors.d500, borderRadius: BorderRadius.circular(14)),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.d500,
+        border: Border.symmetric(
+          horizontal: BorderSide(color: AppColors.white.withOpacityCompat(0.06), width: 1),
+        ),
+      ),
       child: Column(
         children: [
           for (int i = 0; i < children.length; i++) ...[
             children[i],
             if (i < children.length - 1)
-              Divider(height: .5, indent: 52, color: AppColors.n500.withOpacityCompat(0.5)),
+              Divider(
+                height: 1,
+                thickness: 0.5,
+                indent: 52,
+                endIndent: 0,
+                color: AppColors.white.withOpacityCompat(0.08),
+              ),
           ],
         ],
       ),
@@ -643,26 +449,62 @@ class _SupportCard extends StatelessWidget {
 }
 
 class _SupportTile extends StatelessWidget {
-  const _SupportTile({required this.icon, required this.label, required this.onTap, this.trailing});
+  const _SupportTile({required this.icon, required this.label, required this.onTap});
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
-      leading: Icon(icon, color: AppColors.n70, size: 20),
-      title: TextWidget(text: label, color: AppColors.white, size: 14),
-      trailing:
-          trailing ??
-          (onTap != null
-              ? const Icon(Icons.chevron_right_rounded, color: AppColors.n400, size: 20)
-              : null),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      leading: Icon(icon, color: AppColors.n70, size: 21),
+      title: TextWidget(text: label, color: AppColors.white, size: 14, fontWeight: FontWeight.w500),
+      trailing: onTap != null
+          ? const Icon(Icons.chevron_right_rounded, color: AppColors.n400, size: 20)
+          : null,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      minLeadingWidth: 24,
       dense: true,
+    );
+  }
+}
+
+class _AvatarOptionTile extends StatelessWidget {
+  const _AvatarOptionTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextWidget(
+                text: title,
+                color: AppColors.white,
+                size: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

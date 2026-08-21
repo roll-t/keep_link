@@ -53,6 +53,7 @@ class PinVerifyForm extends StatelessWidget {
 
                   // PIN mới
                   Pinput(
+                    autofocus: false,
                     onTapOutside: (event) {
                       Utils.dimissKeyboard();
                     },
@@ -70,6 +71,7 @@ class PinVerifyForm extends StatelessWidget {
 
                   // Xác nhận PIN
                   Pinput(
+                    autofocus: false,
                     length: 4,
                     controller: controller.confirmPinController,
                     focusNode: controller.confirmPinFocus,
@@ -79,6 +81,8 @@ class PinVerifyForm extends StatelessWidget {
                 ],
               );
             }
+
+            final isLocked = controller.isLocked;
 
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -94,9 +98,11 @@ class PinVerifyForm extends StatelessWidget {
                       ]),
 
                 Pinput(
+                  autofocus: false,
                   length: 4,
                   controller: controller.pinController,
                   focusNode: controller.focusNode,
+                  enabled: !isLocked,
                   defaultPinTheme: defaultPinTheme,
                   focusedPinTheme: defaultPinTheme.copyWith(
                     decoration: defaultPinTheme.decoration!.copyWith(
@@ -112,7 +118,13 @@ class PinVerifyForm extends StatelessWidget {
                   errorPinTheme: defaultPinTheme.copyBorderWith(
                     border: Border.all(color: Colors.redAccent),
                   ),
+                  forceErrorState: controller.errorText.value != null,
+                  // Khi bị khoá, dùng dòng đếm ngược riêng bên dưới (live update mỗi giây)
+                  // thay vì errorText tĩnh của Pinput để tránh hiển thị số giây bị "đứng hình".
+                  errorText: isLocked ? null : controller.errorText.value,
+                  errorTextStyle: const TextStyle(color: Colors.redAccent, fontSize: 13),
                   separatorBuilder: (_) => const SizedBox(width: 12),
+                  onChanged: (_) => controller.clearError(),
                   onCompleted: (pin) {
                     controller.onCompleted(pin);
                     if (controller.isPINCorrect) {
@@ -120,6 +132,16 @@ class PinVerifyForm extends StatelessWidget {
                     }
                   },
                 ),
+
+                if (isLocked) ...[
+                  const SizedBox(height: 12),
+                  TextWidget(
+                    text: "Nhập sai quá nhiều lần. Thử lại sau ${controller.lockRemainingSeconds.value}s",
+                    color: Colors.redAccent,
+                    size: 13,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ],
             );
           }),

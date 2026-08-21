@@ -6,10 +6,11 @@ import 'package:keep_link/features/friend/presentation/controller/shared_categor
 class FriendBinding extends Bindings {
   @override
   void dependencies() {
-    DependencyUtils.lazyPut(() => FriendController(), fenix: true);
-    // The friends page now shows a "shared with you" preview inline, so this
-    // controller needs to be ready as soon as the page opens instead of only
-    // when navigating to SharedCategoriesPage.
-    DependencyUtils.lazyPut(() => SharedCategoryController(), fenix: true);
+    // Normally already permanently registered by LinkCollectionBinding (the
+    // home screen) by the time this runs — see there for why. This is just a
+    // defensive fallback for FriendPage's own route in case that ever
+    // changes; DependencyUtils.put() is a no-op if already registered.
+    DependencyUtils.put(() => FriendController(), permanent: true);
+    DependencyUtils.put(() => SharedCategoryController(), permanent: true);
   }
 }

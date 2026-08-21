@@ -26,18 +26,22 @@ class LinkRepository {
 
   // ── Reads (in-memory, no I/O) ─────────────────────────────────────────────
 
-  /// Returns one page of links after applying privacy + category filters.
+  /// Returns every link after applying privacy + category filters.
   ///
   /// The source list is [AppCache.links] which is already sorted
   /// newest-first, so no extra sorting is needed here.
-  static List<LinkModel> getFilteredPage({
+  ///
+  /// Callers that page through this (e.g. an infinite-scroll list) should
+  /// compute it once per filter change and slice pages out of the result
+  /// themselves, rather than calling this again for every page — it's an
+  /// O(N) scan over every link, so calling it once per page turns scrolling
+  /// through the whole list into an O(N²) scan.
+  static List<LinkModel> getFiltered({
     String? categoryId,
     Set<String> privateCategoryIds = const {},
     bool excludePrivate = false,
-    int page = 0,
-    int pageSize = 20,
   }) {
-    final filtered = AppCache.links.where((link) {
+    return AppCache.links.where((link) {
       // Privacy filter — skip links that belong to private categories.
       if (excludePrivate &&
           link.categoryId != null &&
@@ -50,30 +54,6 @@ class LinkRepository {
       }
       return true;
     }).toList();
-
-    final offset = page * pageSize;
-    if (offset >= filtered.length) return const [];
-    return filtered.skip(offset).take(pageSize).toList();
-  }
-
-  /// Total count of links matching the same filters — used to determine
-  /// whether more pages exist.
-  static int getFilteredCount({
-    String? categoryId,
-    Set<String> privateCategoryIds = const {},
-    bool excludePrivate = false,
-  }) {
-    return AppCache.links.where((link) {
-      if (excludePrivate &&
-          link.categoryId != null &&
-          privateCategoryIds.contains(link.categoryId)) {
-        return false;
-      }
-      if (categoryId != null && categoryId != 'all') {
-        return link.categoryId == categoryId;
-      }
-      return true;
-    }).length;
   }
 
   // ── Writes (write-through) ────────────────────────────────────────────────

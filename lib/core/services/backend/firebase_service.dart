@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/friend/application/model/friend_request_model.dart';
 import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
+import 'package:keep_link/features/friend/application/model/shared_individual_link_model.dart';
 
 class FirebaseService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -19,6 +20,8 @@ class FirebaseService {
   static const String _friendsKey = 'friends';
   static const String _sharedWithKey = 'sharedWith';
   static const String _sharedCategoryAccessKey = 'sharedCategoryAccess';
+  static const String _sharedLinksWithKey = 'sharedLinksWith';
+  static const String _sharedLinkAccessKey = 'sharedLinkAccess';
 
   /// Hard cap for a single Realtime Database round-trip. Without this, a
   /// `.get()`/`.update()` call can hang indefinitely while offline — and
@@ -30,38 +33,47 @@ class FirebaseService {
   // AUTH
   // ────────────────────────────────────────────────────────────────────────
 
+  /// Returns the signed-in [UserCredential], or `null` if the user closed
+  /// the account picker themselves (not an error). Any real failure (no
+  /// network, bad config, etc.) is left to propagate so the caller can tell
+  /// it apart from a plain cancel and show an accurate message — previously
+  /// every failure was swallowed here and returned null exactly like a
+  /// cancel, so a real error always surfaced to the user as "sign-in
+  /// cancelled" with no way to know something actually went wrong.
+  ///
+  /// Does not sync the friend lookup profile itself — the caller
+  /// (PersonalController) already reacts to `authStateChanges` and does
+  /// that once; doing it here too would just be a second, redundant write.
   static Future<UserCredential?> signInWithGoogle() async {
-    try {
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
+    final googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) return null;
 
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
 
-      final userCredential = await _auth.signInWithCredential(credential);
-      await syncFriendLookupProfile();
-      log('Google sign in success: ${userCredential.user?.uid}');
-      return userCredential;
-    } on FirebaseAuthException catch (e) {
-      log('Google sign in error: ${e.code} - ${e.message}');
-      return null;
-    } catch (e) {
-      log('Google sign in error: $e');
-      return null;
-    }
+    final userCredential = await _auth.signInWithCredential(credential);
+    log('Google sign in success: ${userCredential.user?.uid}');
+    return userCredential;
   }
 
   static Future<void> signOut() async {
+    // The Google-side sign-out is tolerated on failure (still counts as
+    // "signed out" for our purposes) but Firebase Auth's own signOut() is
+    // NOT — it used to be wrapped in the same try/catch, so a transient
+    // Google Play Services hiccup on the first line would skip _auth.signOut()
+    // entirely while the caller still believed sign-out succeeded and went on
+    // to wipe all local data. That left the Firebase session still
+    // authenticated server-side while the device had nothing left locally.
     try {
       await _googleSignIn.signOut();
-      await _auth.signOut();
-      log('Sign out success');
     } catch (e) {
-      log('Sign out error: $e');
+      log('Google sign out error (continuing to sign out of Firebase): $e');
     }
+    await _auth.signOut();
+    log('Sign out success');
   }
 
   /// Update the display name of the currently signed-in user.
@@ -154,14 +166,17 @@ class FirebaseService {
     final photoUrl = _pickString([user.photoURL]);
 
     try {
-      await _db.ref().update({
-        '$_publicFriendProfilesPath/${user.uid}': {
-          'email': email,
-          'displayName': displayName,
-          'photoUrl': photoUrl,
-          'updatedAt': ServerValue.timestamp,
-        },
-      }).timeout(_requestTimeout);
+      await _db
+          .ref()
+          .update({
+            '$_publicFriendProfilesPath/${user.uid}': {
+              'email': email,
+              'displayName': displayName,
+              'photoUrl': photoUrl,
+              'updatedAt': ServerValue.timestamp,
+            },
+          })
+          .timeout(_requestTimeout);
       log('Friend lookup profile synced: ${user.uid}');
     } catch (e) {
       log('Sync friend lookup profile error: $e');
@@ -221,14 +236,16 @@ class FirebaseService {
     };
 
     try {
-      await _db.ref('users/$targetUserId').update({
-        '$_friendRequestsKey/${currentUser.uid}': incomingRequest,
-      }).timeout(_requestTimeout);
+      await _db
+          .ref('users/$targetUserId')
+          .update({'$_friendRequestsKey/${currentUser.uid}': incomingRequest})
+          .timeout(_requestTimeout);
 
       try {
-        await _db.ref('users/${currentUser.uid}').update({
-          '$_sentFriendRequestsKey/$targetUserId': outgoingRequest,
-        }).timeout(_requestTimeout);
+        await _db
+            .ref('users/${currentUser.uid}')
+            .update({'$_sentFriendRequestsKey/$targetUserId': outgoingRequest})
+            .timeout(_requestTimeout);
       } catch (e) {
         log('Send friend request mirror write warning: $e');
       }
@@ -401,22 +418,39 @@ class FirebaseService {
       'updatedAt': now,
     };
 
+    // Ghi vào node của NGƯỜI GỬI trước (rủi ro hơn — có thể bị permission-denied
+    // do rules, hoặc mất mạng giữa chừng). Chỉ khi bước này chắc chắn thành công
+    // mới xoá lời mời đang chờ ở node của mình. Nếu làm ngược lại (như code cũ),
+    // lỡ bước ghi cho người gửi thất bại thì lời mời đã bị xoá khỏi node của
+    // mình mất rồi — người gửi kẹt vĩnh viễn ở trạng thái "đã gửi" mà không ai
+    // có thể bấm "Accept" lại được nữa vì request đã biến mất.
     try {
-      await _db.ref('users/${currentUser.uid}').update({
-        '$_friendsKey/${request.fromUserId}': currentUserFriend,
-        '$_friendRequestsKey/${request.fromUserId}': null,
-      }).timeout(_requestTimeout);
-
-      await _db.ref('users/${request.fromUserId}').update({
-        '$_friendsKey/${currentUser.uid}': requesterFriend,
-        '$_sentFriendRequestsKey/${currentUser.uid}': null,
-      }).timeout(_requestTimeout);
-
-      log('Friend request accepted: ${request.fromUserId} <-> ${currentUser.uid}');
+      await _db
+          .ref('users/${request.fromUserId}')
+          .update({
+            '$_friendsKey/${currentUser.uid}': requesterFriend,
+            '$_sentFriendRequestsKey/${currentUser.uid}': null,
+          })
+          .timeout(_requestTimeout);
     } catch (e) {
-      log('Accept friend request error: $e');
+      log('Accept friend request error (requester side): $e');
       rethrow;
     }
+
+    try {
+      await _db
+          .ref('users/${currentUser.uid}')
+          .update({
+            '$_friendsKey/${request.fromUserId}': currentUserFriend,
+            '$_friendRequestsKey/${request.fromUserId}': null,
+          })
+          .timeout(_requestTimeout);
+    } catch (e) {
+      log('Accept friend request error (own side): $e');
+      rethrow;
+    }
+
+    log('Friend request accepted: ${request.fromUserId} <-> ${currentUser.uid}');
   }
 
   static Future<void> declineFriendRequest(String fromUserId) async {
@@ -435,9 +469,10 @@ class FirebaseService {
           .update({'$_friendRequestsKey/$fromUserId': null})
           .timeout(_requestTimeout);
 
-      await _db.ref('users/$fromUserId').update({
-        '$_sentFriendRequestsKey/${currentUser.uid}': null,
-      }).timeout(_requestTimeout);
+      await _db
+          .ref('users/$fromUserId')
+          .update({'$_sentFriendRequestsKey/${currentUser.uid}': null})
+          .timeout(_requestTimeout);
 
       log('Friend request declined: $fromUserId -> ${currentUser.uid}');
     } catch (e) {
@@ -458,11 +493,16 @@ class FirebaseService {
 
     // Bước 1: Dọn phía mình — luôn được phép vì ghi vào node của chính mình
     try {
-      await _db.ref('users/${currentUser.uid}').update({
-        '$_friendsKey/$friendUserId': null,
-        '$_sharedWithKey/$friendUserId': null,
-        '$_sharedCategoryAccessKey/$friendUserId': null,
-      }).timeout(_requestTimeout);
+      await _db
+          .ref('users/${currentUser.uid}')
+          .update({
+            '$_friendsKey/$friendUserId': null,
+            '$_sharedWithKey/$friendUserId': null,
+            '$_sharedCategoryAccessKey/$friendUserId': null,
+            '$_sharedLinksWithKey/$friendUserId': null,
+            '$_sharedLinkAccessKey/$friendUserId': null,
+          })
+          .timeout(_requestTimeout);
     } catch (e) {
       log('Remove friend (own side) error: $e');
       rethrow;
@@ -494,6 +534,22 @@ class FirebaseService {
           .timeout(_requestTimeout);
     } catch (e) {
       log('Remove friend (friend side - sharedCategoryAccess) error: $e');
+    }
+    try {
+      await _db
+          .ref('users/$friendUserId/$_sharedLinksWithKey/${currentUser.uid}')
+          .remove()
+          .timeout(_requestTimeout);
+    } catch (e) {
+      log('Remove friend (friend side - sharedLinksWith) error: $e');
+    }
+    try {
+      await _db
+          .ref('users/$friendUserId/$_sharedLinkAccessKey/${currentUser.uid}')
+          .remove()
+          .timeout(_requestTimeout);
+    } catch (e) {
+      log('Remove friend (friend side - sharedLinkAccess) error: $e');
     }
 
     log('Friend removed: ${currentUser.uid} x $friendUserId');
@@ -578,18 +634,21 @@ class FirebaseService {
       final nextFeedbackCount = type == 'feedback' ? feedbackCount + 1 : feedbackCount;
       final nextBugReportCount = type == 'bug_report' ? bugReportCount + 1 : bugReportCount;
 
-      await _db.ref().update({
-        'users/$uid/feedback/${feedbackRef.key}': {
-          'type': type,
-          'message': message,
-          'email': _auth.currentUser?.email ?? '',
-          'dayKey': dayKey,
-          'timestamp': ServerValue.timestamp,
-        },
-        'users/$uid/feedbackQuota/$dayKey/feedback': nextFeedbackCount,
-        'users/$uid/feedbackQuota/$dayKey/bug_report': nextBugReportCount,
-        'users/$uid/feedbackQuota/$dayKey/updatedAt': ServerValue.timestamp,
-      }).timeout(_requestTimeout);
+      await _db
+          .ref()
+          .update({
+            'users/$uid/feedback/${feedbackRef.key}': {
+              'type': type,
+              'message': message,
+              'email': _auth.currentUser?.email ?? '',
+              'dayKey': dayKey,
+              'timestamp': ServerValue.timestamp,
+            },
+            'users/$uid/feedbackQuota/$dayKey/feedback': nextFeedbackCount,
+            'users/$uid/feedbackQuota/$dayKey/bug_report': nextBugReportCount,
+            'users/$uid/feedbackQuota/$dayKey/updatedAt': ServerValue.timestamp,
+          })
+          .timeout(_requestTimeout);
 
       log(
         'Feedback submitted: users/$uid/feedback ($type) - '
@@ -640,9 +699,21 @@ class FirebaseService {
           .ref('users/${owner.uid}/$_sharedWithKey/$friendUid')
           .update({categoryId: true})
           .timeout(_requestTimeout);
-      await _db.ref('users/$friendUid/$_sharedCategoryAccessKey/${owner.uid}').update({
-        categoryId: ServerValue.timestamp,
-      }).timeout(_requestTimeout);
+      try {
+        await _db
+            .ref('users/$friendUid/$_sharedCategoryAccessKey/${owner.uid}')
+            .update({categoryId: ServerValue.timestamp})
+            .timeout(_requestTimeout);
+      } catch (e) {
+        // Same rollback as shareLink(): don't leave the owner's own node
+        // claiming a share that the friend never actually received.
+        await _db
+            .ref('users/${owner.uid}/$_sharedWithKey/$friendUid/$categoryId')
+            .remove()
+            .timeout(_requestTimeout)
+            .catchError((_) {});
+        rethrow;
+      }
       log('Category shared: ${owner.uid} -> $friendUid (cat: $categoryId)');
     } catch (e) {
       log('Share category error: $e');
@@ -750,6 +821,210 @@ class FirebaseService {
     }
   }
 
+  // ────────────────────────────────────────────────────────────────────────
+  // INDIVIDUAL LINK SHARING
+  // ────────────────────────────────────────────────────────────────────────
+
+  /// Share [linkId] with [friendUid].
+  static Future<void> shareLink({required String friendUid, required String linkId}) async {
+    final owner = _auth.currentUser;
+    if (owner == null) {
+      throw FirebaseException(
+        plugin: 'firebase_database',
+        code: 'unauthenticated',
+        message: 'Sign in is required to share a link.',
+      );
+    }
+
+    try {
+      await _db
+          .ref('users/${owner.uid}/$_sharedLinksWithKey/$friendUid')
+          .update({linkId: true})
+          .timeout(_requestTimeout);
+      try {
+        await _db
+            .ref('users/$friendUid/$_sharedLinkAccessKey/${owner.uid}')
+            .update({linkId: ServerValue.timestamp})
+            .timeout(_requestTimeout);
+      } catch (e) {
+        // Own-side write above already succeeded — without this rollback the
+        // owner's sharedLinksWith node would keep saying "shared" for a
+        // friend who never actually got access (e.g. RTDB rules rejecting
+        // the cross-user write), which desyncs the share sheet's UI from
+        // reality until the link is deleted.
+        await _db
+            .ref('users/${owner.uid}/$_sharedLinksWithKey/$friendUid/$linkId')
+            .remove()
+            .timeout(_requestTimeout)
+            .catchError((_) {});
+        rethrow;
+      }
+      log('Link shared: ${owner.uid} -> $friendUid (link: $linkId)');
+    } catch (e) {
+      log('Share link error: $e');
+      rethrow;
+    }
+  }
+
+  /// Revoke sharing of [linkId] with [friendUid].
+  static Future<void> unshareLink({required String friendUid, required String linkId}) async {
+    final owner = _auth.currentUser;
+    if (owner == null) {
+      throw FirebaseException(
+        plugin: 'firebase_database',
+        code: 'unauthenticated',
+        message: 'Sign in is required to unshare a link.',
+      );
+    }
+
+    try {
+      await _db
+          .ref('users/${owner.uid}/$_sharedLinksWithKey/$friendUid/$linkId')
+          .remove()
+          .timeout(_requestTimeout);
+      await _db
+          .ref('users/$friendUid/$_sharedLinkAccessKey/${owner.uid}/$linkId')
+          .remove()
+          .timeout(_requestTimeout);
+      log('Link unshared: ${owner.uid} -> $friendUid (link: $linkId)');
+    } catch (e) {
+      log('Unshare link error: $e');
+      rethrow;
+    }
+  }
+
+  /// Returns list of friend UIDs that [linkId] is currently shared with.
+  static Future<List<String>> getLinkSharedFriendUids(String linkId) async {
+    final owner = _auth.currentUser;
+    if (owner == null) return const [];
+
+    try {
+      final snapshot = await _db
+          .ref('users/${owner.uid}/$_sharedLinksWithKey')
+          .get()
+          .timeout(_requestTimeout);
+      if (!snapshot.exists || snapshot.value is! Map) return const [];
+
+      final raw = Map<String, dynamic>.from(snapshot.value as Map);
+      return raw.entries
+          .where(
+            (entry) =>
+                entry.value is Map &&
+                (Map<String, dynamic>.from(entry.value as Map)[linkId]) == true,
+          )
+          .map((entry) => entry.key)
+          .toList();
+    } catch (e) {
+      log('Get link shared friend uids error: $e');
+      return const [];
+    }
+  }
+
+  /// Remove all sharing records for [linkId] when the link is deleted.
+  static Future<void> revokeAllLinkShares(String linkId) async {
+    final owner = _auth.currentUser;
+    if (owner == null) return;
+
+    try {
+      final sharedFriendUids = await getLinkSharedFriendUids(linkId);
+      for (final friendUid in sharedFriendUids) {
+        await unshareLink(friendUid: friendUid, linkId: linkId);
+      }
+      log('All shares revoked for link: $linkId');
+    } catch (e) {
+      log('Revoke all link shares error: $e');
+    }
+  }
+
+  /// Fetch all individual links that friends have shared with the current user.
+  static Future<List<SharedIndividualLinkModel>> getSharedIndividualLinksFromFriends() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return const [];
+
+    try {
+      final accessSnapshot = await _db
+          .ref('users/${currentUser.uid}/$_sharedLinkAccessKey')
+          .get()
+          .timeout(_requestTimeout);
+      if (!accessSnapshot.exists || accessSnapshot.value is! Map) return const [];
+
+      final accessMap = Map<String, dynamic>.from(accessSnapshot.value as Map);
+
+      final perOwnerResults = await Future.wait(
+        accessMap.entries
+            .where((entry) => entry.value is Map)
+            .map(
+              (entry) => _fetchSharedLinksForOwner(
+                entry.key,
+                Map<String, dynamic>.from(entry.value as Map),
+              ),
+            ),
+      );
+
+      return perOwnerResults.expand((list) => list).toList();
+    } catch (e) {
+      log('Get shared individual links error: $e');
+      return const [];
+    }
+  }
+
+  static Future<List<SharedIndividualLinkModel>> _fetchSharedLinksForOwner(
+    String ownerUid,
+    Map<String, dynamic> linkMap,
+  ) async {
+    if (linkMap.isEmpty) return const [];
+
+    final results = await Future.wait<dynamic>([
+      _fetchOwnerProfile(ownerUid),
+      Future.wait(
+        linkMap.entries.map((entry) => _fetchSharedLink(ownerUid, entry.key, entry.value)),
+      ),
+    ]);
+
+    final profile = results[0] as ({String? displayName, String? photoUrl})?;
+    final ownerDisplayName = profile?.displayName ?? ownerUid;
+    final ownerPhotoUrl = profile?.photoUrl;
+
+    final rawLinks =
+        (results[1] as List<({String linkId, Map<String, dynamic> linkJson, DateTime? sharedAt})?>)
+            .whereType<({String linkId, Map<String, dynamic> linkJson, DateTime? sharedAt})>();
+
+    return rawLinks
+        .map(
+          (raw) => SharedIndividualLinkModel.fromJson(
+            ownerUid: ownerUid,
+            ownerDisplayName: ownerDisplayName,
+            ownerPhotoUrl: ownerPhotoUrl,
+            linkId: raw.linkId,
+            linkJson: raw.linkJson,
+            sharedAt: raw.sharedAt,
+          ),
+        )
+        .toList();
+  }
+
+  static Future<({String linkId, Map<String, dynamic> linkJson, DateTime? sharedAt})?>
+  _fetchSharedLink(String ownerUid, String linkId, dynamic rawSharedAt) async {
+    try {
+      final sharedAt = rawSharedAt is int ? DateTime.fromMillisecondsSinceEpoch(rawSharedAt) : null;
+
+      final linkSnap = await _db
+          .ref('users/$ownerUid/links/$linkId')
+          .get()
+          .timeout(_requestTimeout);
+      if (!linkSnap.exists || linkSnap.value is! Map) return null;
+
+      return (
+        linkId: linkId,
+        linkJson: Map<String, dynamic>.from(linkSnap.value as Map),
+        sharedAt: sharedAt,
+      );
+    } catch (e) {
+      log('Fetch shared link error for link $linkId: $e');
+      return null;
+    }
+  }
+
   /// Fetch all categories that friends have shared with the current user.
   /// Returns a list of [SharedCategoryModel].
   ///
@@ -805,7 +1080,9 @@ class FirebaseService {
     final results = await Future.wait<dynamic>([
       _fetchOwnerProfile(ownerUid),
       Future.wait(
-        catMap.entries.map((catEntry) => _fetchSharedCategory(ownerUid, catEntry.key, catEntry.value)),
+        catMap.entries.map(
+          (catEntry) => _fetchSharedCategory(ownerUid, catEntry.key, catEntry.value),
+        ),
       ),
     ]);
 
@@ -813,8 +1090,24 @@ class FirebaseService {
     final ownerDisplayName = profile?.displayName ?? ownerUid;
     final ownerPhotoUrl = profile?.photoUrl;
 
-    final rawCategories = (results[1] as List<({String categoryId, Map<String, dynamic> categoryJson, int linkCount, DateTime? sharedAt})?>)
-        .whereType<({String categoryId, Map<String, dynamic> categoryJson, int linkCount, DateTime? sharedAt})>();
+    final rawCategories =
+        (results[1]
+                as List<
+                  ({
+                    String categoryId,
+                    Map<String, dynamic> categoryJson,
+                    int linkCount,
+                    DateTime? sharedAt,
+                  })?
+                >)
+            .whereType<
+              ({
+                String categoryId,
+                Map<String, dynamic> categoryJson,
+                int linkCount,
+                DateTime? sharedAt,
+              })
+            >();
 
     return rawCategories
         .map(
@@ -832,7 +1125,9 @@ class FirebaseService {
   }
 
   /// Resolve a friend's public display name/photo from `friendDirectory`.
-  static Future<({String? displayName, String? photoUrl})?> _fetchOwnerProfile(String ownerUid) async {
+  static Future<({String? displayName, String? photoUrl})?> _fetchOwnerProfile(
+    String ownerUid,
+  ) async {
     try {
       final profileSnap = await _db
           .ref('$_publicFriendProfilesPath/$ownerUid')
@@ -852,13 +1147,13 @@ class FirebaseService {
   /// Fetch one shared category node plus its live link count.
   /// Returns null if the category no longer exists or the fetch fails —
   /// callers should skip null entries rather than fail the whole batch.
-  static Future<({String categoryId, Map<String, dynamic> categoryJson, int linkCount, DateTime? sharedAt})?>
+  static Future<
+    ({String categoryId, Map<String, dynamic> categoryJson, int linkCount, DateTime? sharedAt})?
+  >
   _fetchSharedCategory(String ownerUid, String catId, dynamic rawSharedAt) async {
     try {
       // Parse sharedAt timestamp (new data = int ms, old data = bool true)
-      final sharedAt = rawSharedAt is int
-          ? DateTime.fromMillisecondsSinceEpoch(rawSharedAt)
-          : null;
+      final sharedAt = rawSharedAt is int ? DateTime.fromMillisecondsSinceEpoch(rawSharedAt) : null;
 
       final catSnap = await _db
           .ref('users/$ownerUid/categories/$catId')

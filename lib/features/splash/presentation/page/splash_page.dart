@@ -33,6 +33,14 @@ class SplashPage extends StatelessWidget {
                 spacing: 28,
                 children: [
                   AppImages.iLogo.show(size: Get.width * .35),
+                  // Chỉ mount PinVerifyForm sau khi needPinVerify.value = true
+                  // (tức là sau khi PinVerifyBinding đã Get.put xong controller,
+                  // ~300ms sau onReady). ĐÃ THỬ đổi sang Visibility (giữ mount
+                  // sẵn từ frame đầu) để tránh 1 warning vô hại của
+                  // EditableText — nhưng khi đó PinVerifyForm build ngay ở
+                  // frame đầu tiên của SplashPage, sớm hơn cả lúc binding kịp
+                  // đăng ký PinVerifyController, gây crash thật "Null check
+                  // operator used on a null value". Giữ nguyên `if` ở đây.
                   if (needPinVerify.value)
                     Container(
                       decoration: BoxDecoration(

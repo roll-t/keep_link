@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/constants/app_enum.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
@@ -12,6 +11,7 @@ import 'package:keep_link/core/data/repositories/friend_repository.dart';
 import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/core/services/backend/friend_connection_service.dart';
 import 'package:keep_link/core/services/platform/local_notification_service.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/friend/application/model/friend_request_model.dart';
@@ -343,21 +343,25 @@ class FriendController extends GetxController {
   Future<bool> addFriendFromLink(String rawInput) async {
     final currentUser = FirebaseService.currentUser;
     if (currentUser == null) {
-      Fluttertoast.showToast(msg: 'friend_sign_in_required'.tr);
+      AppToast.showToast('friend_sign_in_required'.tr, Icons.login_rounded, color: Colors.orange);
       return false;
     }
     if (hasReachedLimit) {
-      Fluttertoast.showToast(msg: 'friend_limit_reached'.trParams({'0': '$maxFriends'}));
+      AppToast.showToast(
+        'friend_limit_reached'.trParams({'0': '$maxFriends'}),
+        Icons.people_outline_rounded,
+        color: Colors.orange,
+      );
       return false;
     }
 
     final payload = FriendConnectionService.parseLink(rawInput);
     if (payload == null) {
-      Fluttertoast.showToast(msg: 'friend_invalid_link'.tr);
+      AppToast.showToast('friend_invalid_link'.tr, Icons.error_outline_rounded, color: Colors.red);
       return false;
     }
     if (payload.userId == currentUser.uid) {
-      Fluttertoast.showToast(msg: 'friend_cannot_add_self'.tr);
+      AppToast.showToast('friend_cannot_add_self'.tr, Icons.info_outline_rounded, color: Colors.orange);
       return false;
     }
 
@@ -365,7 +369,7 @@ class FriendController extends GetxController {
       (friend) => friend.friendUserId == payload.userId,
     );
     if (existing != null) {
-      Fluttertoast.showToast(msg: 'friend_already_exists'.tr);
+      AppToast.showToast('friend_already_exists'.tr, Icons.info_outline_rounded, color: Colors.orange);
       return false;
     }
 
@@ -381,21 +385,25 @@ class FriendController extends GetxController {
   Future<bool> addFriendFromEmail(String rawEmail) async {
     final email = rawEmail.trim().toLowerCase();
     if (email.isEmpty || !GetUtils.isEmail(email) || !email.endsWith('@gmail.com')) {
-      Fluttertoast.showToast(msg: 'friend_invalid_email'.tr);
+      AppToast.showToast('friend_invalid_email'.tr, Icons.error_outline_rounded, color: Colors.red);
       return false;
     }
 
     final currentUser = FirebaseService.currentUser;
     if (currentUser == null) {
-      Fluttertoast.showToast(msg: 'friend_sign_in_required'.tr);
+      AppToast.showToast('friend_sign_in_required'.tr, Icons.login_rounded, color: Colors.orange);
       return false;
     }
     if (hasReachedLimit) {
-      Fluttertoast.showToast(msg: 'friend_limit_reached'.trParams({'0': '$maxFriends'}));
+      AppToast.showToast(
+        'friend_limit_reached'.trParams({'0': '$maxFriends'}),
+        Icons.people_outline_rounded,
+        color: Colors.orange,
+      );
       return false;
     }
     if ((currentUser.email ?? '').trim().toLowerCase() == email) {
-      Fluttertoast.showToast(msg: 'friend_cannot_add_self'.tr);
+      AppToast.showToast('friend_cannot_add_self'.tr, Icons.info_outline_rounded, color: Colors.orange);
       return false;
     }
 
@@ -403,13 +411,13 @@ class FriendController extends GetxController {
       (friend) => (friend.email ?? '').trim().toLowerCase() == email,
     );
     if (existingByEmail != null) {
-      Fluttertoast.showToast(msg: 'friend_already_exists'.tr);
+      AppToast.showToast('friend_already_exists'.tr, Icons.info_outline_rounded, color: Colors.orange);
       return false;
     }
 
     final profile = await FirebaseService.findUserProfileByEmail(email);
     if (profile == null) {
-      Fluttertoast.showToast(msg: 'friend_email_not_found'.tr);
+      AppToast.showToast('friend_email_not_found'.tr, Icons.error_outline_rounded, color: Colors.red);
       return false;
     }
 
@@ -419,11 +427,11 @@ class FriendController extends GetxController {
     final profilePhoto = profile['photoUrl'];
 
     if (userId.isEmpty) {
-      Fluttertoast.showToast(msg: 'friend_email_not_found'.tr);
+      AppToast.showToast('friend_email_not_found'.tr, Icons.error_outline_rounded, color: Colors.red);
       return false;
     }
     if (userId == currentUser.uid) {
-      Fluttertoast.showToast(msg: 'friend_cannot_add_self'.tr);
+      AppToast.showToast('friend_cannot_add_self'.tr, Icons.info_outline_rounded, color: Colors.orange);
       return false;
     }
 
@@ -449,7 +457,7 @@ class FriendController extends GetxController {
   Future<bool> addFriendFromClipboard() async {
     final text = await readClipboardLink();
     if (text == null) {
-      Fluttertoast.showToast(msg: 'friend_clipboard_empty'.tr);
+      AppToast.showToast('friend_clipboard_empty'.tr, Icons.warning_rounded, color: Colors.orange);
       return false;
     }
     return addFriendFromLink(text);
@@ -457,16 +465,24 @@ class FriendController extends GetxController {
 
   Future<void> acceptFriendRequest(FriendRequestModel request) async {
     if (hasReachedLimit) {
-      Fluttertoast.showToast(msg: 'friend_limit_reached'.trParams({'0': '$maxFriends'}));
+      AppToast.showToast(
+        'friend_limit_reached'.trParams({'0': '$maxFriends'}),
+        Icons.people_outline_rounded,
+        color: Colors.orange,
+      );
       return;
     }
 
     try {
       await FirebaseService.acceptFriendRequest(request);
       await _syncRemoteFriendState();
-      Fluttertoast.showToast(msg: 'friend_request_accepted'.tr);
+      AppToast.showToast('friend_request_accepted'.tr, Icons.check_circle_rounded, color: Colors.green);
     } catch (_) {
-      Fluttertoast.showToast(msg: 'friend_request_action_failed'.tr);
+      AppToast.showToast(
+        'friend_request_action_failed'.tr,
+        Icons.error_outline_rounded,
+        color: Colors.red,
+      );
     }
   }
 
@@ -474,9 +490,13 @@ class FriendController extends GetxController {
     try {
       await FirebaseService.declineFriendRequest(request.fromUserId);
       incomingRequests.removeWhere((item) => item.fromUserId == request.fromUserId);
-      Fluttertoast.showToast(msg: 'friend_request_declined'.tr);
+      AppToast.showToast('friend_request_declined'.tr, Icons.info_outline_rounded, color: Colors.orange);
     } catch (_) {
-      Fluttertoast.showToast(msg: 'friend_request_action_failed'.tr);
+      AppToast.showToast(
+        'friend_request_action_failed'.tr,
+        Icons.error_outline_rounded,
+        color: Colors.red,
+      );
     }
   }
 
@@ -504,7 +524,11 @@ class FriendController extends GetxController {
           Get.find<SharedCategoryController>().loadSharedCategories();
         }
         Get.back();
-        Fluttertoast.showToast(msg: 'friend_deleted_success'.tr);
+        AppToast.showToast(
+          'friend_deleted_success'.tr,
+          Icons.check_circle_rounded,
+          color: Colors.green,
+        );
       },
       onCancel: Get.back,
     );
@@ -535,7 +559,7 @@ class FriendController extends GetxController {
   }) async {
     final existing = AppCache.friends.firstWhereOrNull((friend) => friend.friendUserId == userId);
     if (existing != null) {
-      Fluttertoast.showToast(msg: 'friend_already_exists'.tr);
+      AppToast.showToast('friend_already_exists'.tr, Icons.info_outline_rounded, color: Colors.orange);
       return false;
     }
 
@@ -546,7 +570,11 @@ class FriendController extends GetxController {
     }
 
     if (pendingRequestUserIds.contains(userId)) {
-      Fluttertoast.showToast(msg: 'friend_request_already_sent'.tr);
+      AppToast.showToast(
+        'friend_request_already_sent'.tr,
+        Icons.info_outline_rounded,
+        color: Colors.orange,
+      );
       return false;
     }
 
@@ -559,10 +587,14 @@ class FriendController extends GetxController {
         sourceLink: sourceLink,
       );
       pendingRequestUserIds.add(userId);
-      Fluttertoast.showToast(msg: 'friend_request_sent'.tr);
+      AppToast.showToast('friend_request_sent'.tr, Icons.check_circle_rounded, color: Colors.green);
       return true;
     } catch (_) {
-      Fluttertoast.showToast(msg: 'friend_request_action_failed'.tr);
+      AppToast.showToast(
+        'friend_request_action_failed'.tr,
+        Icons.error_outline_rounded,
+        color: Colors.red,
+      );
       return false;
     }
   }

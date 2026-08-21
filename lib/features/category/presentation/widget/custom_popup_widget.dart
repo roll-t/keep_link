@@ -119,7 +119,7 @@ class CustomPopupWidget extends StatelessWidget {
                               ),
                             ),
                             if (item.visibility == VisibilityStatus.private &&
-                                controller.isEnableSecurity)
+                                controller.isEnableSecurity.value)
                               Padding(
                                 padding: const EdgeInsets.only(left: 4),
                                 child: Icon(Icons.lock, size: 16, color: AppColors.t300),

@@ -3,85 +3,89 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/config/theme/app_text_styles.dart';
 import 'package:keep_link/core/config/assets/app_vectors.dart';
-import 'package:keep_link/core/presentation/extensions/colors.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/controller/link_detail_controller.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/widgets/destination_card.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/widgets/hero_media_widget.dart';
+import 'package:keep_link/features/link/module/link_detail/presentation/widgets/share_link_sheet.dart';
 
 class LinkDetailPage extends StatelessWidget {
-  final LinkModel link;
-  const LinkDetailPage({super.key, required this.link});
-  LinkDetailController get _controller => Get.put(LinkDetailController(link: link));
+  static const routeName = '/LinkDetailPage';
+
+  final LinkModel? link;
+  const LinkDetailPage({super.key, this.link});
+
+  LinkDetailController get _controller {
+    final effectiveLink = link ?? (Get.arguments as LinkModel);
+    if (Get.isRegistered<LinkDetailController>()) {
+      final existing = Get.find<LinkDetailController>();
+      if (existing.link.id == effectiveLink.id) return existing;
+      Get.delete<LinkDetailController>();
+    }
+    return Get.put(LinkDetailController(link: effectiveLink));
+  }
 
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      child: Container(
-        width: double.infinity,
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * .9,
-          minHeight: MediaQuery.of(context).size.height * .5,
-        ),
-        child: Scaffold(
+    return SafeArea(
+      top: false,
+      child: Obx(() {
+        final isFullscreenPlayer = controller.isPlayingVideo.value && controller.isExpanded.value;
+
+        return Scaffold(
           backgroundColor: const Color(0xFF121212),
-          appBar: _buildAppBar(context, controller),
-          body: Obx(() {
-            // While the webview player is expanded it needs the full body
-            // height (it fills via Expanded, no fixed height of its own —
-            // see _ExpandedWebView). Keeping the info section mounted below
-            // it here would force the Column to lay out more content than
-            // the sheet's own maxHeight allows, overflowing the bottom edge.
-            final isFullscreenPlayer = controller.isPlayingVideo.value && controller.isExpanded.value;
+          // Đang xem webview toàn màn hình: ẩn hẳn appbar (share/xoá/sửa +
+          // nút back) — thanh điều hướng riêng của webview đã có nút X để
+          // thoát, hai nút "đóng" chồng nhau dễ bấm nhầm khi đang đọc.
+          appBar: isFullscreenPlayer ? null : _buildAppBar(context, controller),
+          // Không có appBar (đã ẩn ở trên) nên không còn ai tự lo phần status
+          // bar nữa — phải tự bọc SafeArea(top: true) ở đây, nếu không thanh
+          // điều hướng webview sẽ bị đồng hồ/icon status bar đè lên.
+          body: isFullscreenPlayer
+              ? const SafeArea(top: true, bottom: false, child: HeroMediaWidget())
+              : _buildDetailBody(controller),
+        );
+      }),
+    );
+  }
 
-            // Scaffold.body already receives bounded constraints filling the
-            // whole body area, so HeroMediaWidget can go straight in here —
-            // wrapping it in Expanded would be invalid outside a Flex parent.
-            if (isFullscreenPlayer) {
-              return const HeroMediaWidget();
-            }
-
-            return Column(
+  Widget _buildDetailBody(LinkDetailController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const HeroMediaWidget(),
+        const SizedBox(height: 16),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                HeroMediaWidget(),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (controller.title.isNotEmpty)
-                          TextWidget(
-                            text: controller.title,
-                            textStyle: AppTextStyle.bold22,
-                            color: Colors.white,
-                            maxLines: 2,
-                          ),
-                        const SizedBox(height: 8),
-                        if (controller.description.isNotEmpty)
-                          TextWidget(
-                            text: controller.description,
-                            textStyle: AppTextStyle.regular12,
-                            color: const Color(0xFFA0A0A0),
-                            maxLines: 3,
-                          ),
-                        const SizedBox(height: 18),
-                        DestinationCard(),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
+                if (controller.title.isNotEmpty)
+                  TextWidget(
+                    text: controller.title,
+                    textStyle: AppTextStyle.bold22,
+                    color: Colors.white,
+                    maxLines: 2,
                   ),
-                ),
+                const SizedBox(height: 8),
+                if (controller.description.isNotEmpty)
+                  TextWidget(
+                    text: controller.description,
+                    textStyle: AppTextStyle.regular12,
+                    color: const Color(0xFFA0A0A0),
+                    maxLines: 3,
+                  ),
+                const SizedBox(height: 18),
+                const DestinationCard(),
+                const SizedBox(height: 24),
               ],
-            );
-          }),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -89,27 +93,43 @@ class LinkDetailPage extends StatelessWidget {
     return AppBar(
       backgroundColor: AppColors.transparent,
       elevation: 0,
-      leadingWidth: 56,
-      leading: const CloseButton(color: Colors.white),
-      title: _DragHandle(),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+        onPressed: () => Get.back(),
+      ),
       centerTitle: true,
       actions: [
+        InkWell(
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => ShareLinkSheet(link: controller.link),
+            );
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(color: AppColors.bg500, shape: BoxShape.circle),
+            child: const Icon(Icons.share_rounded, size: 18, color: AppColors.primary),
+          ),
+        ),
+        const SizedBox(width: 12),
         AppVectors.icDelete.show(
           backgroundColor: AppColors.bg500,
-          padding: EdgeInsets.all(8),
+          padding: const EdgeInsets.all(8),
           color: AppColors.red,
           onTap: controller.deleteLink,
         ),
-
-        SizedBox(width: 12),
+        const SizedBox(width: 12),
         AppVectors.icEdit.show(
           backgroundColor: AppColors.bg500,
-          padding: EdgeInsets.all(8),
+          padding: const EdgeInsets.all(8),
           onTap: controller.goToEdit,
         ),
-        SizedBox(width: 16),
-        // _MoreMenu(controller: controller)
-      ], // Giữ nguyên popup menu của bạn
+        const SizedBox(width: 16),
+      ],
     );
   }
 }
@@ -165,16 +185,4 @@ enum _MenuAction {
         controller.deleteLink();
     }
   }
-}
-
-class _DragHandle extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 40,
-    height: 5,
-    decoration: BoxDecoration(
-      color: AppColors.grey.withOpacityCompat(0.3),
-      borderRadius: BorderRadius.circular(10),
-    ),
-  );
 }
