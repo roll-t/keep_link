@@ -109,18 +109,12 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
             controller: controller.scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             scrollCacheExtent: const ScrollCacheExtent.pixels(600),
-            // Chừa đúng vùng cho dock nổi để hàng cuối không bị che và vẫn
-            // có thể cuộn hoàn toàn lên trên thanh điều hướng.
-            padding: const EdgeInsets.only(
-              bottom: 112,
-              left: 12,
-              right: 12,
-            ).copyWith(top: topInset),
+            padding: const EdgeInsets.only(bottom: 112, left: 8, right: 8).copyWith(top: topInset),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 1.0,
+              crossAxisSpacing: 6,
+              mainAxisSpacing: 6,
+              childAspectRatio: .85,
             ),
             itemCount: listLink.length + (isLoadingMore ? 2 : 0),
             itemBuilder: (context, index) {

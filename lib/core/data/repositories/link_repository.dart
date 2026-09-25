@@ -19,6 +19,12 @@ class LinkRepository {
   static Future<void> ensureLoaded() async {
     if (AppCache.linksLoaded) return;
 
+    await reload();
+  }
+
+  /// Reloads SQLite into memory after another Flutter isolate (the Android
+  /// quick-share activity) may have written a link while the main app slept.
+  static Future<void> reload() async {
     final rows = await DbHelper.getAll(
       _table,
       orderByColumn: 'createdAt',
@@ -65,11 +71,18 @@ class LinkRepository {
   // ── Writes (write-through) ────────────────────────────────────────────────
 
   /// Insert a new link.  Writes to DB then prepends to cache.
-  static Future<void> insert(LinkModel link) async {
+  static Future<void> insert(
+    LinkModel link, {
+    bool syncImmediately = true,
+  }) async {
     await DbHelper.upsert(link);
     AppCache.addLink(link);
     SessionSyncService.instance.trackLinkUpsert(link);
-    SessionSyncService.instance.pushNow();
+    if (syncImmediately) {
+      SessionSyncService.instance.pushNow();
+    } else {
+      SessionSyncService.instance.persistQueue();
+    }
   }
 
   /// Update an existing link.  Writes to DB then updates cache in-place.

@@ -91,40 +91,32 @@ class LinkItem extends StatelessWidget {
                     memCacheHeight: 640,
                   ),
                 ),
-                // Dimming overlay when selected
-                if (isSelected)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: AppColors.black.withOpacityCompat(0.35),
-                        border: Border.all(color: AppColors.primaryDim, width: 2),
-                      ),
-                    ),
-                  ),
-                Align(
-                  alignment: Alignment.center,
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
                   child: Container(
-                    margin: const EdgeInsets.all(12),
-                    padding: const EdgeInsets.all(8),
+                    height: 65,
+                    padding: const EdgeInsets.only(left: 8, right: 8, bottom: 10, top: 8),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: AppColors.white.withOpacityCompat(.8),
+                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+                      gradient: AppGradients.bgDarkGradient,
                     ),
+                    alignment: Alignment.bottomCenter,
                     child: TextWidget(
                       text: (item.name?.trim().isNotEmpty ?? false)
                           ? item.name!
                           : (meta?.title ?? 'Link'),
-                      textAlign: TextAlign.center,
+                      textAlign: TextAlign.left,
                       textStyle: AppTextStyle.semiBold14,
-                      color: AppColors.t700,
-                      maxLines: 3,
+                      color: AppColors.white,
+                      maxLines: 2,
                     ),
                   ),
                 ),
-                if (host.isNotEmpty)
+                if (host.isNotEmpty && !isSelectionMode)
                   Positioned(
-                    bottom: 8,
+                    top: 8,
                     left: 8,
                     right: 8,
                     child: Align(
@@ -179,6 +171,19 @@ class LinkItem extends StatelessWidget {
                       ),
                     ),
                   ),
+
+                // Dimming overlay & selection border (nằm trên cả ảnh và banner title)
+                if (isSelected)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: AppColors.black.withOpacityCompat(0.35),
+                        border: Border.all(color: AppColors.primaryDim, width: 2),
+                      ),
+                    ),
+                  ),
+
                 // Checkmark for selection mode
                 if (isSelectionMode)
                   Positioned(

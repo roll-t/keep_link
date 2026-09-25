@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
+import 'package:keep_link/core/data/repositories/link_repository.dart';
 import 'package:keep_link/core/services/platform/deep_link_service.dart';
 import 'package:keep_link/core/services/platform/in_app_update_service.dart';
 import 'package:keep_link/core/services/backend/session_sync_service.dart';
@@ -21,6 +22,7 @@ class AppLifecycleHandler extends WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       InAppUpdateService.checkForUpdate();
+      LinkRepository.reload();
       _maybeShowLockScreen();
     }
 

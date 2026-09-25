@@ -68,10 +68,7 @@ class _CategoryDialogState extends State<CategoryDialog> {
               onTap: Utils.dimissKeyboard,
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 20,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                   child: AppEntranceAnimation(
                     duration: const Duration(milliseconds: 480),
                     beginOffset: const Offset(0, .12),
@@ -82,7 +79,7 @@ class _CategoryDialogState extends State<CategoryDialog> {
                       constraints: const BoxConstraints(maxWidth: 420),
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: AppColors.modalSurface,
+                        color: AppColors.navigationSurface,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
@@ -107,6 +104,7 @@ class _CategoryDialogState extends State<CategoryDialog> {
                             controller: controller.categoryNameController,
                             focusNode: _nameFocusNode,
                             hintText: 'Enter category name'.tr,
+                            isShowBorder: false,
                             errorText: controller.errorMess.value,
                             onChanged: (_) => controller.onChangeDismissError(),
                             onCompleted: (_) {
@@ -138,13 +136,9 @@ class _CategoryDialogState extends State<CategoryDialog> {
                             radius: 12,
                             height: 45,
                             backgroundColor: AppColors.inputSurface,
-                            enableColor: AppColors.primaryContainer.withValues(
-                              alpha: .12,
-                            ),
+                            enableColor: AppColors.primaryContainer.withValues(alpha: .12),
                             focusedColor: AppColors.primaryDim,
-                            hintColor: AppColors.onSurfaceVariant.withValues(
-                              alpha: .48,
-                            ),
+                            hintColor: AppColors.onSurfaceVariant.withValues(alpha: .48),
                             textColor: AppColors.onSurface,
                           ),
                           const SizedBox(height: 12),
@@ -185,11 +179,7 @@ class _CategoryDialogState extends State<CategoryDialog> {
                 onTap: _close,
                 child: const SizedBox.square(
                   dimension: 44,
-                  child: Icon(
-                    Icons.close_rounded,
-                    color: AppColors.onSurface,
-                    size: 27,
-                  ),
+                  child: Icon(Icons.close_rounded, color: AppColors.onSurface, size: 27),
                 ),
               ),
             ),
@@ -207,9 +197,7 @@ class _CategoryDialogState extends State<CategoryDialog> {
           isMaxParent: true,
           text: widget.isEditMode ? 'Save'.tr : 'Add'.tr,
           isLoading: isSaving,
-          onPressed: widget.isEditMode
-              ? controller.updateCategory
-              : controller.addCategory,
+          onPressed: widget.isEditMode ? controller.updateCategory : controller.addCategory,
           backgroundColor: AppColors.primary,
           color: AppColors.white,
         ),

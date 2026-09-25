@@ -65,3 +65,27 @@ Future<void> appConfig() async {
   // await DbHelper.resetDatabase();
   // AppCache.invalidateAll();
 }
+
+/// Lightweight bootstrap used only by Android's translucent share activity.
+/// It intentionally skips notifications, update checks and account reconcile
+/// so the quick-save card can appear without launching the full application.
+Future<void> quickShareConfig() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  DbHelper.registerModel(CategoryModel(id: ''));
+  DbHelper.registerModel(LinkModel(id: ''));
+  DbHelper.registerModel(FriendModel(id: ''));
+
+  await GetStorage.init();
+  if (AppGetStorage.isFirstLaunch()) {
+    await DbHelper.resetDatabase();
+    AppCache.invalidateAll();
+    AppGetStorage.clearUserData();
+    AppGetStorage.markLaunched();
+  }
+
+  await DeepLinkService.init();
+  await LocalizationService.initialize();
+  await ThemeService.initialize();
+}

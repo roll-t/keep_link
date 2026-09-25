@@ -38,15 +38,6 @@
             </intent-filter>
 
             <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <action android:name="android.intent.action.SEND_MULTIPLE" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="text/plain" />
-                <data android:mimeType="text/html" />
-                <data android:mimeType="text/uri-list" />
-            </intent-filter>
-
-            <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -68,6 +59,25 @@
                 <data android:scheme="https" android:host="vt.tiktok.com" />
             </intent-filter>
 
+        </activity>
+
+        <activity
+            android:name=".ShareReceiverActivity"
+            android:exported="true"
+            android:theme="@style/ShareDialogTheme"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:hardwareAccelerated="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/html" />
+                <data android:mimeType="text/uri-list" />
+            </intent-filter>
         </activity>
 
         <meta-data
