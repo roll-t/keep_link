@@ -15,7 +15,7 @@ class ImageView extends StatefulWidget {
   const ImageView({
     super.key,
     required this.listImageUrl,
-    this.backgroundColor = Colors.black,
+    this.backgroundColor = AppColors.black,
     this.backgroundIsTransparent = true,
     this.listTagHero = const [],
     this.initIndexImage = 0,
@@ -147,7 +147,9 @@ class ImageViewState extends State<ImageView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: widget.backgroundIsTransparent ? Colors.black : widget.backgroundColor,
+      backgroundColor: widget.backgroundIsTransparent
+          ? AppColors.black
+          : widget.backgroundColor,
       // appBar: AppBarWidget(
       //   isLeading: true,
       //   callbackLeading: () => Get.back(),
@@ -176,7 +178,9 @@ class ImageViewState extends State<ImageView> {
         onHorizontalDragEnd: (details) => _endHorizontalDrag(details),
         child: Container(
           color: widget.backgroundColor.withOpacityCompat(opacity),
-          constraints: BoxConstraints.expand(height: MediaQuery.of(context).size.height),
+          constraints: BoxConstraints.expand(
+            height: MediaQuery.of(context).size.height,
+          ),
           child: Stack(
             children: <Widget>[
               AnimatedPositioned(
@@ -202,7 +206,9 @@ class ImageViewState extends State<ImageView> {
                             imageProvider: imageProvider,
                             heroAttributes: widget.listTagHero.isEmpty
                                 ? null
-                                : PhotoViewHeroAttributes(tag: widget.listTagHero[index]),
+                                : PhotoViewHeroAttributes(
+                                    tag: widget.listTagHero[index],
+                                  ),
                           ),
                           errorWidget: (context, _, __) => const Center(
                             child: TextWidget(
@@ -214,7 +220,10 @@ class ImageViewState extends State<ImageView> {
                       );
                     } else {
                       return PhotoViewGalleryPageOptions.customChild(
-                        child: Image.file(File(widget.listImageUrl[index]), fit: BoxFit.contain),
+                        child: Image.file(
+                          File(widget.listImageUrl[index]),
+                          fit: BoxFit.contain,
+                        ),
                       );
                     }
                   },
@@ -231,7 +240,10 @@ class ImageViewState extends State<ImageView> {
                       IconButton(
                         icon: SvgPicture.asset(
                           'assets/icons/ic_arrow_left_2.svg',
-                          colorFilter: ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+                          colorFilter: ColorFilter.mode(
+                            AppColors.white,
+                            BlendMode.srcIn,
+                          ),
                         ),
                         onPressed: () => Get.back(),
                       ),

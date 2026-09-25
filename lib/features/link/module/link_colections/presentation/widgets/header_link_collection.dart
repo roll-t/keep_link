@@ -18,85 +18,89 @@ class HeaderLinkCollection extends StatelessWidget {
   Widget build(BuildContext context) {
     final categoryController = Get.find<CategoryController>();
     final headerController = Get.find<HeaderLinkCollectionController>();
+    final safeTop = MediaQuery.paddingOf(context).top;
 
-    return Positioned(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(top: 40),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // ── Left: Friends icon ─────────────────────────────────────
-            Obx(() {
-              final isLoggedIn = FriendController.currentUser.value != null;
-              final count = FriendController.pendingRequestCount.value;
-              if (!isLoggedIn) return const SizedBox(width: 44, height: 44);
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  AppVectors.icFriends.show(
-                    size: 24,
-                    backgroundColor: AppColors.d300,
-                    padding: const EdgeInsets.all(10),
-                    widthParent: 44,
-                    onTap: headerController.openFriends,
-                  ),
-                  if (count > 0)
-                    Positioned(
-                      top: 2,
-                      right: 2,
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFF4444),
-                          shape: BoxShape.circle,
-                        ),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, safeTop + 16, 20, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // ── Left: Friends icon ─────────────────────────────────────
+          Obx(() {
+            final isLoggedIn = FriendController.currentUser.value != null;
+            final count = FriendController.pendingRequestCount.value;
+            if (!isLoggedIn) return const SizedBox(width: 44, height: 44);
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                AppVectors.icFriends.show(
+                  size: 24,
+                  backgroundColor: AppColors.navigationSurface,
+                  padding: const EdgeInsets.all(10),
+                  widthParent: 44,
+                  onTap: headerController.openFriends,
+                ),
+                if (count > 0)
+                  Positioned(
+                    top: 2,
+                    right: 2,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        color: AppColors.dangerBright,
+                        shape: BoxShape.circle,
                       ),
                     ),
-                ],
-              );
-            }),
-            const SizedBox(width: 12),
-
-            // ── Middle: Category dropdown (flexible) ────────────────────
-            Flexible(
-              child: CustomPopupWidget(
-                controller: categoryController.popupController,
-                onSelected: categoryController.onSelectedCategory,
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // ── Right: Action buttons ────────────────────────────────────
-            Obx(() {
-              final isLoggedIn = FriendController.currentUser.value != null;
-              final selected = categoryController.popupController.selectedItem.value;
-              final showCategoryActions =
-                  selected?.id != 'all' && categoryController.popupController.items.length > 1;
-
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (showCategoryActions) ...[
-                    _CategoryMoreButton(
-                      isLoggedIn: isLoggedIn,
-                      categoryController: categoryController,
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  AppVectors.icAdd.show(
-                    size: 28,
-                    backgroundColor: AppColors.d300,
-                    padding: const EdgeInsets.all(8),
-                    widthParent: 44,
-                    onTap: () => Get.dialog(CategoryDialog()),
                   ),
+              ],
+            );
+          }),
+          const SizedBox(width: 12),
+
+          // ── Middle: Category dropdown (flexible) ────────────────────
+          Flexible(
+            child: CustomPopupWidget(
+              controller: categoryController.popupController,
+              onSelected: categoryController.onSelectedCategory,
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // ── Right: Action buttons ────────────────────────────────────
+          Obx(() {
+            final isLoggedIn = FriendController.currentUser.value != null;
+            final selected =
+                categoryController.popupController.selectedItem.value;
+            final showCategoryActions =
+                selected?.id != 'all' &&
+                categoryController.popupController.items.length > 1;
+
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (showCategoryActions) ...[
+                  _CategoryMoreButton(
+                    isLoggedIn: isLoggedIn,
+                    categoryController: categoryController,
+                  ),
+                  const SizedBox(width: 8),
                 ],
-              );
-            }),
-          ],
-        ),
+                AppVectors.icAdd.show(
+                  size: 28,
+                  backgroundColor: AppColors.navigationSurface,
+                  padding: const EdgeInsets.all(8),
+                  widthParent: 44,
+                  onTap: () => Get.dialog(
+                    const CategoryDialog(),
+                    barrierDismissible: false,
+                  ),
+                ),
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
@@ -104,7 +108,10 @@ class HeaderLinkCollection extends StatelessWidget {
 
 /// Nút ⋮ chứa Edit + Share (nếu đã đăng nhập) cho category đang chọn
 class _CategoryMoreButton extends StatelessWidget {
-  const _CategoryMoreButton({required this.isLoggedIn, required this.categoryController});
+  const _CategoryMoreButton({
+    required this.isLoggedIn,
+    required this.categoryController,
+  });
 
   final bool isLoggedIn;
   final CategoryController categoryController;
@@ -115,19 +122,23 @@ class _CategoryMoreButton extends StatelessWidget {
       onSelected: (value) {
         final selected = categoryController.popupController.selectedItem.value;
         if (value == 'edit') {
-          Get.dialog(CategoryDialog(isEditMode: true));
+          Get.dialog(
+            const CategoryDialog(isEditMode: true),
+            barrierDismissible: false,
+          );
         } else if (value == 'pin' && selected != null && selected.id != 'all') {
           categoryController.togglePinCategory(selected.id!);
-        } else if (value == 'visibility' && selected != null && selected.id != 'all') {
+        } else if (value == 'visibility' &&
+            selected != null &&
+            selected.id != 'all') {
           categoryController.toggleCategoryVisibility(selected.id!);
-        } else if (value == 'share' && selected != null && selected.id != 'all') {
+        } else if (value == 'share' &&
+            selected != null &&
+            selected.id != 'all') {
           showModalBottomSheet<void>(
             context: context,
             isScrollControlled: true,
-            backgroundColor: AppColors.d500,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
+            backgroundColor: AppColors.transparent,
             builder: (_) => ShareCategorySheet(
               categoryId: selected.id ?? '',
               categoryName: selected.name ?? '',
@@ -137,7 +148,7 @@ class _CategoryMoreButton extends StatelessWidget {
           categoryController.deleteCategory();
         }
       },
-      color: AppColors.d500,
+      color: AppColors.navigationSurface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       borderRadius: BorderRadius.circular(22),
       offset: const Offset(30, 55),
@@ -146,13 +157,19 @@ class _CategoryMoreButton extends StatelessWidget {
         final isPinned = categoryController.isCategoryPinned(selected?.id);
         final isPrivate = selected?.visibility == VisibilityStatus.private;
         final canToggleVisibility =
-            AppGetStorage.isCategorySecurity() && selected != null && selected.id != 'all';
+            AppGetStorage.isCategorySecurity() &&
+            selected != null &&
+            selected.id != 'all';
         return [
           PopupMenuItem(
             value: 'edit',
             child: Row(
               children: [
-                const Icon(Icons.edit_rounded, size: 18, color: AppColors.white),
+                const Icon(
+                  Icons.edit_rounded,
+                  size: 18,
+                  color: AppColors.white,
+                ),
                 const SizedBox(width: 10),
                 Text('Edit'.tr, style: const TextStyle(color: AppColors.white)),
               ],
@@ -166,12 +183,16 @@ class _CategoryMoreButton extends StatelessWidget {
                   Icon(
                     isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
                     size: 18,
-                    color: isPinned ? const Color(0xFF4CAF50) : AppColors.white,
+                    color: isPinned ? AppColors.successBright : AppColors.white,
                   ),
                   const SizedBox(width: 10),
                   Text(
                     isPinned ? 'Bỏ ghim' : 'Ghim',
-                    style: TextStyle(color: isPinned ? const Color(0xFF4CAF50) : AppColors.white),
+                    style: TextStyle(
+                      color: isPinned
+                          ? AppColors.successBright
+                          : AppColors.white,
+                    ),
                   ),
                 ],
               ),
@@ -184,12 +205,14 @@ class _CategoryMoreButton extends StatelessWidget {
                   Icon(
                     isPrivate ? Icons.public : Icons.lock_rounded,
                     size: 18,
-                    color: isPrivate ? AppColors.white : const Color(0xFFFFB300),
+                    color: isPrivate ? AppColors.white : AppColors.amber,
                   ),
                   const SizedBox(width: 10),
                   Text(
                     isPrivate ? 'Đặt công khai' : 'Đặt riêng tư',
-                    style: TextStyle(color: isPrivate ? AppColors.white : const Color(0xFFFFB300)),
+                    style: TextStyle(
+                      color: isPrivate ? AppColors.white : AppColors.amber,
+                    ),
                   ),
                 ],
               ),
@@ -199,9 +222,15 @@ class _CategoryMoreButton extends StatelessWidget {
               value: 'share',
               child: Row(
                 children: [
-                  const Icon(Icons.person_add_alt_1_rounded, size: 18, color: AppColors.white),
+                  AppVectors.icSharedCategory.show(
+                    size: 18,
+                    color: AppColors.white,
+                  ),
                   const SizedBox(width: 10),
-                  Text('Share'.tr, style: const TextStyle(color: AppColors.white)),
+                  Text(
+                    'Share'.tr,
+                    style: const TextStyle(color: AppColors.white),
+                  ),
                 ],
               ),
             ),
@@ -210,9 +239,16 @@ class _CategoryMoreButton extends StatelessWidget {
             value: 'delete',
             child: Row(
               children: [
-                const Icon(Icons.delete_rounded, size: 18, color: AppColors.red),
+                const Icon(
+                  Icons.delete_rounded,
+                  size: 18,
+                  color: AppColors.error,
+                ),
                 const SizedBox(width: 10),
-                Text('Delete'.tr, style: const TextStyle(color: AppColors.red)),
+                Text(
+                  'Delete'.tr,
+                  style: const TextStyle(color: AppColors.error),
+                ),
               ],
             ),
           ),
@@ -221,8 +257,15 @@ class _CategoryMoreButton extends StatelessWidget {
       child: Container(
         width: 44,
         height: 44,
-        decoration: const BoxDecoration(color: AppColors.d300, shape: BoxShape.circle),
-        child: const Icon(Icons.more_vert_rounded, size: 22, color: AppColors.white),
+        decoration: const BoxDecoration(
+          color: AppColors.navigationSurface,
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(
+          Icons.more_vert_rounded,
+          size: 22,
+          color: AppColors.white,
+        ),
       ),
     );
   }

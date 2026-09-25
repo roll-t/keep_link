@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
-import 'package:keep_link/core/config/constants/app_enum.dart';
 import 'package:keep_link/core/data/repositories/category_repository.dart';
 import 'package:keep_link/core/data/repositories/link_repository.dart';
 import 'package:keep_link/core/di/dependency_utils.dart';
@@ -19,13 +21,17 @@ class LinkCollectionController extends GetxController {
   // --- State Variables ---
   final RxList<LinkModel> listLink = <LinkModel>[].obs;
   final RxBool isLoading = false.obs;
+  final RxBool isRefreshing = false.obs;
   final RxBool isLoadMore = false.obs;
+  final RxnString errorMessage = RxnString();
+  final RxBool isDeleting = false.obs;
 
   // --- Selection Mode ---
   final RxBool isSelectionMode = false.obs;
   final RxSet<String> selectedIds = <String>{}.obs;
 
-  bool get isAllSelected => listLink.isNotEmpty && selectedIds.length == listLink.length;
+  bool get isAllSelected =>
+      listLink.isNotEmpty && selectedIds.length == listLink.length;
 
   void enterSelectionMode(String firstId) {
     isSelectionMode.value = true;
@@ -49,7 +55,6 @@ class LinkCollectionController extends GetxController {
   void toggleSelectAll() {
     if (isAllSelected) {
       selectedIds.clear();
-      exitSelectionMode();
     } else {
       selectedIds.addAll(listLink.map((e) => e.id));
     }
@@ -57,23 +62,39 @@ class LinkCollectionController extends GetxController {
 
   Future<void> deleteSelectedLinks() async {
     final idsToDelete = List<String>.from(selectedIds);
-    if (idsToDelete.isEmpty) return;
+    if (idsToDelete.isEmpty || isDeleting.value) return;
     DialogUtils.showConfirm(
       alertType: AlertType.warning,
       title: "Xác nhận",
       content: "Bạn chắc chắn muốn xóa ${idsToDelete.length} link đã chọn?",
       onConfirm: () async {
         Get.back();
-        for (final id in idsToDelete) {
-          await LinkRepository.delete(id);
+        isDeleting.value = true;
+        try {
+          // Revoke every receiver's access first. If Firebase is unavailable,
+          // keep the owner's links intact instead of deleting locally while a
+          // stale share is still visible on another account.
+          await FirebaseService.revokeAllLinksShares(idsToDelete);
+          await LinkRepository.deleteAll(idsToDelete);
+          final idSet = idsToDelete.toSet();
+          listLink.removeWhere((item) => idSet.contains(item.id));
+          _filteredLinks?.removeWhere((item) => idSet.contains(item.id));
+          exitSelectionMode();
+
+          AppToast.showToast(
+            'Đã xóa ${idsToDelete.length} link',
+            Icons.delete_outline_rounded,
+          );
+        } catch (error) {
+          log('Delete selected links error: $error');
+          AppToast.showToast(
+            'An error occurred, please try again'.tr,
+            Icons.error_outline_rounded,
+            color: AppColors.danger,
+          );
+        } finally {
+          isDeleting.value = false;
         }
-        listLink.removeWhere((item) => idsToDelete.contains(item.id));
-        // Giữ đồng bộ với cache lọc — nếu không, loadMore() sau đó sẽ cắt
-        // lát từ 1 danh sách còn dính các link vừa xoá, làm lệch offset và
-        // âm thầm bỏ sót/lặp item ở các trang tiếp theo.
-        _filteredLinks?.removeWhere((item) => idsToDelete.contains(item.id));
-        exitSelectionMode();
-        AppToast.showToast('Đã xóa ${idsToDelete.length} link', Icons.delete_outline_rounded);
       },
       onCancel: () => Get.back(),
     );
@@ -84,6 +105,8 @@ class LinkCollectionController extends GetxController {
   int _currentPage = 0;
   final int _pageSize = 20;
   bool _canLoadMore = true;
+  Future<void>? _refreshFuture;
+  bool _refreshQueued = false;
 
   // Toàn bộ danh sách đã áp filter category/privacy hiện tại — tính 1 lần
   // mỗi khi filter đổi (refreshData), các lần loadMore() sau chỉ cắt lát ra
@@ -91,6 +114,18 @@ class LinkCollectionController extends GetxController {
   // AppCache.links từ đầu (LinkRepository.getFilteredPage) — cuộn hết 1 danh
   // sách N link tốn O(N²) thay vì O(N).
   List<LinkModel>? _filteredLinks;
+
+  List<LinkModel> _getLinksForSelectedCategory(String? categoryId) {
+    final isAllCategory = categoryId == null || categoryId == 'all';
+    final isCategorySecurityEnabled = AppGetStorage.isCategorySecurity();
+    return LinkRepository.getFiltered(
+      categoryId: categoryId,
+      privateCategoryIds: AppCache.privateCategoryIds,
+      // The aggregate view must never leak links from locked categories.
+      // A private category is only queried directly after its unlock flow.
+      excludePrivate: isCategorySecurityEnabled && isAllCategory,
+    );
+  }
 
   @override
   void onInit() {
@@ -106,7 +141,9 @@ class LinkCollectionController extends GetxController {
   }
 
   void _scrollListener() {
-    if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
+    if (!scrollController.hasClients) return;
+    if (scrollController.position.pixels >=
+        scrollController.position.maxScrollExtent - 200) {
       if (!isLoading.value && !isLoadMore.value && _canLoadMore) {
         loadMore();
       }
@@ -114,20 +151,76 @@ class LinkCollectionController extends GetxController {
   }
 
   Future<void> refreshData({bool showToast = false}) async {
-    _currentPage = 0;
-    _canLoadMore = true;
-    _filteredLinks = null;
-    listLink.clear();
-    await fetchAllLinks(isInitial: true);
+    final active = _refreshFuture;
+    if (active != null) {
+      // Filter có thể đã đổi trong lúc refresh trước đang chạy. Gộp mọi lời
+      // gọi đồng thời thành tối đa một lượt chạy lại với state mới nhất.
+      _refreshQueued = true;
+      return active;
+    }
 
-    if (showToast) {
-      AppToast.showToast("Refreshed".tr, Icons.check_circle_rounded, color: Colors.green);
+    final future = _performRefresh(showToast: showToast);
+    _refreshFuture = future;
+    try {
+      await future;
+    } finally {
+      if (identical(_refreshFuture, future)) _refreshFuture = null;
+    }
+
+    if (_refreshQueued) {
+      _refreshQueued = false;
+      await refreshData();
+    }
+  }
+
+  Future<void> _performRefresh({required bool showToast}) async {
+    final hasContent = listLink.isNotEmpty;
+    errorMessage.value = null;
+    if (hasContent) {
+      isRefreshing.value = true;
+    } else {
+      isLoading.value = true;
+    }
+
+    try {
+      await Future.wait([
+        LinkRepository.ensureLoaded(),
+        CategoryRepository.ensureLoaded(),
+      ]);
+
+      final categoryPopup = Get.find<CustomPopupController>();
+      final selectedCategoryId = categoryPopup.selectedItem.value?.id;
+      final filtered = _getLinksForSelectedCategory(selectedCategoryId);
+      _filteredLinks = filtered;
+      _currentPage = filtered.isEmpty ? 0 : 1;
+      _canLoadMore = filtered.length > _pageSize;
+
+      // Một lần assign duy nhất: giữ nội dung cũ trong lúc refresh và tránh
+      // chuỗi clear → addAll gây hai frame rebuild/nháy grid.
+      listLink.assignAll(filtered.take(_pageSize));
+
+      if (showToast) {
+        AppToast.showToast(
+          "Refreshed".tr,
+          Icons.check_circle_rounded,
+          color: AppColors.success,
+        );
+      }
+    } catch (error) {
+      log('Refresh links error: $error');
+      errorMessage.value = 'An error occurred, please try again'.tr;
+    } finally {
+      isLoading.value = false;
+      isRefreshing.value = false;
     }
   }
 
   Future<void> fetchAllLinks({bool isInitial = false}) async {
+    if (isInitial) return refreshData();
     if (!_canLoadMore) return;
-    final CustomPopupController categoryPopup = DependencyUtils.put(() => CustomPopupController());
+    final CustomPopupController categoryPopup = DependencyUtils.put(
+      () => CustomPopupController(),
+    );
     try {
       if (isInitial) {
         isLoading.value = true;
@@ -136,29 +229,17 @@ class LinkCollectionController extends GetxController {
       }
 
       // Ensure both caches are populated (DB query only on very first call).
-      await Future.wait([LinkRepository.ensureLoaded(), CategoryRepository.ensureLoaded()]);
+      await Future.wait([
+        LinkRepository.ensureLoaded(),
+        CategoryRepository.ensureLoaded(),
+      ]);
 
       // Filter cache from AppCache — pure in-memory, no I/O. Computed once
       // per filter (reset in refreshData()); loadMore() just slices pages
       // out of it instead of re-scanning every link again each time.
       if (_filteredLinks == null) {
         final selectedCategoryId = categoryPopup.selectedItem.value?.id;
-        final bool isSecurityEnabled = AppGetStorage.isCategorySecurity();
-
-        // Compute private IDs from in-memory cache — no DB query.
-        final Set<String> privateCategoryIds = isSecurityEnabled
-            ? AppCache.privateCategoryIds
-            : const {};
-
-        // Only exclude private categories when browsing "All" — if the user has
-        // explicitly selected a specific (private) category they already passed
-        // the PIN/biometric check, so their links must be shown.
-        final bool isAllCategory = selectedCategoryId == null || selectedCategoryId == 'all';
-        _filteredLinks = LinkRepository.getFiltered(
-          categoryId: selectedCategoryId,
-          privateCategoryIds: privateCategoryIds,
-          excludePrivate: isSecurityEnabled && isAllCategory,
-        );
+        _filteredLinks = _getLinksForSelectedCategory(selectedCategoryId);
       }
 
       final source = _filteredLinks!;
@@ -175,7 +256,9 @@ class LinkCollectionController extends GetxController {
         if (page.length < _pageSize) _canLoadMore = false;
       }
 
-      log('Page $_currentPage loaded (cache). Total displayed: ${listLink.length}');
+      log(
+        'Page $_currentPage loaded (cache). Total displayed: ${listLink.length}',
+      );
     } catch (e) {
       log('Error fetching links: $e');
     } finally {
@@ -185,6 +268,7 @@ class LinkCollectionController extends GetxController {
   }
 
   Future<void> loadMore() async {
+    if (_refreshFuture != null || isLoadMore.value) return;
     await fetchAllLinks(isInitial: false);
   }
 
@@ -195,13 +279,24 @@ class LinkCollectionController extends GetxController {
         title: "Xác nhận",
         content: "Bạn chắc chắn muốn xóa link!",
         onConfirm: () async {
-          await LinkRepository.delete(id);
-          FirebaseService.revokeAllLinkShares(id);
-          listLink.removeWhere((item) => item.id == id);
-          _filteredLinks?.removeWhere((item) => item.id == id);
           Get.back();
-          Get.back();
-          AppToast.showToast("Deleted".tr, Icons.delete_outline_rounded);
+          try {
+            // Access is revoked before the owner's local/remote delete is
+            // queued, so receivers lose the item immediately and atomically.
+            await FirebaseService.revokeAllLinkShares(id);
+            await LinkRepository.delete(id);
+            listLink.removeWhere((item) => item.id == id);
+            _filteredLinks?.removeWhere((item) => item.id == id);
+            Get.back();
+            AppToast.showToast("Deleted".tr, Icons.delete_outline_rounded);
+          } catch (error) {
+            log('Delete link error: $error');
+            AppToast.showToast(
+              'An error occurred, please try again'.tr,
+              Icons.error_outline_rounded,
+              color: AppColors.danger,
+            );
+          }
         },
         onCancel: () => Get.back(),
       );

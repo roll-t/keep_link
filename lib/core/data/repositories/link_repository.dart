@@ -19,8 +19,14 @@ class LinkRepository {
   static Future<void> ensureLoaded() async {
     if (AppCache.linksLoaded) return;
 
-    final rows = await DbHelper.getAll(_table, orderByColumn: 'createdAt', descending: true);
-    final list = rows.map((r) => LinkModel.fromJson(Map<String, dynamic>.from(r))).toList();
+    final rows = await DbHelper.getAll(
+      _table,
+      orderByColumn: 'createdAt',
+      descending: true,
+    );
+    final list = rows
+        .map((r) => LinkModel.fromJson(Map<String, dynamic>.from(r)))
+        .toList();
     AppCache.setLinks(list);
   }
 
@@ -79,6 +85,19 @@ class LinkRepository {
     await DbHelper.delete(_table, id);
     AppCache.removeLink(id);
     SessionSyncService.instance.trackLinkDelete(id);
+    SessionSyncService.instance.pushNow();
+  }
+
+  /// Batch delete: một SQLite batch, một cache notification và một lần flush.
+  static Future<void> deleteAll(Iterable<String> ids) async {
+    final uniqueIds = ids.where((id) => id.isNotEmpty).toSet();
+    if (uniqueIds.isEmpty) return;
+
+    await DbHelper.deleteAll(_table, uniqueIds);
+    AppCache.removeLinks(uniqueIds);
+    for (final id in uniqueIds) {
+      SessionSyncService.instance.trackLinkDelete(id);
+    }
     SessionSyncService.instance.pushNow();
   }
 }

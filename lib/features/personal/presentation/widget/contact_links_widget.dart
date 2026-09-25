@@ -15,7 +15,9 @@ class ContactLinksWidget extends StatelessWidget {
     final uri = Uri(scheme: 'mailto', path: _email);
     if (!await launchUrl(uri)) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('unable_open_email'.tr)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('unable_open_email'.tr)));
       }
     }
   }
@@ -24,7 +26,9 @@ class ContactLinksWidget extends StatelessWidget {
     final uri = Uri.parse('https://zalo.me/$_zalo');
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('unable_open_zalo'.tr)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('unable_open_zalo'.tr)));
       }
     }
   }
@@ -33,7 +37,11 @@ class ContactLinksWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ContactTile(icon: Icons.email_rounded, label: _email, onTap: () => _openEmail(context)),
+        _ContactTile(
+          icon: Icons.email_rounded,
+          label: _email,
+          onTap: () => _openEmail(context),
+        ),
         const SizedBox(height: 8),
         _ContactTile(
           icon: Icons.chat_rounded,
@@ -46,7 +54,11 @@ class ContactLinksWidget extends StatelessWidget {
 }
 
 class _ContactTile extends StatelessWidget {
-  const _ContactTile({required this.icon, required this.label, required this.onTap});
+  const _ContactTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -75,7 +87,11 @@ class _ContactTile extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const Icon(Icons.open_in_new_rounded, color: AppColors.primary, size: 14),
+            const Icon(
+              Icons.open_in_new_rounded,
+              color: AppColors.primary,
+              size: 14,
+            ),
           ],
         ),
       ),

@@ -22,6 +22,10 @@ class FirebaseService {
   static const String _sharedCategoryAccessKey = 'sharedCategoryAccess';
   static const String _sharedLinksWithKey = 'sharedLinksWith';
   static const String _sharedLinkAccessKey = 'sharedLinkAccess';
+  static const Duration _ownerProfileCacheTtl = Duration(minutes: 5);
+  static final Map<String, _OwnerProfileCacheEntry> _ownerProfileCache = {};
+  static final Map<String, Future<({String? displayName, String? photoUrl})?>>
+  _ownerProfileRequests = {};
 
   /// Hard cap for a single Realtime Database round-trip. Without this, a
   /// `.get()`/`.update()` call can hang indefinitely while offline — and
@@ -106,7 +110,9 @@ class FirebaseService {
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
   static String? get currentUserId => _auth.currentUser?.uid;
 
-  static Future<Map<String, String?>?> findUserProfileByEmail(String rawEmail) async {
+  static Future<Map<String, String?>?> findUserProfileByEmail(
+    String rawEmail,
+  ) async {
     final email = _normalizeEmail(rawEmail);
     if (email.isEmpty) return null;
 
@@ -120,7 +126,9 @@ class FirebaseService {
           .timeout(_requestTimeout);
       if (!lookupSnapshot.exists || lookupSnapshot.value is! Map) return null;
 
-      final matchedProfiles = Map<String, dynamic>.from(lookupSnapshot.value as Map);
+      final matchedProfiles = Map<String, dynamic>.from(
+        lookupSnapshot.value as Map,
+      );
       final entry = matchedProfiles.entries.firstWhere(
         (candidate) => candidate.value is Map,
         orElse: () => const MapEntry('', null),
@@ -162,7 +170,8 @@ class FirebaseService {
     final email = _normalizeEmail(user.email);
     if (email.isEmpty) return;
 
-    final displayName = _pickString([user.displayName]) ?? email.split('@').first;
+    final displayName =
+        _pickString([user.displayName]) ?? email.split('@').first;
     final photoUrl = _pickString([user.photoURL]);
 
     try {
@@ -266,7 +275,9 @@ class FirebaseService {
           .ref('users/${currentUser.uid}/$_friendRequestsKey')
           .get()
           .timeout(_requestTimeout);
-      if (!snapshot.exists || snapshot.value is! Map) return const <FriendRequestModel>[];
+      if (!snapshot.exists || snapshot.value is! Map) {
+        return const <FriendRequestModel>[];
+      }
 
       final raw = Map<String, dynamic>.from(snapshot.value as Map);
       return raw.entries
@@ -280,9 +291,8 @@ class FirebaseService {
           .where((request) => request.status == 'pending')
           .toList()
         ..sort(
-          (a, b) => (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
-            a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-          ),
+          (a, b) => (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
         );
     } catch (e) {
       log('Get incoming friend requests error: $e');
@@ -301,13 +311,17 @@ class FirebaseService {
       final raw = Map<String, dynamic>.from(event.snapshot.value as Map);
       return raw.entries
           .where((e) => e.value is Map)
-          .map((e) => FriendRequestModel.fromJson(e.key, Map<String, dynamic>.from(e.value as Map)))
+          .map(
+            (e) => FriendRequestModel.fromJson(
+              e.key,
+              Map<String, dynamic>.from(e.value as Map),
+            ),
+          )
           .where((r) => r.status == 'pending')
           .toList()
         ..sort(
-          (a, b) => (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
-            a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-          ),
+          (a, b) => (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
         );
     });
   }
@@ -326,13 +340,21 @@ class FirebaseService {
       final raw = Map<String, dynamic>.from(snapshot.value as Map);
       return raw.entries
           .where((entry) => entry.value is Map)
-          .map((entry) => MapEntry(entry.key, Map<String, dynamic>.from(entry.value as Map)))
-          .where((entry) => (entry.value['status'] ?? 'pending').toString() == 'pending')
+          .map(
+            (entry) => MapEntry(
+              entry.key,
+              Map<String, dynamic>.from(entry.value as Map),
+            ),
+          )
+          .where(
+            (entry) =>
+                (entry.value['status'] ?? 'pending').toString() == 'pending',
+          )
           .map((entry) => entry.key)
           .toList();
     } catch (e) {
       log('Get outgoing friend requests error: $e');
-      return const <String>[];
+      rethrow;
     }
   }
 
@@ -345,7 +367,9 @@ class FirebaseService {
           .ref('users/${currentUser.uid}/$_friendsKey')
           .get()
           .timeout(_requestTimeout);
-      if (!snapshot.exists || snapshot.value is! Map) return const <FriendModel>[];
+      if (!snapshot.exists || snapshot.value is! Map) {
+        return const <FriendModel>[];
+      }
 
       final raw = Map<String, dynamic>.from(snapshot.value as Map);
       return raw.entries.where((entry) => entry.value is Map).map((entry) {
@@ -359,13 +383,12 @@ class FirebaseService {
         json['updated_at'] = json['updatedAt'];
         return FriendModel.fromJson(json);
       }).toList()..sort(
-        (a, b) => (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
-          a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-        ),
+        (a, b) => (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+            .compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
       );
     } catch (e) {
       log('Get remote friends error: $e');
-      return const <FriendModel>[];
+      rethrow;
     }
   }
 
@@ -450,7 +473,9 @@ class FirebaseService {
       rethrow;
     }
 
-    log('Friend request accepted: ${request.fromUserId} <-> ${currentUser.uid}');
+    log(
+      'Friend request accepted: ${request.fromUserId} <-> ${currentUser.uid}',
+    );
   }
 
   static Future<void> declineFriendRequest(String fromUserId) async {
@@ -491,65 +516,34 @@ class FirebaseService {
       );
     }
 
-    // Bước 1: Dọn phía mình — luôn được phép vì ghi vào node của chính mình
     try {
+      final myUid = currentUser.uid;
+      // Both directions are removed in one RTDB multi-location update. The
+      // rules grant each participant delete-only access to the counterpart's
+      // friendship/share-index paths, so this is atomic: either friendship
+      // and every related share disappear together, or nothing changes.
       await _db
-          .ref('users/${currentUser.uid}')
+          .ref()
           .update({
-            '$_friendsKey/$friendUserId': null,
-            '$_sharedWithKey/$friendUserId': null,
-            '$_sharedCategoryAccessKey/$friendUserId': null,
-            '$_sharedLinksWithKey/$friendUserId': null,
-            '$_sharedLinkAccessKey/$friendUserId': null,
+            'users/$myUid/$_friendsKey/$friendUserId': null,
+            'users/$friendUserId/$_friendsKey/$myUid': null,
+
+            // Categories shared by me -> friend, and by friend -> me.
+            'users/$myUid/$_sharedWithKey/$friendUserId': null,
+            'users/$friendUserId/$_sharedCategoryAccessKey/$myUid': null,
+            'users/$friendUserId/$_sharedWithKey/$myUid': null,
+            'users/$myUid/$_sharedCategoryAccessKey/$friendUserId': null,
+
+            // Individual links shared in both directions.
+            'users/$myUid/$_sharedLinksWithKey/$friendUserId': null,
+            'users/$friendUserId/$_sharedLinkAccessKey/$myUid': null,
+            'users/$friendUserId/$_sharedLinksWithKey/$myUid': null,
+            'users/$myUid/$_sharedLinkAccessKey/$friendUserId': null,
           })
           .timeout(_requestTimeout);
     } catch (e) {
-      log('Remove friend (own side) error: $e');
+      log('Remove friend and related shares error: $e');
       rethrow;
-    }
-
-    // Bước 2: Dọn phía bạn — mỗi path riêng để lỗi permission không chặn cả lô.
-    // Nếu Firebase rules không cho phép ghi node của người khác,
-    // bỏ qua; bạn sẽ tự dọn khi friendsWatcher phát hiện bị xoá.
-    try {
-      await _db
-          .ref('users/$friendUserId/$_friendsKey/${currentUser.uid}')
-          .remove()
-          .timeout(_requestTimeout);
-    } catch (e) {
-      log('Remove friend (friend side - friends) error: $e');
-    }
-    try {
-      await _db
-          .ref('users/$friendUserId/$_sharedWithKey/${currentUser.uid}')
-          .remove()
-          .timeout(_requestTimeout);
-    } catch (e) {
-      log('Remove friend (friend side - sharedWith) error: $e');
-    }
-    try {
-      await _db
-          .ref('users/$friendUserId/$_sharedCategoryAccessKey/${currentUser.uid}')
-          .remove()
-          .timeout(_requestTimeout);
-    } catch (e) {
-      log('Remove friend (friend side - sharedCategoryAccess) error: $e');
-    }
-    try {
-      await _db
-          .ref('users/$friendUserId/$_sharedLinksWithKey/${currentUser.uid}')
-          .remove()
-          .timeout(_requestTimeout);
-    } catch (e) {
-      log('Remove friend (friend side - sharedLinksWith) error: $e');
-    }
-    try {
-      await _db
-          .ref('users/$friendUserId/$_sharedLinkAccessKey/${currentUser.uid}')
-          .remove()
-          .timeout(_requestTimeout);
-    } catch (e) {
-      log('Remove friend (friend side - sharedLinkAccess) error: $e');
     }
 
     log('Friend removed: ${currentUser.uid} x $friendUserId');
@@ -563,7 +557,10 @@ class FirebaseService {
   /// Returns null if the node doesn't exist yet.
   static Future<Map<String, dynamic>?> getUserData(String userId) async {
     try {
-      final snapshot = await _db.ref('users/$userId').get().timeout(_requestTimeout);
+      final snapshot = await _db
+          .ref('users/$userId')
+          .get()
+          .timeout(_requestTimeout);
       if (!snapshot.exists || snapshot.value == null) return null;
       return Map<String, dynamic>.from(snapshot.value as Map);
     } catch (e) {
@@ -574,7 +571,10 @@ class FirebaseService {
 
   /// Push all session mutations in a single multi-path update (1 request).
   /// Pass `null` as a value to delete that path.
-  static Future<void> applyUserDelta(String userId, Map<String, dynamic> updates) async {
+  static Future<void> applyUserDelta(
+    String userId,
+    Map<String, dynamic> updates,
+  ) async {
     if (updates.isEmpty) return;
     try {
       await _db.ref('users/$userId').update(updates).timeout(_requestTimeout);
@@ -590,7 +590,10 @@ class FirebaseService {
   ///
   /// Write directly to a user-scoped path to match restricted rules and
   /// avoid noisy permission-denied logs from an initial global write attempt.
-  static Future<void> submitFeedback({required String type, required String message}) async {
+  static Future<void> submitFeedback({
+    required String type,
+    required String message,
+  }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
       throw FirebaseException(
@@ -631,8 +634,12 @@ class FirebaseService {
       }
 
       final feedbackRef = _db.ref('users/$uid/feedback').push();
-      final nextFeedbackCount = type == 'feedback' ? feedbackCount + 1 : feedbackCount;
-      final nextBugReportCount = type == 'bug_report' ? bugReportCount + 1 : bugReportCount;
+      final nextFeedbackCount = type == 'feedback'
+          ? feedbackCount + 1
+          : feedbackCount;
+      final nextBugReportCount = type == 'bug_report'
+          ? bugReportCount + 1
+          : bugReportCount;
 
       await _db
           .ref()
@@ -674,7 +681,8 @@ class FirebaseService {
     return null;
   }
 
-  static String _normalizeEmail(String? value) => value?.trim().toLowerCase() ?? '';
+  static String _normalizeEmail(String? value) =>
+      value?.trim().toLowerCase() ?? '';
 
   // ────────────────────────────────────────────────────────────────────────
   // CATEGORY SHARING
@@ -684,7 +692,11 @@ class FirebaseService {
   /// Writes to two paths atomically (per-user updates to avoid root write):
   ///   users/$ownerUid/sharedWith/$friendUid/$categoryId: true
   ///   users/$friendUid/sharedCategoryAccess/$ownerUid/$categoryId: true
-  static Future<void> shareCategory({required String friendUid, required String categoryId}) async {
+  static Future<void> shareCategory({
+    required String friendUid,
+    required String categoryId,
+    String? message,
+  }) async {
     final owner = _auth.currentUser;
     if (owner == null) {
       throw FirebaseException(
@@ -700,9 +712,13 @@ class FirebaseService {
           .update({categoryId: true})
           .timeout(_requestTimeout);
       try {
+        final trimmedMessage = message?.trim() ?? '';
+        final accessValue = trimmedMessage.isEmpty
+            ? ServerValue.timestamp
+            : {'sharedAt': ServerValue.timestamp, 'message': trimmedMessage};
         await _db
             .ref('users/$friendUid/$_sharedCategoryAccessKey/${owner.uid}')
-            .update({categoryId: ServerValue.timestamp})
+            .update({categoryId: accessValue})
             .timeout(_requestTimeout);
       } catch (e) {
         // Same rollback as shareLink(): don't leave the owner's own node
@@ -741,7 +757,9 @@ class FirebaseService {
           .remove()
           .timeout(_requestTimeout);
       await _db
-          .ref('users/$friendUid/$_sharedCategoryAccessKey/${owner.uid}/$categoryId')
+          .ref(
+            'users/$friendUid/$_sharedCategoryAccessKey/${owner.uid}/$categoryId',
+          )
           .remove()
           .timeout(_requestTimeout);
       log('Category unshared: ${owner.uid} -> $friendUid (cat: $categoryId)');
@@ -779,7 +797,9 @@ class FirebaseService {
     }
   }
 
-  static Future<List<String>> getCategorySharedFriendUids(String categoryId) async {
+  static Future<List<String>> getCategorySharedFriendUids(
+    String categoryId,
+  ) async {
     final owner = _auth.currentUser;
     if (owner == null) return const [];
 
@@ -795,12 +815,38 @@ class FirebaseService {
           .where(
             (entry) =>
                 entry.value is Map &&
-                (Map<String, dynamic>.from(entry.value as Map)[categoryId]) == true,
+                (Map<String, dynamic>.from(entry.value as Map)[categoryId]) ==
+                    true,
           )
           .map((entry) => entry.key)
           .toList();
     } catch (e) {
       log('Get category shared friend uids error: $e');
+      return const [];
+    }
+  }
+
+  /// Returns category IDs currently shared by the current user with [friendUid].
+  static Future<List<String>> getCategoryIdsSharedWithFriend(
+    String friendUid,
+  ) async {
+    final owner = _auth.currentUser;
+    if (owner == null || friendUid.isEmpty) return const [];
+
+    try {
+      final snapshot = await _db
+          .ref('users/${owner.uid}/$_sharedWithKey/$friendUid')
+          .get()
+          .timeout(_requestTimeout);
+      if (!snapshot.exists || snapshot.value is! Map) return const [];
+
+      final raw = Map<String, dynamic>.from(snapshot.value as Map);
+      return raw.entries
+          .where((entry) => entry.value == true)
+          .map((entry) => entry.key)
+          .toList();
+    } catch (e) {
+      log('Get category ids shared with friend error: $e');
       return const [];
     }
   }
@@ -826,7 +872,11 @@ class FirebaseService {
   // ────────────────────────────────────────────────────────────────────────
 
   /// Share [linkId] with [friendUid].
-  static Future<void> shareLink({required String friendUid, required String linkId}) async {
+  static Future<void> shareLink({
+    required String friendUid,
+    required String linkId,
+    String? message,
+  }) async {
     final owner = _auth.currentUser;
     if (owner == null) {
       throw FirebaseException(
@@ -842,9 +892,13 @@ class FirebaseService {
           .update({linkId: true})
           .timeout(_requestTimeout);
       try {
+        final trimmedMessage = message?.trim() ?? '';
+        final accessValue = trimmedMessage.isEmpty
+            ? ServerValue.timestamp
+            : {'sharedAt': ServerValue.timestamp, 'message': trimmedMessage};
         await _db
             .ref('users/$friendUid/$_sharedLinkAccessKey/${owner.uid}')
-            .update({linkId: ServerValue.timestamp})
+            .update({linkId: accessValue})
             .timeout(_requestTimeout);
       } catch (e) {
         // Own-side write above already succeeded — without this rollback the
@@ -867,7 +921,10 @@ class FirebaseService {
   }
 
   /// Revoke sharing of [linkId] with [friendUid].
-  static Future<void> unshareLink({required String friendUid, required String linkId}) async {
+  static Future<void> unshareLink({
+    required String friendUid,
+    required String linkId,
+  }) async {
     final owner = _auth.currentUser;
     if (owner == null) {
       throw FirebaseException(
@@ -920,24 +977,84 @@ class FirebaseService {
     }
   }
 
-  /// Remove all sharing records for [linkId] when the link is deleted.
-  static Future<void> revokeAllLinkShares(String linkId) async {
+  /// Returns link IDs currently shared by the current user with [friendUid].
+  static Future<List<String>> getLinkIdsSharedWithFriend(
+    String friendUid,
+  ) async {
     final owner = _auth.currentUser;
-    if (owner == null) return;
+    if (owner == null || friendUid.isEmpty) return const [];
 
     try {
-      final sharedFriendUids = await getLinkSharedFriendUids(linkId);
-      for (final friendUid in sharedFriendUids) {
-        await unshareLink(friendUid: friendUid, linkId: linkId);
-      }
-      log('All shares revoked for link: $linkId');
+      final snapshot = await _db
+          .ref('users/${owner.uid}/$_sharedLinksWithKey/$friendUid')
+          .get()
+          .timeout(_requestTimeout);
+      if (!snapshot.exists || snapshot.value is! Map) return const [];
+
+      final raw = Map<String, dynamic>.from(snapshot.value as Map);
+      return raw.entries
+          .where((entry) => entry.value == true)
+          .map((entry) => entry.key)
+          .toList();
     } catch (e) {
-      log('Revoke all link shares error: $e');
+      log('Get link ids shared with friend error: $e');
+      return const [];
+    }
+  }
+
+  /// Remove all sharing records for [linkId] when the link is deleted.
+  static Future<void> revokeAllLinkShares(String linkId) async {
+    await revokeAllLinksShares([linkId]);
+  }
+
+  /// Batch variant used when deleting links. The owner's remote link records
+  /// and every receiver access index are removed in one multi-location update,
+  /// so category watchers and individual-share watchers lose the item in the
+  /// same Firebase event.
+  static Future<void> revokeAllLinksShares(Iterable<String> linkIds) async {
+    final owner = _auth.currentUser;
+    if (owner == null) return;
+    final idSet = linkIds.where((id) => id.isNotEmpty).toSet();
+    if (idSet.isEmpty) return;
+
+    try {
+      final snapshot = await _db
+          .ref('users/${owner.uid}/$_sharedLinksWithKey')
+          .get()
+          .timeout(_requestTimeout);
+      final raw = snapshot.exists && snapshot.value is Map
+          ? Map<String, dynamic>.from(snapshot.value as Map)
+          : const <String, dynamic>{};
+      final updates = <String, dynamic>{
+        for (final linkId in idSet) 'users/${owner.uid}/links/$linkId': null,
+      };
+      for (final friendEntry in raw.entries) {
+        if (friendEntry.value is! Map) continue;
+        final friendUid = friendEntry.key;
+        final sharedLinks = Map<String, dynamic>.from(friendEntry.value as Map);
+        for (final linkId in idSet) {
+          if (sharedLinks[linkId] != true) continue;
+          updates['users/${owner.uid}/$_sharedLinksWithKey/$friendUid/$linkId'] =
+              null;
+          updates['users/$friendUid/$_sharedLinkAccessKey/${owner.uid}/$linkId'] =
+              null;
+        }
+      }
+
+      await _db.ref().update(updates).timeout(_requestTimeout);
+      log(
+        'All shares revoked for ${idSet.length} link(s) '
+        'in one multi-location update.',
+      );
+    } catch (e) {
+      log('Revoke all links shares error: $e');
+      rethrow;
     }
   }
 
   /// Fetch all individual links that friends have shared with the current user.
-  static Future<List<SharedIndividualLinkModel>> getSharedIndividualLinksFromFriends() async {
+  static Future<List<SharedIndividualLinkModel>>
+  getSharedIndividualLinksFromFriends() async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return const [];
 
@@ -946,7 +1063,9 @@ class FirebaseService {
           .ref('users/${currentUser.uid}/$_sharedLinkAccessKey')
           .get()
           .timeout(_requestTimeout);
-      if (!accessSnapshot.exists || accessSnapshot.value is! Map) return const [];
+      if (!accessSnapshot.exists || accessSnapshot.value is! Map) {
+        return const [];
+      }
 
       final accessMap = Map<String, dynamic>.from(accessSnapshot.value as Map);
 
@@ -964,7 +1083,7 @@ class FirebaseService {
       return perOwnerResults.expand((list) => list).toList();
     } catch (e) {
       log('Get shared individual links error: $e');
-      return const [];
+      rethrow;
     }
   }
 
@@ -977,7 +1096,9 @@ class FirebaseService {
     final results = await Future.wait<dynamic>([
       _fetchOwnerProfile(ownerUid),
       Future.wait(
-        linkMap.entries.map((entry) => _fetchSharedLink(ownerUid, entry.key, entry.value)),
+        linkMap.entries.map(
+          (entry) => _fetchSharedLink(ownerUid, entry.key, entry.value),
+        ),
       ),
     ]);
 
@@ -986,8 +1107,21 @@ class FirebaseService {
     final ownerPhotoUrl = profile?.photoUrl;
 
     final rawLinks =
-        (results[1] as List<({String linkId, Map<String, dynamic> linkJson, DateTime? sharedAt})?>)
-            .whereType<({String linkId, Map<String, dynamic> linkJson, DateTime? sharedAt})>();
+        (results[1]
+                as List<
+                  ({
+                    String linkId,
+                    Map<String, dynamic> linkJson,
+                    DateTime? sharedAt,
+                  })?
+                >)
+            .whereType<
+              ({
+                String linkId,
+                Map<String, dynamic> linkJson,
+                DateTime? sharedAt,
+              })
+            >();
 
     return rawLinks
         .map(
@@ -1003,10 +1137,16 @@ class FirebaseService {
         .toList();
   }
 
-  static Future<({String linkId, Map<String, dynamic> linkJson, DateTime? sharedAt})?>
+  static Future<
+    ({String linkId, Map<String, dynamic> linkJson, DateTime? sharedAt})?
+  >
   _fetchSharedLink(String ownerUid, String linkId, dynamic rawSharedAt) async {
     try {
-      final sharedAt = rawSharedAt is int ? DateTime.fromMillisecondsSinceEpoch(rawSharedAt) : null;
+      final sharedAt = rawSharedAt is int
+          ? DateTime.fromMillisecondsSinceEpoch(rawSharedAt)
+          : (rawSharedAt is Map && rawSharedAt['sharedAt'] is int)
+          ? DateTime.fromMillisecondsSinceEpoch(rawSharedAt['sharedAt'] as int)
+          : null;
 
       final linkSnap = await _db
           .ref('users/$ownerUid/links/$linkId')
@@ -1036,7 +1176,8 @@ class FirebaseService {
   /// but fanned out over the single already-open RTDB connection instead of
   /// awaited one by one, so wall-clock time is bounded by the slowest single
   /// request instead of the sum of all of them.
-  static Future<List<SharedCategoryModel>> getSharedCategoriesFromFriends() async {
+  static Future<List<SharedCategoryModel>>
+  getSharedCategoriesFromFriends() async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return const [];
 
@@ -1046,7 +1187,9 @@ class FirebaseService {
           .ref('users/${currentUser.uid}/$_sharedCategoryAccessKey')
           .get()
           .timeout(_requestTimeout);
-      if (!accessSnapshot.exists || accessSnapshot.value is! Map) return const [];
+      if (!accessSnapshot.exists || accessSnapshot.value is! Map) {
+        return const [];
+      }
 
       final accessMap = Map<String, dynamic>.from(accessSnapshot.value as Map);
 
@@ -1064,7 +1207,7 @@ class FirebaseService {
       return perOwnerResults.expand((list) => list).toList();
     } catch (e) {
       log('Get shared categories error: $e');
-      return const [];
+      rethrow;
     }
   }
 
@@ -1081,7 +1224,8 @@ class FirebaseService {
       _fetchOwnerProfile(ownerUid),
       Future.wait(
         catMap.entries.map(
-          (catEntry) => _fetchSharedCategory(ownerUid, catEntry.key, catEntry.value),
+          (catEntry) =>
+              _fetchSharedCategory(ownerUid, catEntry.key, catEntry.value),
         ),
       ),
     ]);
@@ -1098,6 +1242,7 @@ class FirebaseService {
                     Map<String, dynamic> categoryJson,
                     int linkCount,
                     DateTime? sharedAt,
+                    String? message,
                   })?
                 >)
             .whereType<
@@ -1106,6 +1251,7 @@ class FirebaseService {
                 Map<String, dynamic> categoryJson,
                 int linkCount,
                 DateTime? sharedAt,
+                String? message,
               })
             >();
 
@@ -1119,6 +1265,7 @@ class FirebaseService {
             categoryJson: raw.categoryJson,
             linkCount: raw.linkCount,
             sharedAt: raw.sharedAt,
+            message: raw.message,
           ),
         )
         .toList();
@@ -1126,6 +1273,36 @@ class FirebaseService {
 
   /// Resolve a friend's public display name/photo from `friendDirectory`.
   static Future<({String? displayName, String? photoUrl})?> _fetchOwnerProfile(
+    String ownerUid,
+  ) async {
+    final cached = _ownerProfileCache[ownerUid];
+    if (cached != null &&
+        DateTime.now().difference(cached.fetchedAt) < _ownerProfileCacheTtl) {
+      return cached.profile;
+    }
+
+    final pending = _ownerProfileRequests[ownerUid];
+    if (pending != null) return pending;
+
+    final request = _loadOwnerProfile(ownerUid);
+    _ownerProfileRequests[ownerUid] = request;
+    try {
+      final profile = await request;
+      if (profile != null) {
+        _ownerProfileCache[ownerUid] = _OwnerProfileCacheEntry(
+          profile: profile,
+          fetchedAt: DateTime.now(),
+        );
+      }
+      return profile;
+    } finally {
+      if (identical(_ownerProfileRequests[ownerUid], request)) {
+        _ownerProfileRequests.remove(ownerUid);
+      }
+    }
+  }
+
+  static Future<({String? displayName, String? photoUrl})?> _loadOwnerProfile(
     String ownerUid,
   ) async {
     try {
@@ -1136,7 +1313,10 @@ class FirebaseService {
       if (!profileSnap.exists || profileSnap.value is! Map) return null;
       final profile = Map<String, dynamic>.from(profileSnap.value as Map);
       return (
-        displayName: _pickString([profile['displayName'], profile['display_name']]),
+        displayName: _pickString([
+          profile['displayName'],
+          profile['display_name'],
+        ]),
         photoUrl: _pickString([profile['photoUrl'], profile['photo_url']]),
       );
     } catch (_) {
@@ -1148,12 +1328,35 @@ class FirebaseService {
   /// Returns null if the category no longer exists or the fetch fails —
   /// callers should skip null entries rather than fail the whole batch.
   static Future<
-    ({String categoryId, Map<String, dynamic> categoryJson, int linkCount, DateTime? sharedAt})?
+    ({
+      String categoryId,
+      Map<String, dynamic> categoryJson,
+      int linkCount,
+      DateTime? sharedAt,
+      String? message,
+    })?
   >
-  _fetchSharedCategory(String ownerUid, String catId, dynamic rawSharedAt) async {
+  _fetchSharedCategory(
+    String ownerUid,
+    String catId,
+    dynamic rawSharedAt,
+  ) async {
     try {
-      // Parse sharedAt timestamp (new data = int ms, old data = bool true)
-      final sharedAt = rawSharedAt is int ? DateTime.fromMillisecondsSinceEpoch(rawSharedAt) : null;
+      // New shares may carry an optional message. Keep supporting the older
+      // int timestamp and legacy boolean formats.
+      final accessData = rawSharedAt is Map
+          ? Map<String, dynamic>.from(rawSharedAt)
+          : const <String, dynamic>{};
+      final rawTimestamp = rawSharedAt is int
+          ? rawSharedAt
+          : accessData['sharedAt'];
+      final sharedAt = rawTimestamp is int
+          ? DateTime.fromMillisecondsSinceEpoch(rawTimestamp)
+          : null;
+      final rawMessage = accessData['message']?.toString().trim();
+      final message = rawMessage == null || rawMessage.isEmpty
+          ? null
+          : rawMessage;
 
       final catSnap = await _db
           .ref('users/$ownerUid/categories/$catId')
@@ -1181,6 +1384,7 @@ class FirebaseService {
         categoryJson: Map<String, dynamic>.from(catSnap.value as Map),
         linkCount: linkCount,
         sharedAt: sharedAt,
+        message: message,
       );
     } catch (e) {
       log('Fetch shared category error ($catId): $e');
@@ -1196,7 +1400,9 @@ class FirebaseService {
     if (uid == null) return const Stream.empty();
 
     return _db.ref('users/$uid/$_sharedCategoryAccessKey').onValue.map((event) {
-      if (!event.snapshot.exists || event.snapshot.value is! Map) return <String>{};
+      if (!event.snapshot.exists || event.snapshot.value is! Map) {
+        return <String>{};
+      }
       final raw = Map<String, dynamic>.from(event.snapshot.value as Map);
       final keys = <String>{};
       for (final ownerEntry in raw.entries) {
@@ -1204,6 +1410,30 @@ class FirebaseService {
         final catMap = Map<String, dynamic>.from(ownerEntry.value as Map);
         for (final catId in catMap.keys) {
           keys.add('${ownerEntry.key}/$catId');
+        }
+      }
+      return keys;
+    });
+  }
+
+  /// Watch individual links shared with the current user. A separate access
+  /// node is used by the backend, so category access alone cannot keep the
+  /// combined "Shared" tab up to date.
+  static Stream<Set<String>> watchSharedLinkAccess() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return const Stream.empty();
+
+    return _db.ref('users/$uid/$_sharedLinkAccessKey').onValue.map((event) {
+      if (!event.snapshot.exists || event.snapshot.value is! Map) {
+        return <String>{};
+      }
+      final raw = Map<String, dynamic>.from(event.snapshot.value as Map);
+      final keys = <String>{};
+      for (final ownerEntry in raw.entries) {
+        if (ownerEntry.value is! Map) continue;
+        final linkMap = Map<String, dynamic>.from(ownerEntry.value as Map);
+        for (final linkId in linkMap.keys) {
+          keys.add('${ownerEntry.key}/$linkId');
         }
       }
       return keys;
@@ -1295,4 +1525,14 @@ class FirebaseService {
           }));
         });
   }
+}
+
+class _OwnerProfileCacheEntry {
+  final ({String? displayName, String? photoUrl}) profile;
+  final DateTime fetchedAt;
+
+  const _OwnerProfileCacheEntry({
+    required this.profile,
+    required this.fetchedAt,
+  });
 }

@@ -57,6 +57,8 @@ Map<String, String> vi = {
   "Name A → Z": 'Tên A → Z',
   "Name Z → A": 'Tên Z → A',
   "Reset filters": 'Đặt lại bộ lọc',
+  "Filters": 'Bộ lọc',
+  "Apply filters": 'Áp dụng',
   "Top sources": 'Nguồn phổ biến',
   "Saved date": 'Ngày lưu',
   "Clear": 'Xoá bộ lọc',
@@ -98,13 +100,15 @@ Map<String, String> vi = {
   "Add via Gmail": 'Thêm qua Gmail',
   "Add via Link": 'Thêm qua Link',
   "Add via QR": 'Thêm qua QR',
-  "Find a friend account with their Gmail.": 'Tìm tài khoản bạn bè bằng Gmail của họ.',
+  "Find a friend account with their Gmail.":
+      'Tìm tài khoản bạn bè bằng Gmail của họ.',
   "Paste your friend's personal link.": 'Dán link cá nhân của bạn bè.',
   "Scan your friend's personal QR code.": 'Quét mã QR cá nhân của bạn bè.',
   "Add Friend by Gmail": 'Thêm bạn bằng Gmail',
   "Enter your friend's Gmail to find and send them a request.":
       'Nhập Gmail của bạn bè để tìm và gửi lời mời kết bạn.',
-  "Each account can keep up to @0 friends.": 'Mỗi tài khoản chỉ có thể lưu tối đa @0 bạn bè.',
+  "Each account can keep up to @0 friends.":
+      'Mỗi tài khoản chỉ có thể lưu tối đa @0 bạn bè.',
   "Paste a personal link or scan a personal QR to send a request.":
       'Dán link cá nhân hoặc quét QR cá nhân để gửi lời mời kết bạn.',
   "Paste Link": 'Dán link',
@@ -117,7 +121,8 @@ Map<String, String> vi = {
   "Pick from Gallery": 'Chọn từ thư viện',
   "Align QR code within frame to scan.": 'Hướng camera vào mã QR để quét.',
   "No QR code found": 'Không tìm thấy mã QR',
-  "Let your friends scan this QR to connect.": 'Đưa mã này cho bạn bè quét để kết bạn.',
+  "Let your friends scan this QR to connect.":
+      'Đưa mã này cho bạn bè quét để kết bạn.',
   "Please sign in to view your QR code.": 'Vui lòng đăng nhập để xem mã QR.',
   "Scanning image...": 'Đang quét ảnh...',
   "Scan Personal QR": 'Quét QR cá nhân',
@@ -146,7 +151,8 @@ Map<String, String> vi = {
   "friend_request_preview_desc":
       'Tên hiển thị này do link/QR tự khai, chưa được xác minh. Danh tính thật chỉ được xác nhận khi họ chấp nhận lời mời.',
   "friend_clipboard_empty": 'Bộ nhớ tạm chưa có link cá nhân hợp lệ',
-  "friend_no_qr_found_in_image": 'Không tìm thấy mã QR hợp lệ trong ảnh đã chọn',
+  "friend_no_qr_found_in_image":
+      'Không tìm thấy mã QR hợp lệ trong ảnh đã chọn',
   "friend_scan_image_failed": 'Không thể quét QR từ ảnh đã chọn',
   "friend_added_success": 'Thêm bạn bè thành công',
   "friend_deleted_success": 'Xóa bạn bè thành công',
@@ -165,6 +171,9 @@ Map<String, String> vi = {
   "Choose Template": 'Chọn mẫu poster QR',
   "Select your favorite QR poster design.": 'Chọn mẫu poster QR bạn yêu thích.',
   "Chibi Cute": 'Chibi Cute',
+  "Chibi Blue": 'Chibi Xanh',
+  "Chibi Pink": 'Chibi Hồng',
+  "Chibi Purple": 'Chibi Tím',
   "Dark Modern": 'Tối giản Dark',
   "Choose colors and shapes to personalize your QR code.":
       'Chọn màu sắc và kiểu dáng để tạo phong cách riêng cho mã QR của bạn.',
@@ -207,12 +216,21 @@ Map<String, String> vi = {
   "Private": 'Riêng tư',
   "Public": 'Công khai',
   "Update successful": 'Cập nhật thành công',
-  "Category contains links\nCannot delete!": 'Danh mục có chứa link\nKhông thể xoá!',
+  "Category contains links\nCannot delete!":
+      'Danh mục có chứa link\nKhông thể xoá!',
   "Confirm": 'Xác nhận',
   "Are you sure you want to delete!": 'Bạn có chắc chắn muốn xoá!',
 
   // Splash
   "Or": 'Hoặc',
+  "Keep everything worth revisiting": 'Lưu giữ mọi điều đáng nhớ',
+  "Welcome back": 'Chào mừng trở lại',
+  "Authenticate to continue using Linkeep":
+      'Xác thực để tiếp tục sử dụng Linkeep',
+  "Enter your PIN to unlock KeepLink": 'Nhập mã PIN để mở khóa KeepLink',
+  "Unlock with biometrics": 'Mở khóa bằng sinh trắc học',
+  "Biometrics is currently unavailable": 'Sinh trắc học hiện không khả dụng',
+  "Preparing your space...": 'Đang chuẩn bị không gian của bạn...',
 
   // Toast - Category
   "max_categories_limit": 'Bạn chỉ có thể tạo tối đa @0 danh mục',
@@ -221,6 +239,7 @@ Map<String, String> vi = {
   // Link Detail
   "Original Destination": 'Nguồn gốc',
   "Open in App": 'Mở trong ứng dụng',
+  "webview_loading": 'Đang mở trang...',
   "webview_load_error":
       'Không tải được trang này. Trang có thể đang bị chặn hoặc tạm thời không truy cập được.',
   "Reload": 'Tải lại',
@@ -257,8 +276,10 @@ Map<String, String> vi = {
   "Please enable app security first": 'Vui lòng bật bảo mật ứng dụng trước',
   "Please set up a PIN first": 'Vui lòng thiết lập mã PIN trước',
   "Fingerprint login disabled": 'Đã tắt đăng nhập bằng vân tay',
-  "Device does not support fingerprint / Face ID": 'Thiết bị không hỗ trợ vân tay / Face ID',
-  "Please set up fingerprint in device Settings": 'Vui lòng cài đặt vân tay trong Cài đặt máy',
+  "Device does not support fingerprint / Face ID":
+      'Thiết bị không hỗ trợ vân tay / Face ID',
+  "Please set up fingerprint in device Settings":
+      'Vui lòng cài đặt vân tay trong Cài đặt máy',
   "Fingerprint verification failed": 'Xác nhận vân tay thất bại',
   "Fingerprint login enabled": 'Đã bật đăng nhập bằng vân tay',
 
@@ -307,10 +328,14 @@ Map<String, String> vi = {
   "Enter your name": 'Nhập tên của bạn',
   "Cancel": 'Hủy',
   "Username must not be empty": 'Tên người dùng không được để trống',
-  "Username must be at least 3 characters": 'Tên người dùng phải có ít nhất 3 ký tự',
-  "Username must be at most 30 characters": 'Tên người dùng không được dài hơn 30 ký tự',
-  "Failed to update username, please try again": 'Cập nhật tên thất bại, vui lòng thử lại',
-  "You have already rated this app.\nThank you!": 'Bạn đã đánh giá ứng dụng rồi.\nCảm ơn bạn!',
+  "Username must be at least 3 characters":
+      'Tên người dùng phải có ít nhất 3 ký tự',
+  "Username must be at most 30 characters":
+      'Tên người dùng không được dài hơn 30 ký tự',
+  "Failed to update username, please try again":
+      'Cập nhật tên thất bại, vui lòng thử lại',
+  "You have already rated this app.\nThank you!":
+      'Bạn đã đánh giá ứng dụng rồi.\nCảm ơn bạn!',
   "Review request sent. Google Play may decide not to show the dialog every time.":
       'Đã gửi yêu cầu đánh giá. Google Play có thể không hiển thị hộp thoại ở mọi lần.',
 
@@ -335,7 +360,8 @@ Map<String, String> vi = {
   "Failed to send. Please try again.": 'Gửi thất bại. Vui lòng thử lại.',
   "Sending...": 'Đang gửi...',
   "Send": 'Gửi',
-  "Your feedback helps us improve Linkeep.": 'Góp ý của bạn giúp chúng tôi cải thiện Linkeep.',
+  "Your feedback helps us improve Linkeep.":
+      'Góp ý của bạn giúp chúng tôi cải thiện Linkeep.',
 
   // Privacy Policy
   "privacy.introduction.title": 'Giới thiệu',
@@ -421,7 +447,19 @@ Map<String, String> vi = {
 
   // Category & Link Sharing
   "share_category": 'Chia sẻ danh mục',
-  "share_link": 'Chia sẻ liên kết',
+  "share_send_to": 'Gửi đến',
+  "share_other": 'Khác',
+  "share_search": 'Tìm kiếm',
+  "share_message_hint": 'Soạn tin nhắn...',
+  "share_send": 'Gửi',
+  "share_action": 'Chia sẻ',
+  "revoke_share": 'Thu hồi',
+  "share_select_recipient": 'Hãy chọn ít nhất một người nhận',
+  "share_update_failed": 'Không thể lưu một số thay đổi chia sẻ',
+  "share_other_hint":
+      'Hiện chỉ có thể chia sẻ danh mục với bạn bè trên Linkeep',
+  "shared_link_read_only": 'Liên kết được chia sẻ chỉ có thể xem',
+  "share_link": 'Chia sẻ Link',
   "shared_with_me": 'Được chia sẻ với tôi',
   "shared_categories": 'Danh mục',
   "shared_links": 'Liên kết lẻ',
@@ -435,13 +473,15 @@ Map<String, String> vi = {
   "no_shared_categories": 'Chưa có danh mục chia sẻ',
   "no_shared_categories_desc": 'Danh mục được chia sẻ sẽ hiển thị tại đây.',
   "no_shared_links": 'Chưa có liên kết chia sẻ',
-  "no_shared_links_desc": 'Các liên kết riêng lẻ được bạn bè chia sẻ sẽ xuất hiện tại đây.',
+  "no_shared_links_desc":
+      'Các liên kết riêng lẻ được bạn bè chia sẻ sẽ xuất hiện tại đây.',
   "shared_by": 'Được chia sẻ bởi',
   "save_to_collection": 'Lưu về bộ sưu tập',
   "link_saved_to_collection": 'Đã lưu liên kết vào bộ sưu tập của bạn',
   "link_save_failed": 'Không thể lưu liên kết',
   "no_links_in_category": 'Không có liên kết nào trong danh mục này',
-  "no_links_in_shared_category": 'Không có link nào trong danh mục được chia sẻ này',
+  "no_links_in_shared_category":
+      'Không có link nào trong danh mục được chia sẻ này',
   "shared_load_error": 'Không thể tải dữ liệu được chia sẻ',
   "shared_new_category_received": 'Bạn bè vừa chia sẻ một danh mục mới với bạn',
   "shared_new_link_received": 'Có link mới được thêm vào danh mục đang chia sẻ',
@@ -449,4 +489,11 @@ Map<String, String> vi = {
   "pending_friend_requests": '@0 lời mời kết bạn đang chờ',
   "no_friend_search_results": 'Không tìm thấy bạn bè phù hợp',
   "Send Friend Request": 'Gửi lời mời kết bạn',
+  "account_signed_in_on_another_device":
+      'Tài khoản này vừa đăng nhập trên thiết bị khác. Bạn đã bị đăng xuất.',
+  "links": 'link',
+  "Links": 'Link',
+  "Search categories": 'Tìm kiếm danh mục',
+  "No categories available to share": 'Chưa có danh mục nào để chia sẻ',
+  "No matching categories": 'Không tìm thấy danh mục phù hợp',
 };

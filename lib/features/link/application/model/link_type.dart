@@ -26,7 +26,15 @@ class LinkTypeDetector {
     'medium.com',
   ];
 
-  static const _documentExtensions = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'];
+  static const _documentExtensions = [
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.ppt',
+    '.pptx',
+    '.xls',
+    '.xlsx',
+  ];
 
   static LinkType detect(String? rawUrl) {
     if (rawUrl == null || rawUrl.isEmpty) return LinkType.unknown;

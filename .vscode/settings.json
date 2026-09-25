@@ -1,10 +1,10 @@
 {
-  "dart.flutterSdkPath": ".fvm/versions/3.47.1",
+  "dart.flutterSdkPath": ".fvm/flutter_sdk",
   "dart.lineLength": 100,
   "dart.showTodos": true,
   "dart.flutterHotReloadOnSave": "all",
-  "dart.previewFlutterUiGuides": true,
-  "dart.previewFlutterUiGuidesCustomTracking": true,
+  "dart.previewFlutterUiGuides": false,
+  "dart.previewFlutterUiGuidesCustomTracking": false,
   "dart.allowTestsOutsideTestFolder": true,
   "dart.debugSdkLibraries": false,
   "dart.debugExternalPackageLibraries": false,
@@ -90,11 +90,6 @@
   "terminal.integrated.defaultProfile.windows": "PowerShell",
   "terminal.integrated.copyOnSelection": true,
   "terminal.integrated.cursorStyle": "line",
-  // Put the FVM-pinned SDK (.fvmrc) first on PATH for every terminal opened
-  // in this workspace, so a bare `flutter`/`dart` command here always
-  // resolves to the pinned version instead of whatever is on the system
-  // PATH — that mismatch previously churned pubspec.lock into an
-  // unresolvable state (see .fvmrc vs. system `flutter --version`).
   "terminal.integrated.env.windows": {
     "PATH": "${workspaceFolder}\\.fvm\\flutter_sdk\\bin;${env:PATH}"
   }

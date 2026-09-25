@@ -19,14 +19,17 @@ import 'package:keep_link/features/personal/presentation/page/personal_page.dart
 import 'package:keep_link/features/personal/presentation/page/privacy_policy_page.dart';
 import 'package:keep_link/features/personal/presentation/page/settings_page.dart';
 import 'package:keep_link/features/personal/presentation/page/terms_page.dart';
-import 'package:keep_link/features/security/application/di/pin_verify_binding.dart';
-import 'package:keep_link/features/security/application/di/security_method_binding.dart';
+import 'package:keep_link/features/security/di/pin_verify_binding.dart';
+import 'package:keep_link/features/security/di/security_method_binding.dart';
 import 'package:keep_link/features/security/presentation/page/pin_verify_page.dart';
 import 'package:keep_link/features/security/presentation/page/security_method_page.dart';
 import 'package:keep_link/features/splash/di/splash_binding.dart';
 import 'package:keep_link/features/splash/presentation/page/splash_page.dart';
 
-final notFoundPage = GetPage(name: "/not_found", page: () => const NotFoundPage());
+final notFoundPage = GetPage(
+  name: "/not_found",
+  page: () => const NotFoundPage(),
+);
 
 final appPage = [
   GetPage(
@@ -55,7 +58,7 @@ final appPage = [
 
   GetPage(
     name: SecurityMethodPage.routeName,
-    transition: Transition.leftToRight,
+    transition: Transition.rightToLeft,
     page: () => const SecurityMethodPage(),
     binding: SecurityMethodBinding(),
   ),

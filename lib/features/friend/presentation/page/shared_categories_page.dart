@@ -8,7 +8,9 @@ import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
 import 'package:keep_link/features/friend/application/model/shared_individual_link_model.dart';
 import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
-import 'package:keep_link/features/link/application/model/link_model.dart';
+import 'package:keep_link/core/presentation/widgets/shimmer/app_shimmer.dart';
+import 'package:keep_link/features/link/module/link_colections/presentation/widgets/link_item.dart';
+import 'package:keep_link/features/link/module/link_detail/presentation/controller/link_detail_controller.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/page/link_detail.dart';
 
 class SharedCategoriesPage extends GetView<SharedCategoryController> {
@@ -79,7 +81,12 @@ class SharedCategoriesPage extends GetView<SharedCategoryController> {
             Expanded(
               child: Obx(() {
                 if (controller.isLoading.value) {
-                  return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                  return controller.selectedTab.value == 0
+                      ? const CategoryListShimmer(hasTrailingButton: false)
+                      : const LinkListShimmer(
+                          thumbnailWidth: 136,
+                          hasTrailingButton: false,
+                        );
                 }
 
                 if (controller.selectedTab.value == 0) {
@@ -114,7 +121,7 @@ class _SegmentTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isSelected ? AppColors.primary : Colors.transparent,
+      color: isSelected ? AppColors.primary : AppColors.transparent,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
@@ -129,13 +136,13 @@ class _SegmentTab extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: isSelected ? Colors.white : AppColors.n70,
+                color: isSelected ? AppColors.white : AppColors.n70,
               ),
               const SizedBox(width: 6),
               Flexible(
                 child: TextWidget(
                   text: title,
-                  color: isSelected ? Colors.white : AppColors.n70,
+                  color: isSelected ? AppColors.white : AppColors.n70,
                   size: 13,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   maxLines: 1,
@@ -224,9 +231,11 @@ class _IndividualLinksTab extends StatelessWidget {
             isUnviewed: isUnviewed,
             onTap: () {
               controller.markLinkViewed(item);
-              Get.toNamed(LinkDetailPage.routeName, arguments: item.link);
+              Get.toNamed(
+                LinkDetailPage.routeName,
+                arguments: LinkDetailArguments(link: item.link, readOnly: true),
+              );
             },
-            onSave: () => controller.saveSharedLinkToMyCollection(item),
           );
         });
       },
@@ -240,13 +249,11 @@ class _SharedIndividualLinkCard extends StatelessWidget {
   final SharedIndividualLinkModel item;
   final bool isUnviewed;
   final VoidCallback onTap;
-  final VoidCallback onSave;
 
   const _SharedIndividualLinkCard({
     required this.item,
     this.isUnviewed = false,
     required this.onTap,
-    required this.onSave,
   });
 
   @override
@@ -256,7 +263,9 @@ class _SharedIndividualLinkCard extends StatelessWidget {
     final description = meta?.description ?? '';
     final imageUrl = meta?.imageUrl ?? '';
     final url = meta?.url;
-    final host = url != null ? Uri.tryParse(url)?.host.replaceFirst('www.', '') ?? '' : '';
+    final host = url != null
+        ? Uri.tryParse(url)?.host.replaceFirst('www.', '') ?? ''
+        : '';
 
     return Material(
       color: AppColors.d500,
@@ -292,7 +301,10 @@ class _SharedIndividualLinkCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       text: TextSpan(
-                        style: const TextStyle(fontSize: 12, color: AppColors.n70),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.n70,
+                        ),
                         children: [
                           TextSpan(text: '${'shared_by'.tr} '),
                           TextSpan(
@@ -308,14 +320,17 @@ class _SharedIndividualLinkCard extends StatelessWidget {
                   ),
                   if (isUnviewed)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: TextWidget(
                         text: 'NEW',
-                        color: Colors.white,
+                        color: AppColors.white,
                         size: 9,
                         fontWeight: FontWeight.w800,
                       ),
@@ -366,7 +381,11 @@ class _SharedIndividualLinkCard extends StatelessWidget {
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              const Icon(Icons.public_rounded, size: 12, color: AppColors.primary),
+                              const Icon(
+                                Icons.public_rounded,
+                                size: 12,
+                                color: AppColors.primary,
+                              ),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: TextWidget(
@@ -380,43 +399,6 @@ class _SharedIndividualLinkCard extends StatelessWidget {
                           ),
                         ],
                       ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              // 3. Action Row: Save to My Collection
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  InkWell(
-                    onTap: onSave,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacityCompat(0.12),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppColors.primary.withOpacityCompat(0.3),
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.bookmark_add_outlined, size: 14, color: AppColors.primary),
-                          const SizedBox(width: 6),
-                          TextWidget(
-                            text: 'save_to_collection'.tr,
-                            color: AppColors.primary,
-                            size: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                 ],
@@ -450,11 +432,7 @@ class _EmptyShared extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 64,
-              color: AppColors.n500.withOpacityCompat(0.6),
-            ),
+            Icon(icon, size: 64, color: AppColors.n500.withOpacityCompat(0.6)),
             const SizedBox(height: 16),
             TextWidget(
               text: title,
@@ -480,7 +458,11 @@ class _EmptyShared extends StatelessWidget {
 // ── Category Card ─────────────────────────────────────────────────────────────
 
 class _SharedCategoryCard extends StatelessWidget {
-  const _SharedCategoryCard({required this.category, required this.onTap, this.isUnviewed = false});
+  const _SharedCategoryCard({
+    required this.category,
+    required this.onTap,
+    this.isUnviewed = false,
+  });
 
   final SharedCategoryModel category;
   final VoidCallback onTap;
@@ -489,7 +471,7 @@ class _SharedCategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: AppColors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -512,7 +494,7 @@ class _SharedCategoryCard extends StatelessWidget {
                         width: 10,
                         height: 10,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFF3B30),
+                          color: AppColors.danger,
                           shape: BoxShape.circle,
                           border: Border.all(color: AppColors.bg700, width: 2),
                         ),
@@ -534,7 +516,11 @@ class _SharedCategoryCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Row(
                       children: [
-                        const Icon(Icons.person_rounded, size: 13, color: AppColors.n70),
+                        const Icon(
+                          Icons.person_rounded,
+                          size: 13,
+                          color: AppColors.n70,
+                        ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: TextWidget(
@@ -546,6 +532,16 @@ class _SharedCategoryCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (category.message != null &&
+                        category.message!.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      TextWidget(
+                        text: category.message!,
+                        color: AppColors.n70,
+                        size: 12,
+                        maxLines: 1,
+                      ),
+                    ],
                     if (category.categoryDescription != null &&
                         category.categoryDescription!.isNotEmpty) ...[
                       const SizedBox(height: 2),
@@ -569,7 +565,11 @@ class _SharedCategoryCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.link_rounded, size: 13, color: AppColors.primary),
+                    const Icon(
+                      Icons.link_rounded,
+                      size: 13,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 4),
                     TextWidget(
                       text: '${category.linkCount}',
@@ -581,7 +581,11 @@ class _SharedCategoryCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.n500, size: 20),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.n500,
+                size: 20,
+              ),
             ],
           ),
         ),
@@ -593,7 +597,12 @@ class _SharedCategoryCard extends StatelessWidget {
 // ── Shared Owner Avatar ───────────────────────────────────────────────────────
 
 class SharedOwnerAvatar extends StatelessWidget {
-  const SharedOwnerAvatar({super.key, required this.displayName, this.photoUrl, this.size = 40});
+  const SharedOwnerAvatar({
+    super.key,
+    required this.displayName,
+    this.photoUrl,
+    this.size = 40,
+  });
 
   final String displayName;
   final String? photoUrl;
@@ -650,7 +659,7 @@ void openSharedCategoryLinksSheet(
       return SafeArea(
         top: false,
         child: SizedBox(
-          height: MediaQuery.of(ctx).size.height * 0.8,
+          height: MediaQuery.of(ctx).size.height * 0.9,
           child: Column(
             children: [
               // Handle
@@ -687,7 +696,8 @@ void openSharedCategoryLinksSheet(
                             fontWeight: FontWeight.w700,
                           ),
                           TextWidget(
-                            text: '${'shared_by'.tr} ${category.ownerDisplayName}',
+                            text:
+                                '${'shared_by'.tr} ${category.ownerDisplayName}',
                             color: AppColors.n70,
                             size: 12,
                           ),
@@ -702,7 +712,10 @@ void openSharedCategoryLinksSheet(
               Expanded(
                 child: Obx(() {
                   if (controller.isLoadingLinks.value) {
-                    return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                    return const LinkListShimmer(
+                      thumbnailWidth: 136,
+                      hasTrailingButton: false,
+                    );
                   }
 
                   if (controller.sharedLinks.isEmpty) {
@@ -720,16 +733,29 @@ void openSharedCategoryLinksSheet(
                   }
 
                   return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                    padding: const EdgeInsets.only(top: 4, bottom: 24),
                     physics: const BouncingScrollPhysics(),
                     itemCount: controller.sharedLinks.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, __) => Divider(
+                      height: .5,
+                      thickness: 0.8,
+                      indent: 0,
+                      endIndent: 0,
+                      color: AppColors.white.withOpacityCompat(0.10),
+                    ),
                     itemBuilder: (_, i) {
                       final link = controller.sharedLinks[i];
-                      return _SharedLinkItem(
-                        link: link,
+                      return LinkListItem(
+                        index: i,
+                        item: link,
                         onTap: () {
-                          Get.toNamed(LinkDetailPage.routeName, arguments: link);
+                          Get.toNamed(
+                            LinkDetailPage.routeName,
+                            arguments: LinkDetailArguments(
+                              link: link,
+                              readOnly: true,
+                            ),
+                          );
                         },
                       );
                     },
@@ -742,84 +768,4 @@ void openSharedCategoryLinksSheet(
       );
     },
   ).whenComplete(controller.closeSharedCategory);
-}
-
-// ── Shared Link Item inside Category Sheet ───────────────────────────────────
-
-class _SharedLinkItem extends StatelessWidget {
-  final LinkModel link;
-  final VoidCallback onTap;
-
-  const _SharedLinkItem({required this.link, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final meta = link.metaDataModel;
-    final title = link.name ?? meta?.title ?? 'Link';
-    final imageUrl = meta?.imageUrl ?? '';
-    final url = meta?.url;
-    final host = url != null ? Uri.tryParse(url)?.host.replaceFirst('www.', '') ?? '' : '';
-
-    return Material(
-      color: AppColors.bg700,
-      borderRadius: BorderRadius.circular(12),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 76),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Thumbnail tràn sát mép card hoàn toàn, không khoảng cách xung quanh
-                SizedBox(
-                  width: 80,
-                  child: CacheImageWidget(
-                    imageUrl: imageUrl,
-                    fit: BoxFit.cover,
-                    emptyIcon: Icons.photo_outlined,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        TextWidget(
-                          text: title,
-                          color: AppColors.white,
-                          size: 13.5,
-                          fontWeight: FontWeight.w600,
-                          maxLines: 2,
-                        ),
-                        if (host.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          TextWidget(
-                            text: host,
-                            color: AppColors.n70,
-                            size: 11,
-                            maxLines: 1,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Padding(
-                  padding: EdgeInsets.only(right: 12),
-                  child: Icon(Icons.arrow_forward_ios_rounded, color: AppColors.n500, size: 14),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

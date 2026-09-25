@@ -37,6 +37,13 @@ class AppCache {
 
   static void removeLink(String id) => links.removeWhere((l) => l.id == id);
 
+  /// Batch remove chỉ phát một lần cập nhật reactive cho toàn bộ UI.
+  static void removeLinks(Iterable<String> ids) {
+    final idSet = ids.toSet();
+    if (idSet.isEmpty) return;
+    links.removeWhere((link) => idSet.contains(link.id));
+  }
+
   // ── Categories ────────────────────────────────────────────────────────────
 
   static final RxList<CategoryModel> categories = <CategoryModel>[].obs;
@@ -58,7 +65,8 @@ class AppCache {
     if (i != -1) categories[i] = updated;
   }
 
-  static void removeCategory(String id) => categories.removeWhere((c) => c.id == id);
+  static void removeCategory(String id) =>
+      categories.removeWhere((c) => c.id == id);
 
   // ── Friends ───────────────────────────────────────────────────────────────
 
@@ -79,13 +87,15 @@ class AppCache {
     if (i != -1) friends[i] = updated;
   }
 
-  static void removeFriend(String id) => friends.removeWhere((friend) => friend.id == id);
+  static void removeFriend(String id) =>
+      friends.removeWhere((friend) => friend.id == id);
 
   // ── Shared-with cache (categoryId → friends it is shared with) ────────────
 
   /// Reactive map: key = categoryId, value = list of friends who have access.
   /// Updated locally after every share/unshare — no extra Firebase reads.
-  static final RxMap<String, List<FriendModel>> sharedWithCache = <String, List<FriendModel>>{}.obs;
+  static final RxMap<String, List<FriendModel>> sharedWithCache =
+      <String, List<FriendModel>>{}.obs;
 
   /// Initialise/replace entries from a bulk fetch (called once on login).
   static void setSharedWith(Map<String, List<FriendModel>> data) {
@@ -159,5 +169,22 @@ class AppCache {
   static void invalidateLinks() {
     links.clear();
     _linksLoaded = false;
+  }
+
+  /// Wipe only account-owned link/category content while preserving friends.
+  /// Used after content reconciliation so a freshly loaded friend list is not
+  /// accidentally removed during login.
+  static void invalidateContent() {
+    links.clear();
+    _linksLoaded = false;
+    categories.clear();
+    _categoriesLoaded = false;
+  }
+
+  /// Wipe friend data immediately when the authenticated account changes.
+  static void invalidateFriends() {
+    friends.clear();
+    _friendsLoaded = false;
+    sharedWithCache.clear();
   }
 }

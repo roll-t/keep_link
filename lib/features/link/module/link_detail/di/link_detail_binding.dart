@@ -5,7 +5,12 @@ import 'package:keep_link/features/link/module/link_detail/presentation/controll
 class LinkDetailBinding extends Bindings {
   @override
   void dependencies() {
-    final link = Get.arguments as LinkModel;
-    Get.lazyPut(() => LinkDetailController(link: link));
+    final raw = Get.arguments;
+    final args = raw is LinkDetailArguments
+        ? raw
+        : LinkDetailArguments(link: raw as LinkModel);
+    Get.lazyPut(
+      () => LinkDetailController(link: args.link, readOnly: args.readOnly),
+    );
   }
 }

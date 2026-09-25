@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 class AppImages {
   static const String _root = "assets/images/";
   static const String _ext = ".png";
-
-  static const iLogo = _PngImage("${_root}i_logo$_ext");
-  static const iBgSplash = _PngImage("${_root}i_bg_splash$_ext");
+  static const iLogoApp = _PngImage("${_root}i_logo_app$_ext");
+  static const iLogoFull = _PngImage("${_root}i_logo_full$_ext");
+  static const iQr1 = _PngImage("${_root}i_qr_1$_ext");
+  static const iQr2 = _PngImage("${_root}i_qr_2$_ext");
+  static const iQr3 = _PngImage("${_root}i_qr_3$_ext");
 }
 
 class _PngImage {

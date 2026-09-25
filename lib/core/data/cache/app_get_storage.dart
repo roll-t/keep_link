@@ -20,6 +20,8 @@ class AppGetStorage {
   static const String _isLoggedIn = 'isLoggedIn';
   static const String _selectedLanguageKey = 'selected_language';
   static const String _isNotificationEnabled = 'isNotificationEnabled';
+  static const String _activeSessionIdKey = 'active_session_id';
+  static const String _activeSessionUserIdKey = 'active_session_user_id';
 
   // Security Keys
   static const String _pinKey = 'app_pin';
@@ -31,26 +33,32 @@ class AppGetStorage {
 
   // 👉 THÊM KEY MỚI CHO CATEGORY
   static const String _categorySecurityEnabledKey = 'category_security_enabled';
+  static const String _backgroundLockEnabledKey = 'background_lock_enabled';
 
   // ========== Theme ========== //
   static void saveTheme(bool isDark) => _box.write(_themeKey, isDark);
   static bool getTheme() => _box.read(_themeKey) ?? false;
 
-  static void setNotificationEnabled(bool value) => _box.write(_isNotificationEnabled, value);
-  static bool isNotificationEnabled() => _box.read(_isNotificationEnabled) ?? true;
+  static void setNotificationEnabled(bool value) =>
+      _box.write(_isNotificationEnabled, value);
+  static bool isNotificationEnabled() =>
+      _box.read(_isNotificationEnabled) ?? true;
 
   // ========== Token ========== //
   static void saveToken(String token) => _box.write(_tokenKey, token);
   static String? getToken() => _box.read(_tokenKey);
 
   // ========== Security (Global) ========== //
-  static void setSecurityEnabled(bool value) => _box.write(_securityEnabledKey, value);
+  static void setSecurityEnabled(bool value) =>
+      _box.write(_securityEnabledKey, value);
   static bool isSecurityEnabled() => _box.read(_securityEnabledKey) ?? false;
 
-  static void setFingerprintEnabled(bool value) => _box.write(_fingerprintEnabledKey, value);
+  static void setFingerprintEnabled(bool value) =>
+      _box.write(_fingerprintEnabledKey, value);
 
   // SỬA DÒNG NÀY: Mở khóa lại và cho phép đọc từ GetStorage
-  static bool isFingerprintEnabled() => _box.read(_fingerprintEnabledKey) ?? false;
+  static bool isFingerprintEnabled() =>
+      _box.read(_fingerprintEnabledKey) ?? false;
 
   /// Salt ngẫu nhiên riêng cho từng máy cài đặt, sinh 1 lần và lưu lại.
   /// Tránh dùng salt cố định trong source code (dễ bị precompute vì PIN chỉ có 10.000 khả năng).
@@ -118,8 +126,12 @@ class AppGetStorage {
     _box.write(_pinFailCountKey, count);
     if (count % _pinAttemptsPerLockTier == 0) {
       final tier = (count ~/ _pinAttemptsPerLockTier) - 1;
-      final seconds = _pinLockTierSeconds[min(tier, _pinLockTierSeconds.length - 1)];
-      _box.write(_pinLockUntilKey, DateTime.now().add(Duration(seconds: seconds)).millisecondsSinceEpoch);
+      final seconds =
+          _pinLockTierSeconds[min(tier, _pinLockTierSeconds.length - 1)];
+      _box.write(
+        _pinLockUntilKey,
+        DateTime.now().add(Duration(seconds: seconds)).millisecondsSinceEpoch,
+      );
     }
   }
 
@@ -142,18 +154,25 @@ class AppGetStorage {
   // ========== Category Security (New Logic) ========== //
 
   /// Bật/Tắt bảo mật riêng cho danh mục
-  static void setCategorySecurity(bool value) => _box.write(_categorySecurityEnabledKey, value);
+  static void setCategorySecurity(bool value) =>
+      _box.write(_categorySecurityEnabledKey, value);
 
   /// Kiểm tra xem bảo mật danh mục có đang bật không.
   /// Mặc định là FALSE — chỉ bật khi user chủ động bật ở màn Security Methods,
   /// tránh việc yêu cầu tạo PIN ngoài ý muốn ngay khi họ mở 1 danh mục private lần đầu.
-  static bool isCategorySecurity() => _box.read(_categorySecurityEnabledKey) ?? false;
+  static bool isCategorySecurity() =>
+      _box.read(_categorySecurityEnabledKey) ?? false;
 
-  /// Helper: Kiểm tra tổng hợp có cần check PIN cho category không
-  /// Logic: Phải bật Bảo mật tổng (App Lock) VÀ bật Bảo mật danh mục
+  /// Helper: danh mục riêng tư được bảo vệ độc lập với khóa toàn ứng dụng.
   static bool shouldCheckCategorySecurity() {
-    return isSecurityEnabled() && isCategorySecurity();
+    return isCategorySecurity();
   }
+
+  // ========== Background Lock (App Lock on Resume) ========== //
+  static void setBackgroundLockEnabled(bool value) =>
+      _box.write(_backgroundLockEnabledKey, value);
+  static bool isBackgroundLockEnabled() =>
+      _box.read(_backgroundLockEnabledKey) ?? false;
 
   // ========== Login ========== //
   static void setLoggedIn(bool value) => _box.write(_isLoggedIn, value);
@@ -164,16 +183,47 @@ class AppGetStorage {
     _box.remove(_userKey);
   }
 
-  /// Xoá toàn bộ dữ liệu của user (dùng khi đăng xuất hoặc cài mới).
-  /// Giữ lại các tuỳ chọn chung như theme và ngôn ngữ.
-  static void clearUserData() {
+  // ========== Single-device session ========== //
+  static String? getActiveSessionId() => _box.read<String>(_activeSessionIdKey);
+
+  static String? getActiveSessionUserId() =>
+      _box.read<String>(_activeSessionUserIdKey);
+
+  static void saveActiveSession({
+    required String userId,
+    required String sessionId,
+  }) {
+    _box.write(_activeSessionUserIdKey, userId);
+    _box.write(_activeSessionIdKey, sessionId);
+  }
+
+  static void clearActiveSession() {
+    _box.remove(_activeSessionUserIdKey);
+    _box.remove(_activeSessionIdKey);
+  }
+
+  /// Xoá dữ liệu của phiên user hiện tại.
+  ///
+  /// PIN và các tuỳ chọn khoá là thiết lập của thiết bị, không phải
+  /// dữ liệu được đồng bộ theo tài khoản. Khi chỉ đổi/đăng xuất tài
+  /// khoản, giữ chúng lại để tránh vô tình gỡ bỏ lớp bảo vệ. Lần
+  /// khởi chạy đầu tiên sau khi cài đặt vẫn dùng giá trị mặc định
+  /// [preserveSecurity] = false để dọn sạch hoàn toàn.
+  static void clearUserData({bool preserveSecurity = false}) {
     _box.remove(_tokenKey);
     _box.remove(_userKey);
     _box.remove(_isLoggedIn);
-    _box.remove(_pinKey);
-    _box.remove(_securityEnabledKey);
-    _box.remove(_fingerprintEnabledKey);
-    _box.remove(_categorySecurityEnabledKey);
+    clearActiveSession();
+    if (!preserveSecurity) {
+      _box.remove(_pinKey);
+      _box.remove(_pinSaltKey);
+      _box.remove(_pinFailCountKey);
+      _box.remove(_pinLockUntilKey);
+      _box.remove(_securityEnabledKey);
+      _box.remove(_fingerprintEnabledKey);
+      _box.remove(_categorySecurityEnabledKey);
+      _box.remove(_backgroundLockEnabledKey);
+    }
     _box.remove(_searchHistoryKey);
     _box.remove(_guestDefaultCategoryKey);
     _box.remove(_pinnedCategoryIdsKey);
@@ -193,21 +243,46 @@ class AppGetStorage {
     required String? email,
     required String? displayName,
     required String? photoUrl,
+    bool isActive = true,
   }) {
     if (uid.isEmpty) return;
     final list = getSavedAccounts();
+    if (isActive) {
+      for (final a in list) {
+        a['isActive'] = false;
+      }
+    }
     final index = list.indexWhere((a) => a['uid'] == uid);
     final accountData = {
       'uid': uid,
       'email': email ?? '',
       'displayName': displayName ?? '',
       'photoUrl': photoUrl ?? '',
+      'isActive': isActive,
       'lastActiveAt': DateTime.now().millisecondsSinceEpoch,
     };
     if (index >= 0) {
       list[index] = accountData;
     } else {
       list.add(accountData);
+    }
+    _box.write(_savedAccountsKey, list);
+  }
+
+  static void setAccountActive(String uid) {
+    final list = getSavedAccounts();
+    for (final a in list) {
+      a['isActive'] = (a['uid'] == uid);
+    }
+    _box.write(_savedAccountsKey, list);
+  }
+
+  static void deactivateAccount(String uid) {
+    final list = getSavedAccounts();
+    for (final a in list) {
+      if (a['uid'] == uid) {
+        a['isActive'] = false;
+      }
     }
     _box.write(_savedAccountsKey, list);
   }
@@ -256,11 +331,14 @@ class AppGetStorage {
 
   /// ID of the auto-created default category for guest users.
   /// Null once the user has signed in and the category has been handled.
-  static String? get guestDefaultCategoryId => _box.read<String>(_guestDefaultCategoryKey);
+  static String? get guestDefaultCategoryId =>
+      _box.read<String>(_guestDefaultCategoryKey);
 
-  static void setGuestDefaultCategoryId(String id) => _box.write(_guestDefaultCategoryKey, id);
+  static void setGuestDefaultCategoryId(String id) =>
+      _box.write(_guestDefaultCategoryKey, id);
 
-  static void clearGuestDefaultCategoryId() => _box.remove(_guestDefaultCategoryKey);
+  static void clearGuestDefaultCategoryId() =>
+      _box.remove(_guestDefaultCategoryKey);
 
   // ========== App Review ========== //
   static const String _hasRatedAppKey = 'has_rated_app';
@@ -281,7 +359,8 @@ class AppGetStorage {
   // ========== Avatar fingerprint ========== //
   static const String _avatarFingerprintKey = 'avatar_fingerprint';
 
-  static String _avatarFingerprintKeyForUser(String uid) => '${_avatarFingerprintKey}_$uid';
+  static String _avatarFingerprintKeyForUser(String uid) =>
+      '${_avatarFingerprintKey}_$uid';
 
   static int? getAvatarFingerprint(String uid) {
     return _box.read<int>(_avatarFingerprintKeyForUser(uid));
@@ -296,8 +375,10 @@ class AppGetStorage {
   static const String _avatarChangeCountKey = 'avatar_change_count';
   static const int maxAvatarChangesPerDay = 2;
 
-  static String _avatarChangeDateKeyForUser(String uid) => '${_avatarChangeDateKey}_$uid';
-  static String _avatarChangeCountKeyForUser(String uid) => '${_avatarChangeCountKey}_$uid';
+  static String _avatarChangeDateKeyForUser(String uid) =>
+      '${_avatarChangeDateKey}_$uid';
+  static String _avatarChangeCountKeyForUser(String uid) =>
+      '${_avatarChangeCountKey}_$uid';
 
   static int _todayDateInt() {
     final now = DateTime.now();
@@ -318,7 +399,9 @@ class AppGetStorage {
   static void recordAvatarChange(String uid) {
     final today = _todayDateInt();
     final savedDate = _box.read<int>(_avatarChangeDateKeyForUser(uid));
-    final count = savedDate == today ? (_box.read<int>(_avatarChangeCountKeyForUser(uid)) ?? 0) : 0;
+    final count = savedDate == today
+        ? (_box.read<int>(_avatarChangeCountKeyForUser(uid)) ?? 0)
+        : 0;
     _box.write(_avatarChangeDateKeyForUser(uid), today);
     _box.write(_avatarChangeCountKeyForUser(uid), count + 1);
   }

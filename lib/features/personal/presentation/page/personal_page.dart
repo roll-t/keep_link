@@ -29,12 +29,26 @@ class PersonalPage extends GetView<PersonalController> {
           centerTitle: false,
           titleStyle: AppTextStyle.bold20,
           actions: [
-            IconButton(
-              icon: const Icon(Icons.settings_outlined, color: AppColors.n70, size: 22),
-              tooltip: 'Settings'.tr,
-              onPressed: () => Get.toNamed(SettingsPage.routeName),
-            ),
-            const SizedBox(width: 4),
+            Obx(() {
+              if (controller.user.value == null) {
+                return const SizedBox.shrink();
+              }
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: AppColors.n70,
+                      size: 22,
+                    ),
+                    tooltip: 'Settings'.tr,
+                    onPressed: () => Get.toNamed(SettingsPage.routeName),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+              );
+            }),
           ],
         ),
         body: Obx(() {
@@ -52,11 +66,17 @@ class PersonalPage extends GetView<PersonalController> {
                 SizedBox(height: 12),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 24,
+                    horizontal: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.d500,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.white.withOpacityCompat(0.06), width: 1),
+                      bottom: BorderSide(
+                        color: AppColors.white.withOpacityCompat(0.06),
+                        width: 1,
+                      ),
                     ),
                   ),
                   child: Column(
@@ -66,12 +86,16 @@ class PersonalPage extends GetView<PersonalController> {
                         final uploading = controller.isUploadingAvatar.value;
                         return GestureDetector(
                           onTap: isLoggedIn && !uploading
-                              ? () => _showAvatarBottomSheet(context, currentUser)
+                              ? () =>
+                                    _showAvatarBottomSheet(context, currentUser)
                               : null,
                           child: Stack(
                             children: [
                               CacheImageWidget(
-                                imageUrl: isLoggedIn && (currentUser.photoURL?.isNotEmpty == true)
+                                imageUrl:
+                                    isLoggedIn &&
+                                        (currentUser.photoURL?.isNotEmpty ==
+                                            true)
                                     ? currentUser.photoURL!
                                     : '',
                                 width: 76,
@@ -82,10 +106,16 @@ class PersonalPage extends GetView<PersonalController> {
                                   width: 76,
                                   height: 76,
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withOpacityCompat(0.2),
+                                    color: AppColors.primary.withOpacityCompat(
+                                      0.2,
+                                    ),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.person, size: 38, color: AppColors.white),
+                                  child: const Icon(
+                                    Icons.person,
+                                    size: 38,
+                                    color: AppColors.white,
+                                  ),
                                 ),
                               ),
                               if (uploading)
@@ -93,7 +123,9 @@ class PersonalPage extends GetView<PersonalController> {
                                   width: 76,
                                   height: 76,
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacityCompat(0.5),
+                                    color: AppColors.black.withOpacityCompat(
+                                      0.5,
+                                    ),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Center(
@@ -113,7 +145,10 @@ class PersonalPage extends GetView<PersonalController> {
                                     decoration: BoxDecoration(
                                       color: AppColors.primary,
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: AppColors.d500, width: 2),
+                                      border: Border.all(
+                                        color: AppColors.d500,
+                                        width: 2,
+                                      ),
                                     ),
                                     child: const Icon(
                                       Icons.edit_rounded,
@@ -144,7 +179,11 @@ class PersonalPage extends GetView<PersonalController> {
                             const SizedBox(width: 6),
                             GestureDetector(
                               onTap: controller.showEditNameDialog,
-                              child: const Icon(Icons.edit_rounded, size: 16, color: AppColors.n60),
+                              child: const Icon(
+                                Icons.edit_rounded,
+                                size: 16,
+                                color: AppColors.n60,
+                              ),
                             ),
                           ],
                         ],
@@ -167,27 +206,38 @@ class PersonalPage extends GetView<PersonalController> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: ElevatedButton.icon(
-                      onPressed: controller.isLoading.value ? null : controller.signInWithGoogle,
+                      onPressed: controller.isLoading.value
+                          ? null
+                          : controller.signInWithGoogle,
                       icon: controller.isLoading.value
                           ? const SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.white,
+                              ),
                             )
-                          : const Icon(Icons.login_rounded, size: 20, color: Colors.white),
+                          : const Icon(
+                              Icons.login_rounded,
+                              size: 20,
+                              color: AppColors.white,
+                            ),
                       label: TextWidget(
                         text: controller.isLoading.value
                             ? 'Please wait...'.tr
                             : 'Sign In with Google'.tr,
-                        color: Colors.white,
+                        color: AppColors.white,
                         fontWeight: FontWeight.w600,
                         size: 15,
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.white,
                         minimumSize: const Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                         elevation: 0,
                       ),
                     ),
@@ -227,7 +277,7 @@ class PersonalPage extends GetView<PersonalController> {
                             icon: Icons.folder_rounded,
                             value: '${controller.totalCategories}',
                             label: 'Categories'.tr,
-                            color: const Color(0xFF9B59B6),
+                            color: AppColors.accentOrchid,
                           ),
                         ),
                       ],
@@ -308,11 +358,18 @@ class PersonalPage extends GetView<PersonalController> {
                   if (photoUrl != null && photoUrl.isNotEmpty) {
                     _viewAvatarFullScreen(context, photoUrl);
                   } else {
-                    AppToast.showToast('No avatar available'.tr, Icons.info_outline_rounded);
+                    AppToast.showToast(
+                      'No avatar available'.tr,
+                      Icons.info_outline_rounded,
+                    );
                   }
                 },
               ),
-              Divider(height: 1, thickness: 0.5, color: AppColors.white.withOpacityCompat(0.06)),
+              Divider(
+                height: 1,
+                thickness: 0.5,
+                color: AppColors.white.withOpacityCompat(0.06),
+              ),
 
               // 2. Chọn ảnh trên máy
               _AvatarOptionTile(
@@ -334,15 +391,23 @@ class PersonalPage extends GetView<PersonalController> {
   void _viewAvatarFullScreen(BuildContext context, String imageUrl) {
     Get.dialog(
       Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.black,
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
+          backgroundColor: AppColors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+            icon: const Icon(
+              Icons.close_rounded,
+              color: AppColors.white,
+              size: 24,
+            ),
             onPressed: () => Get.back(),
           ),
-          title: TextWidget(text: 'Avatar'.tr, color: Colors.white, textStyle: AppTextStyle.bold18),
+          title: TextWidget(
+            text: 'Avatar'.tr,
+            color: AppColors.white,
+            textStyle: AppTextStyle.bold18,
+          ),
           centerTitle: true,
         ),
         body: Center(
@@ -353,7 +418,11 @@ class PersonalPage extends GetView<PersonalController> {
             child: CacheImageWidget(
               imageUrl: imageUrl,
               fit: BoxFit.contain,
-              errorWidget: const Icon(Icons.person, size: 100, color: Colors.white),
+              errorWidget: const Icon(
+                Icons.person,
+                size: 100,
+                color: AppColors.white,
+              ),
             ),
           ),
         ),
@@ -405,7 +474,12 @@ class _StatCell extends StatelessWidget {
                   size: 19,
                   fontWeight: FontWeight.w700,
                 ),
-                TextWidget(text: label, color: AppColors.n60, size: 11.5, maxLines: 1),
+                TextWidget(
+                  text: label,
+                  color: AppColors.n60,
+                  size: 11.5,
+                  maxLines: 1,
+                ),
               ],
             ),
           ),
@@ -426,30 +500,40 @@ class _SupportCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.d500,
         border: Border.symmetric(
-          horizontal: BorderSide(color: AppColors.white.withOpacityCompat(0.06), width: 1),
+          horizontal: BorderSide(
+            color: AppColors.white.withOpacityCompat(0.06),
+            width: 1,
+          ),
         ),
       ),
-      child: Column(
-        children: [
-          for (int i = 0; i < children.length; i++) ...[
-            children[i],
-            if (i < children.length - 1)
-              Divider(
-                height: 1,
-                thickness: 0.5,
-                indent: 52,
-                endIndent: 0,
-                color: AppColors.white.withOpacityCompat(0.08),
-              ),
+      child: Material(
+        color: AppColors.transparent,
+        child: Column(
+          children: [
+            for (int i = 0; i < children.length; i++) ...[
+              children[i],
+              if (i < children.length - 1)
+                Divider(
+                  height: 1,
+                  thickness: 0.5,
+                  indent: 52,
+                  endIndent: 0,
+                  color: AppColors.white.withOpacityCompat(0.08),
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 }
 
 class _SupportTile extends StatelessWidget {
-  const _SupportTile({required this.icon, required this.label, required this.onTap});
+  const _SupportTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -457,16 +541,28 @@ class _SupportTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      leading: Icon(icon, color: AppColors.n70, size: 21),
-      title: TextWidget(text: label, color: AppColors.white, size: 14, fontWeight: FontWeight.w500),
-      trailing: onTap != null
-          ? const Icon(Icons.chevron_right_rounded, color: AppColors.n400, size: 20)
-          : null,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-      minLeadingWidth: 24,
-      dense: true,
+    return Material(
+      color: AppColors.transparent,
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(icon, color: AppColors.n70, size: 21),
+        title: TextWidget(
+          text: label,
+          color: AppColors.white,
+          size: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        trailing: onTap != null
+            ? const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.n400,
+                size: 20,
+              )
+            : null,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+        minLeadingWidth: 24,
+        dense: true,
+      ),
     );
   }
 }

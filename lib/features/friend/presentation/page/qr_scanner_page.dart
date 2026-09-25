@@ -9,6 +9,7 @@ import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/core/services/backend/friend_connection_service.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/features/friend/presentation/controller/friend_controller.dart';
+import 'package:keep_link/features/friend/presentation/page/friend_profile_confirm_page.dart';
 import 'package:keep_link/features/friend/presentation/page/my_qr_page.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -24,13 +25,15 @@ class QrScannerPage extends StatefulWidget {
   State<QrScannerPage> createState() => _QrScannerPageState();
 }
 
-class _QrScannerPageState extends State<QrScannerPage> with SingleTickerProviderStateMixin {
+class _QrScannerPageState extends State<QrScannerPage>
+    with SingleTickerProviderStateMixin {
   final MobileScannerController _scannerCtrl = MobileScannerController();
   final ImagePicker _picker = ImagePicker();
   late AnimationController _animCtrl;
   bool _handled = false;
   bool _isTorchOn = false;
   String? _lastInvalidRaw;
+  bool _isPicking = false;
 
   @override
   void initState() {
@@ -51,6 +54,7 @@ class _QrScannerPageState extends State<QrScannerPage> with SingleTickerProvider
   Future<void> _toggleTorch() async {
     try {
       await _scannerCtrl.toggleTorch();
+      if (!mounted) return;
       setState(() => _isTorchOn = !_isTorchOn);
     } catch (_) {}
   }
@@ -68,7 +72,7 @@ class _QrScannerPageState extends State<QrScannerPage> with SingleTickerProvider
           AppToast.showToast(
             'friend_invalid_link'.tr,
             Icons.error_outline_rounded,
-            color: Colors.red,
+            color: AppColors.error,
           );
         }
         return;
@@ -76,31 +80,65 @@ class _QrScannerPageState extends State<QrScannerPage> with SingleTickerProvider
 
       _handled = true;
       if (!mounted) return;
-      final confirmed = await showFriendRequestConfirmSheet(context, payload);
-      if (!mounted) return;
-      if (!confirmed) {
-        _handled = false;
-        return;
-      }
 
-      Get.back();
-      await widget.controller.addFriendFromLink(raw);
+      // Điều hướng trực tiếp sang trang xác nhận toàn màn hình (thay thế Bottom Sheet)
+      final result = await Get.to<bool>(
+        () => FriendProfileConfirmPage(
+          payload: payload,
+          controller: widget.controller,
+        ),
+      );
+
+      if (!mounted) return;
+
+      if (result == true) {
+        // Sau khi gửi kết bạn thành công trên trang xác nhận, đóng trang quét QR quay về trang Bạn bè
+        Get.back();
+      } else {
+        // Nếu người dùng ấn nút quay lại / hủy trên trang xác nhận, cho phép quét tiếp
+        _handled = false;
+      }
       break;
     }
   }
 
   Future<void> _pickFromGallery() async {
-    final image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image == null) return;
-    final barcodeCapture = await _scannerCtrl.analyzeImage(image.path);
-    if (barcodeCapture != null && mounted) {
-      await _handleBarcode(barcodeCapture);
-    } else {
+    if (_isPicking) return;
+    _isPicking = true;
+
+    try {
+      final image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image == null || !mounted) return;
+
+      final barcodeCapture = await _scannerCtrl.analyzeImage(image.path);
+      if (!mounted) return;
+
+      if (barcodeCapture != null && barcodeCapture.barcodes.isNotEmpty) {
+        _lastInvalidRaw = null;
+        await _handleBarcode(barcodeCapture);
+      } else {
+        AppToast.showToast(
+          'No QR code found'.tr,
+          Icons.error_outline_rounded,
+          color: AppColors.error,
+        );
+      }
+    } on PlatformException catch (e) {
+      if (e.code != 'already_active') {
+        AppToast.showToast(
+          e.message ?? 'Something went wrong'.tr,
+          Icons.error_outline_rounded,
+          color: AppColors.error,
+        );
+      }
+    } catch (_) {
       AppToast.showToast(
-        'No QR code found'.tr,
+        'Something went wrong'.tr,
         Icons.error_outline_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
+    } finally {
+      _isPicking = false;
     }
   }
 
@@ -113,7 +151,7 @@ class _QrScannerPageState extends State<QrScannerPage> with SingleTickerProvider
     const scanBoxSize = 260.0;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.black,
       body: Stack(
         children: [
           // 1. Camera View
@@ -139,7 +177,10 @@ class _QrScannerPageState extends State<QrScannerPage> with SingleTickerProvider
             right: 0,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -149,13 +190,15 @@ class _QrScannerPageState extends State<QrScannerPage> with SingleTickerProvider
                     ),
                     TextWidget(
                       text: 'Scan QR'.tr,
-                      color: Colors.white,
+                      color: AppColors.white,
                       size: 18,
                       fontWeight: FontWeight.w700,
                     ),
                     _CircleIconButton(
-                      icon: _isTorchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
-                      color: _isTorchOn ? const Color(0xFFFFD32A) : Colors.white,
+                      icon: _isTorchOn
+                          ? Icons.flash_on_rounded
+                          : Icons.flash_off_rounded,
+                      color: _isTorchOn ? AppColors.qrYellow : AppColors.white,
                       onTap: _toggleTorch,
                     ),
                   ],
@@ -168,17 +211,23 @@ class _QrScannerPageState extends State<QrScannerPage> with SingleTickerProvider
           Positioned(
             left: 24,
             right: 24,
-            top: MediaQuery.of(context).size.height * 0.5 + (scanBoxSize / 2) + 20,
+            top:
+                MediaQuery.of(context).size.height * 0.5 +
+                (scanBoxSize / 2) +
+                20,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacityCompat(0.55),
+                  color: AppColors.black.withOpacityCompat(0.55),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: TextWidget(
                   text: 'Align QR code within frame to scan.'.tr,
-                  color: Colors.white.withOpacityCompat(0.85),
+                  color: AppColors.white.withOpacityCompat(0.85),
                   size: 13,
                   textAlign: TextAlign.center,
                 ),
@@ -227,10 +276,7 @@ class _QrScannerOverlay extends StatelessWidget {
   final double scanBoxSize;
   final Animation<double> animation;
 
-  const _QrScannerOverlay({
-    required this.scanBoxSize,
-    required this.animation,
-  });
+  const _QrScannerOverlay({required this.scanBoxSize, required this.animation});
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +308,8 @@ class _QrScannerOverlay extends StatelessWidget {
             AnimatedBuilder(
               animation: animation,
               builder: (context, child) {
-                final lineY = scanBoxRect.top + (scanBoxRect.height * animation.value);
+                final lineY =
+                    scanBoxRect.top + (scanBoxRect.height * animation.value);
                 return Positioned(
                   left: scanBoxRect.left + 12,
                   right: screenWidth - scanBoxRect.right + 12,
@@ -274,7 +321,7 @@ class _QrScannerOverlay extends StatelessWidget {
                         colors: [
                           AppColors.primary.withOpacityCompat(0.0),
                           AppColors.primary,
-                          Colors.white,
+                          AppColors.white,
                           AppColors.primary,
                           AppColors.primary.withOpacityCompat(0.0),
                         ],
@@ -305,12 +352,19 @@ class _ScannerHolePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black.withOpacityCompat(0.62);
-    final backgroundPath = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final paint = Paint()..color = AppColors.black.withOpacityCompat(0.62);
+    final backgroundPath = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
     final holePath = Path()
-      ..addRRect(RRect.fromRectAndRadius(scanBoxRect, const Radius.circular(16)));
+      ..addRRect(
+        RRect.fromRectAndRadius(scanBoxRect, const Radius.circular(16)),
+      );
 
-    final overlayPath = Path.combine(PathOperation.difference, backgroundPath, holePath);
+    final overlayPath = Path.combine(
+      PathOperation.difference,
+      backgroundPath,
+      holePath,
+    );
     canvas.drawPath(overlayPath, paint);
   }
 
@@ -386,7 +440,7 @@ class _CircleIconButton extends StatelessWidget {
 
   const _CircleIconButton({
     required this.icon,
-    this.color = Colors.white,
+    this.color = AppColors.white,
     required this.onTap,
   });
 
@@ -398,13 +452,14 @@ class _CircleIconButton extends StatelessWidget {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacityCompat(0.45),
+          color: AppColors.black.withOpacityCompat(0.45),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withOpacityCompat(0.12), width: 1),
+          border: Border.all(
+            color: AppColors.white.withOpacityCompat(0.12),
+            width: 1,
+          ),
         ),
-        child: Center(
-          child: Icon(icon, color: color, size: 20),
-        ),
+        child: Center(child: Icon(icon, color: color, size: 20)),
       ),
     );
   }
@@ -426,19 +481,22 @@ class _BottomActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: AppColors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1F24).withOpacityCompat(0.92),
+            color: AppColors.surfaceMuted.withOpacityCompat(0.92),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacityCompat(0.12), width: 0.8),
+            border: Border.all(
+              color: AppColors.white.withOpacityCompat(0.12),
+              width: 0.8,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacityCompat(0.3),
+                color: AppColors.black.withOpacityCompat(0.3),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -452,7 +510,7 @@ class _BottomActionButton extends StatelessWidget {
               Flexible(
                 child: TextWidget(
                   text: label,
-                  color: Colors.white,
+                  color: AppColors.white,
                   size: 13,
                   fontWeight: FontWeight.w600,
                   maxLines: 1,
@@ -468,7 +526,10 @@ class _BottomActionButton extends StatelessWidget {
 
 // ── Modal Helper Functions ───────────────────────────────────────────────────
 
-Future<void> showMyPersonalQrModal(BuildContext context, FriendController controller) async {
+Future<void> showMyPersonalQrModal(
+  BuildContext context,
+  FriendController controller,
+) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -488,7 +549,9 @@ class MyPersonalQrSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseService.currentUser;
-    final friendLink = user != null ? FriendConnectionService.buildLink(user) : null;
+    final friendLink = user != null
+        ? FriendConnectionService.buildLink(user)
+        : null;
 
     return SafeArea(
       top: false,
@@ -525,11 +588,11 @@ class MyPersonalQrSheet extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacityCompat(0.2),
+                      color: AppColors.black.withOpacityCompat(0.2),
                       blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
@@ -539,7 +602,7 @@ class MyPersonalQrSheet extends StatelessWidget {
                   data: friendLink,
                   version: QrVersions.auto,
                   size: 200,
-                  backgroundColor: Colors.white,
+                  backgroundColor: AppColors.white,
                 ),
               ),
               const SizedBox(height: 20),
@@ -552,19 +615,21 @@ class MyPersonalQrSheet extends StatelessWidget {
                     AppToast.showToast(
                       'personal_link_copied'.tr,
                       Icons.check_circle_rounded,
-                      color: Colors.green,
+                      color: AppColors.success,
                     );
                   },
                   icon: const Icon(Icons.copy_rounded, size: 18),
                   label: TextWidget(
                     text: 'Copy Personal Link'.tr,
-                    color: Colors.white,
+                    color: AppColors.white,
                     size: 14,
                     fontWeight: FontWeight.w600,
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -641,7 +706,9 @@ class FriendRequestConfirmSheet extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: TextWidget(
-                text: payload.displayName.isNotEmpty ? payload.displayName[0].toUpperCase() : '?',
+                text: payload.displayName.isNotEmpty
+                    ? payload.displayName[0].toUpperCase()
+                    : '?',
                 color: AppColors.primary,
                 size: 26,
                 fontWeight: FontWeight.w700,
@@ -656,11 +723,7 @@ class FriendRequestConfirmSheet extends StatelessWidget {
             ),
             if (payload.email != null && payload.email!.isNotEmpty) ...[
               const SizedBox(height: 4),
-              TextWidget(
-                text: payload.email!,
-                color: AppColors.n70,
-                size: 13,
-              ),
+              TextWidget(text: payload.email!, color: AppColors.n70, size: 13),
             ],
             const SizedBox(height: 22),
             Row(
@@ -671,8 +734,12 @@ class FriendRequestConfirmSheet extends StatelessWidget {
                     child: OutlinedButton(
                       onPressed: () => Navigator.of(context).pop(false),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.white.withOpacityCompat(0.2)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: BorderSide(
+                          color: AppColors.white.withOpacityCompat(0.2),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: TextWidget(
                         text: 'cancel'.tr,
@@ -691,11 +758,13 @@ class FriendRequestConfirmSheet extends StatelessWidget {
                       onPressed: () => Navigator.of(context).pop(true),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: TextWidget(
                         text: 'Send Request'.tr,
-                        color: Colors.white,
+                        color: AppColors.white,
                         size: 14,
                         fontWeight: FontWeight.w600,
                       ),

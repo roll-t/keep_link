@@ -38,9 +38,16 @@ class PrimaryButton extends StatelessWidget {
               height: 18,
               child: CircularProgressIndicator(strokeWidth: 2, color: color),
             )
-          : TextWidget(text: text, fontWeight: FontWeight.bold, size: textSize, color: color),
+          : TextWidget(
+              text: text,
+              fontWeight: FontWeight.bold,
+              size: textSize,
+              color: color,
+            ),
     );
 
-    return isMaxParent ? SizedBox(width: double.infinity, child: button) : button;
+    return isMaxParent
+        ? SizedBox(width: double.infinity, child: button)
+        : button;
   }
 }

@@ -1,160 +1,284 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/data/cache/app_get_storage.dart';
-import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/config/theme/app_text_styles.dart';
-import 'package:keep_link/core/config/assets/app_vectors.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/presentation/widgets/animation/app_entrance_animation.dart';
 import 'package:keep_link/core/presentation/widgets/button/primary_button.dart';
+import 'package:keep_link/core/presentation/widgets/tab/app_segmented_tab.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/core/presentation/widgets/text_field/simple_input_textfield.dart';
+import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
 
-class CategoryDialog extends GetView<CategoryController> {
-  static String routeName = '/category_dialog';
-  final bool isEditMode;
+class CategoryDialog extends StatefulWidget {
+  static const String routeName = '/category_dialog';
+
   const CategoryDialog({super.key, this.isEditMode = false});
-  void _initController() {
-    final selectedName = controller.popupController.selectedItem.value?.name ?? "";
-    controller.errorMess.value = "";
-    if (isEditMode) {
-      controller.categoryNameController.text = selectedName;
-    } else {
-      controller.categoryNameController.clear();
-    }
+
+  final bool isEditMode;
+
+  @override
+  State<CategoryDialog> createState() => _CategoryDialogState();
+}
+
+class _CategoryDialogState extends State<CategoryDialog> {
+  late final CategoryController controller;
+  late final FocusNode _nameFocusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<CategoryController>();
+    _nameFocusNode = FocusNode();
+    controller.prepareCategoryForm(isEditMode: widget.isEditMode);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _nameFocusNode.requestFocus();
+    });
   }
 
-  Widget _buildActionButtons() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        PrimaryButton(
-          isMaxParent: true,
-          text: isEditMode ? "Save".tr : "Add".tr,
-          onPressed: isEditMode ? controller.updateCategory : controller.addCategory,
-        ),
-        if (isEditMode) const SizedBox(height: 8),
-        if (isEditMode)
-          PrimaryButton(
-            isMaxParent: true,
-            text: "Delete".tr,
-            onPressed: controller.deleteCategory,
-            backgroundColor: AppColors.d300,
-            color: AppColors.red,
-          ),
-      ],
-    );
+  @override
+  void dispose() {
+    _nameFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _close() {
+    if (controller.isCategorySaving.value) return;
+    Utils.dimissKeyboard();
+    Get.back();
   }
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initController());
-    return Scaffold(
-      backgroundColor: AppColors.black.withOpacityCompat(0.6),
-      body: Center(
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: AppColors.d500, borderRadius: BorderRadius.circular(8)),
-          width: Get.width * .9,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextWidget(
-                      text: isEditMode ? "Edit Category".tr : "Add Category".tr,
-                      textStyle: AppTextStyle.medium24,
-                      color: AppColors.primary,
-                    ),
-                    AppVectors.icClose.show(
-                      backgroundColor: AppColors.d300,
-                      padding: EdgeInsets.all(8),
-                      onTap: () => Get.back(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
+    return Obx(() {
+      final isSaving = controller.isCategorySaving.value;
 
-                if (AppGetStorage.isCategorySecurity()) ...[
-                  _buildVisibilitySelector(),
-                  const SizedBox(height: 28),
-                ],
-                Obx(
-                  () => SimpleInputTextField(
-                    controller: controller.categoryNameController,
-                    hintText: "Enter category name".tr,
-                    errorText: controller.errorMess.value,
-                    onChanged: (_) => controller.onChangeDismissError(),
+      return PopScope(
+        canPop: !isSaving,
+        child: Scaffold(
+          backgroundColor: AppColors.black.withOpacityCompat(.72),
+          resizeToAvoidBottomInset: true,
+          body: SafeArea(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: Utils.dimissKeyboard,
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 20,
+                  ),
+                  child: AppEntranceAnimation(
+                    duration: const Duration(milliseconds: 480),
+                    beginOffset: const Offset(0, .12),
+                    beginScale: .94,
+                    curve: Curves.easeOutBack,
+                    child: Container(
+                      width: double.infinity,
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppColors.modalSurface,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.black.withValues(alpha: .38),
+                            blurRadius: 32,
+                            offset: const Offset(0, 16),
+                          ),
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: .08),
+                            blurRadius: 26,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(isSaving),
+                          const SizedBox(height: 18),
+
+                          SimpleInputTextField(
+                            controller: controller.categoryNameController,
+                            focusNode: _nameFocusNode,
+                            hintText: 'Enter category name'.tr,
+                            errorText: controller.errorMess.value,
+                            onChanged: (_) => controller.onChangeDismissError(),
+                            onCompleted: (_) {
+                              if (!isSaving) {
+                                widget.isEditMode
+                                    ? controller.updateCategory()
+                                    : controller.addCategory();
+                              }
+                            },
+                            enable: !isSaving,
+                            maxLength: 45,
+                            textCapitalization: TextCapitalization.words,
+                            textInputAction: TextInputAction.done,
+                            suffixIcon: AppGetStorage.isCategorySecurity()
+                                ? Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: Align(
+                                      alignment: Alignment.center,
+                                      child: _buildVisibilitySelector(isSaving),
+                                    ),
+                                  )
+                                : null,
+                            suffixIconConstraints: const BoxConstraints(
+                              minWidth: 76,
+                              maxWidth: 76,
+                              minHeight: 45,
+                              maxHeight: 45,
+                            ),
+                            radius: 12,
+                            height: 45,
+                            backgroundColor: AppColors.inputSurface,
+                            enableColor: AppColors.primaryContainer.withValues(
+                              alpha: .12,
+                            ),
+                            focusedColor: AppColors.primaryDim,
+                            hintColor: AppColors.onSurfaceVariant.withValues(
+                              alpha: .48,
+                            ),
+                            textColor: AppColors.onSurface,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildActionButtons(isSaving),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                _buildActionButtons(),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVisibilitySelector() {
-    return Obx(() {
-      final isPublic = controller.visibility.value == VisibilityStatus.public;
-      return Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(color: AppColors.d300, borderRadius: BorderRadius.circular(24)),
-        child: Row(
-          children: [
-            _visibilityItem(
-              label: "Public".tr,
-              icon: Icons.public,
-              selected: isPublic,
-              onTap: () => controller.setVisibility(VisibilityStatus.public),
-            ),
-            _visibilityItem(
-              label: "Private".tr,
-              icon: Icons.lock,
-              selected: !isPublic,
-              onTap: () => controller.setVisibility(VisibilityStatus.private),
-            ),
-          ],
         ),
       );
     });
   }
 
-  Widget _visibilityItem({
-    required String label,
-    required IconData icon,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
+  Widget _buildHeader(bool isSaving) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextWidget(
+            text: widget.isEditMode ? 'Edit Category'.tr : 'Add Category'.tr,
+            textStyle: AppTextStyle.semiBold20,
+            color: AppColors.primaryDim,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: selected ? AppColors.white : AppColors.t300),
-              const SizedBox(width: 8),
-              TextWidget(
-                text: label,
-                textStyle: AppTextStyle.semiBold14,
-                color: selected ? AppColors.white : AppColors.t300,
+        ),
+        AnimatedOpacity(
+          duration: const Duration(milliseconds: 160),
+          opacity: isSaving ? .45 : 1,
+          child: IgnorePointer(
+            ignoring: isSaving,
+            child: Material(
+              color: AppColors.primary.withValues(alpha: .1),
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _close,
+                child: const SizedBox.square(
+                  dimension: 44,
+                  child: Icon(
+                    Icons.close_rounded,
+                    color: AppColors.onSurface,
+                    size: 27,
+                  ),
+                ),
               ),
-            ],
+            ),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(bool isSaving) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PrimaryButton(
+          isMaxParent: true,
+          text: widget.isEditMode ? 'Save'.tr : 'Add'.tr,
+          isLoading: isSaving,
+          onPressed: widget.isEditMode
+              ? controller.updateCategory
+              : controller.addCategory,
+          backgroundColor: AppColors.primary,
+          color: AppColors.white,
+        ),
+        if (widget.isEditMode) ...[
+          const SizedBox(height: 10),
+          PrimaryButton(
+            isMaxParent: true,
+            text: 'Delete'.tr,
+            onPressed: isSaving ? null : controller.deleteCategory,
+            backgroundColor: AppColors.background.withValues(alpha: .48),
+            color: AppColors.error,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildVisibilitySelector(bool isSaving) {
+    final isPublic = controller.visibility.value == VisibilityStatus.public;
+
+    return IgnorePointer(
+      ignoring: isSaving,
+      child: SizedBox(
+        width: 68,
+        height: 24,
+        child: AppSegmentedTab(
+          selectedIndex: isPublic ? 0 : 1,
+          height: 24,
+          padding: 2,
+          borderRadius: 20,
+          backgroundColor: AppColors.background.withValues(alpha: .52),
+          borderColor: AppColors.white.withValues(alpha: .07),
+          selectedColor: AppColors.primary,
+          selectedGradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.primaryBright, AppColors.primary],
+          ),
+          onChanged: (index) => controller.setVisibility(
+            index == 0 ? VisibilityStatus.public : VisibilityStatus.private,
+          ),
+          tabs: [
+            AppSegmentTabItem(
+              label: '',
+              semanticLabel: 'Public'.tr,
+              icon: SizedBox.square(
+                dimension: 16,
+                child: Center(
+                  child: Transform.translate(
+                    offset: Offset(0, 1.5),
+                    child: Icon(Icons.public_rounded, size: 13),
+                  ),
+                ),
+              ),
+            ),
+            AppSegmentTabItem(
+              label: '',
+              semanticLabel: 'Private'.tr,
+              icon: SizedBox.square(
+                dimension: 16,
+                child: Center(
+                  child: Transform.translate(
+                    offset: Offset(0, 1.5),
+                    child: Icon(Icons.lock_rounded, size: 13),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

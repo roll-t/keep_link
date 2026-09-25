@@ -16,6 +16,7 @@ class SimpleInputTextField extends StatefulWidget {
   final Color? enableColor;
   final double? enableWidth;
   final Widget? suffixIcon;
+  final BoxConstraints? suffixIconConstraints;
   final Widget? prefixIcon;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onCompleted;
@@ -55,6 +56,7 @@ class SimpleInputTextField extends StatefulWidget {
     this.height = 44.0,
     this.onChanged,
     this.suffixIcon,
+    this.suffixIconConstraints,
     this.prefixIcon,
     this.obscureText = false,
     this.backgroundColor = AppColors.d300,
@@ -109,7 +111,9 @@ class _SimpleInputTextFieldState extends State<SimpleInputTextField> {
   void initState() {
     super.initState();
     // Nếu ở ngoài không truyền scrollController vào VÀ text field có nhiều dòng, ta tự khởi tạo một cái
-    if (widget.scrollController == null && widget.maxLine != null && widget.maxLine! > 1) {
+    if (widget.scrollController == null &&
+        widget.maxLine != null &&
+        widget.maxLine! > 1) {
       _localScrollController = ScrollController();
     }
   }
@@ -124,7 +128,8 @@ class _SimpleInputTextFieldState extends State<SimpleInputTextField> {
   @override
   Widget build(BuildContext context) {
     // Sử dụng controller được truyền từ ngoài vào, nếu không có thì dùng cái nội bộ
-    final effectiveScrollController = widget.scrollController ?? _localScrollController;
+    final effectiveScrollController =
+        widget.scrollController ?? _localScrollController;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,11 +137,15 @@ class _SimpleInputTextFieldState extends State<SimpleInputTextField> {
         if (widget.label != null)
           Padding(
             padding: const EdgeInsets.only(left: 4.0, bottom: 6),
-            child: TextWidget(text: widget.label!, textStyle: AppTextStyle.bold16),
+            child: TextWidget(
+              text: widget.label!,
+              textStyle: AppTextStyle.bold16,
+            ),
           ),
         Container(
           height: widget.height,
           width: widget.width,
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: widget.backgroundColor,
             borderRadius: BorderRadius.circular(widget.radius ?? 8.0),
@@ -151,13 +160,23 @@ class _SimpleInputTextFieldState extends State<SimpleInputTextField> {
               scrollPhysics: widget.scrollPhysics,
               textInputAction: widget.textInputAction,
               minLines: widget.minLines,
-              scrollPadding: EdgeInsets.only(bottom: widget.scrollPaddingBottom),
+              scrollPadding: EdgeInsets.only(
+                bottom: widget.scrollPaddingBottom,
+              ),
               maxLines: widget.maxLine,
               textAlign: widget.textAlign,
               expands: widget.maxLine == null && widget.height > 0,
               showCursor: widget.showCursor,
               textCapitalization: widget.textCapitalization,
               maxLength: widget.maxLength,
+              buildCounter: widget.maxLength == null
+                  ? null
+                  : (
+                      context, {
+                      required currentLength,
+                      required isFocused,
+                      required maxLength,
+                    }) => const SizedBox.shrink(),
               keyboardType: widget.keyboardType,
               controller: widget.controller,
               onChanged: widget.onChanged,
@@ -176,26 +195,34 @@ class _SimpleInputTextFieldState extends State<SimpleInputTextField> {
               ),
               decoration: InputDecoration(
                 enabled: widget.enable,
+                filled: true,
+                fillColor: widget.backgroundColor,
                 alignLabelWithHint: false,
                 counterText: "",
                 border: InputBorder.none,
                 contentPadding:
                     widget.contentPadding ??
                     EdgeInsets.only(
-                      left: widget.textAlign == TextAlign.start ? widget.contentPaddingLeft : 7.0,
-                      top: widget.textAlignVertical == TextAlignVertical.top ? 15 : 0,
+                      left: widget.textAlign == TextAlign.start
+                          ? widget.contentPaddingLeft
+                          : 7.0,
+                      top: widget.textAlignVertical == TextAlignVertical.top
+                          ? 15
+                          : 0,
                       right: 7.0,
                     ),
                 labelText: widget.labelText,
                 labelStyle:
-                    widget.labelStyle ?? const TextStyle(color: AppColors.primary, fontSize: 16),
+                    widget.labelStyle ??
+                    const TextStyle(color: AppColors.primary, fontSize: 16),
                 suffixIcon: widget.suffixIcon,
+                suffixIconConstraints: widget.suffixIconConstraints,
                 prefixIcon: widget.prefixIcon,
                 hintText: widget.hintText,
                 hintStyle:
                     widget.hintStyle ??
                     TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w400,
                       color: widget.hintColor ?? AppColors.t600,
                     ),
@@ -205,11 +232,15 @@ class _SimpleInputTextFieldState extends State<SimpleInputTextField> {
                           width: widget.enableWidth!,
                           color: widget.enableColor!,
                         ),
-                        borderRadius: BorderRadius.circular(widget.radius ?? 8.0),
+                        borderRadius: BorderRadius.circular(
+                          widget.radius ?? 8.0,
+                        ),
                       )
                     : OutlineInputBorder(
                         borderSide: BorderSide.none,
-                        borderRadius: BorderRadius.circular(widget.radius ?? 8.0),
+                        borderRadius: BorderRadius.circular(
+                          widget.radius ?? 8.0,
+                        ),
                       ),
                 focusedBorder: widget.isShowBorder
                     ? OutlineInputBorder(
@@ -217,11 +248,15 @@ class _SimpleInputTextFieldState extends State<SimpleInputTextField> {
                           width: widget.focusedWidth!,
                           color: widget.focusedColor!,
                         ),
-                        borderRadius: BorderRadius.circular(widget.radius ?? 8.0),
+                        borderRadius: BorderRadius.circular(
+                          widget.radius ?? 8.0,
+                        ),
                       )
                     : OutlineInputBorder(
                         borderSide: BorderSide.none,
-                        borderRadius: BorderRadius.circular(widget.radius ?? 8.0),
+                        borderRadius: BorderRadius.circular(
+                          widget.radius ?? 8.0,
+                        ),
                       ),
               ),
             ),
@@ -233,7 +268,7 @@ class _SimpleInputTextFieldState extends State<SimpleInputTextField> {
             child: TextWidget(
               text: " ${widget.errorText}",
               textStyle: AppTextStyle.regular12,
-              color: AppColors.red,
+              color: AppColors.error,
             ),
           ),
         ],

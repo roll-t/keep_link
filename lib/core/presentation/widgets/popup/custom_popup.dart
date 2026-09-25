@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_popup/flutter_popup.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
 
 enum _ArrowDirection { top, bottom }
@@ -135,9 +136,14 @@ class _PopupContent extends StatelessWidget {
           decoration:
               contentDecoration ??
               BoxDecoration(
-                color: backgroundColor ?? Colors.white,
+                color: backgroundColor ?? AppColors.white,
                 borderRadius: BorderRadius.circular(contentRadius ?? 10),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10)],
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.black.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                  ),
+                ],
               ),
           child: child,
         ),
@@ -150,7 +156,7 @@ class _PopupContent extends StatelessWidget {
             quarterTurns: arrowDirection == _ArrowDirection.top ? 2 : 4,
             child: CustomPaint(
               size: showArrow ? const Size(16, 8) : Size.zero,
-              painter: _TrianglePainter(color: arrowColor ?? Colors.white),
+              painter: _TrianglePainter(color: arrowColor ?? AppColors.white),
             ),
           ),
         ),
@@ -258,7 +264,8 @@ class _PopupRoute extends PopupRoute<void> {
   });
 
   @override
-  Color? get barrierColor => barriersColor ?? Colors.black.withOpacityCompat(0.1);
+  Color? get barrierColor =>
+      barriersColor ?? AppColors.black.withOpacityCompat(0.1);
 
   @override
   bool get barrierDismissible => true;
@@ -376,7 +383,10 @@ class _PopupRoute extends PopupRoute<void> {
       child: child,
     );
     if (!animation.isCompleted) {
-      final curvedAnimation = CurvedAnimation(parent: animation, curve: animationCurve);
+      final curvedAnimation = CurvedAnimation(
+        parent: animation,
+        curve: animationCurve,
+      );
       child = FadeTransition(
         opacity: curvedAnimation,
         child: ScaleTransition(
@@ -394,9 +404,12 @@ class _PopupRoute extends PopupRoute<void> {
           top: _top,
           bottom: _bottom,
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: _viewportRect.width, maxHeight: _maxHeight),
+            constraints: BoxConstraints(
+              maxWidth: _viewportRect.width,
+              maxHeight: _maxHeight,
+            ),
             child: Material(
-              color: Colors.transparent,
+              color: AppColors.transparent,
               type: MaterialType.transparency,
               child: child,
             ),

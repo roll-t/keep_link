@@ -35,14 +35,16 @@ class SettingsPage extends GetView<PersonalController> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // ── Preferences / General Settings ──────────────────────────
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               _SettingsCard(
                 children: [
                   _SettingsTile(
                     icon: Icons.language_rounded,
                     label: 'Language'.tr,
                     trailing: TextWidget(
-                      text: LocalizationService.langs[Get.locale?.languageCode] ?? 'English',
+                      text:
+                          LocalizationService.langs[Get.locale?.languageCode] ??
+                          'English',
                       color: AppColors.n70,
                       size: 13,
                     ),
@@ -51,14 +53,16 @@ class SettingsPage extends GetView<PersonalController> {
                   _SettingsTile(
                     icon: Icons.lock_rounded,
                     label: 'Security'.tr,
-                    onTap: () =>
-                        Get.toNamed(SecurityMethodPage.routeName, arguments: TypePage.create),
+                    onTap: () => Get.toNamed(
+                      SecurityMethodPage.routeName,
+                      arguments: TypePage.create,
+                    ),
                   ),
                 ],
               ),
 
               // ── Support ───────────────────────────────────────────────────
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               _SettingsCard(
                 children: [
                   _SettingsTile(
@@ -75,7 +79,7 @@ class SettingsPage extends GetView<PersonalController> {
               ),
 
               // ── About & Legal ─────────────────────────────────────────────
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               _SettingsCard(
                 children: [
                   _SettingsTile(
@@ -105,52 +109,118 @@ class SettingsPage extends GetView<PersonalController> {
                 ],
               ),
 
-              // ── Sign out ────────────────────────────────────────────────
+              // ── Login / Account Section (Screenshot 1) ───────────────────
+              const SizedBox(height: 12),
               Obx(() {
                 final currentUser = controller.user.value;
-                final loading = controller.isLoading.value;
                 final isLoggedIn = currentUser != null;
 
-                if (!isLoggedIn) return const SizedBox.shrink();
-
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                  child: ElevatedButton.icon(
-                    onPressed: loading ? null : controller.confirmSignOut,
-                    icon: loading
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(
-                            Icons.logout_rounded,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                    label: TextWidget(
-                      text: loading ? 'Please wait...'.tr : 'Sign Out'.tr,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      size: 15,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD32F2F),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                return _SettingsCard(
+                  children: [
+                    if (isLoggedIn)
+                      _SettingsTile(
+                        icon: Icons.logout_rounded,
+                        label: 'Đăng xuất'.tr,
+                        trailing: const SizedBox.shrink(),
+                        onTap: () => _showSignOutActionSheet(context),
+                      )
+                    else
+                      _SettingsTile(
+                        icon: Icons.login_rounded,
+                        label: 'Đăng nhập'.tr,
+                        trailing: const Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppColors.n400,
+                          size: 20,
+                        ),
+                        onTap: controller.signInWithGoogle,
                       ),
-                      elevation: 0,
-                    ),
-                  ),
+                  ],
                 );
               }),
+
+              // ── App Version text at bottom (Screenshot 1) ────────────────
+              Padding(
+                padding: const EdgeInsets.only(top: 28, bottom: 12),
+                child: Center(
+                  child: Obx(
+                    () => TextWidget(
+                      text: controller.appVersion.value.isNotEmpty
+                          ? 'v${controller.appVersion.value}'
+                          : 'v1.0.0',
+                      color: AppColors.n70,
+                      size: 13,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showSignOutActionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.d500,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Prompt message (Screenshot 2)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+              child: TextWidget(
+                text: 'Bạn có chắc chắn muốn đăng xuất?'.tr,
+                color: AppColors.n70,
+                size: 13.5,
+                fontWeight: FontWeight.w400,
+                textAlign: TextAlign.center,
+              ),
+            ),
+            Divider(
+              height: 1,
+              thickness: 0.5,
+              color: AppColors.white.withOpacityCompat(0.08),
+            ),
+            // Option: Đăng xuất (Screenshot 2)
+            InkWell(
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                controller.confirmSignOut();
+              },
+              child: Container(
+                height: 52,
+                alignment: Alignment.center,
+                child: TextWidget(
+                  text: 'Đăng xuất'.tr,
+                  color: AppColors.danger,
+                  size: 15.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Container(height: 8, color: AppColors.bg700),
+            // Option: Hủy (Screenshot 2)
+            InkWell(
+              onTap: () => Navigator.of(sheetContext).pop(),
+              child: Container(
+                height: 52,
+                alignment: Alignment.center,
+                child: TextWidget(
+                  text: 'Hủy'.tr,
+                  color: AppColors.white,
+                  size: 15.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -160,57 +230,105 @@ class SettingsPage extends GetView<PersonalController> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       backgroundColor: AppColors.d500,
-      builder: (_) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextWidget(
-                text: 'Select Language'.tr,
-                textStyle: AppTextStyle.semiBold20,
-                color: AppColors.white,
+              // Header
+              Row(
+                children: [
+                  const SizedBox(width: 40),
+                  Expanded(
+                    child: Center(
+                      child: TextWidget(
+                        text: 'Language'.tr,
+                        color: AppColors.white,
+                        size: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(sheetContext).pop(),
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.close_rounded,
+                        color: AppColors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               ...LocalizationService.langs.entries.map((entry) {
                 final langCode = entry.key;
                 final langName = entry.value;
                 final isSelected = Get.locale?.languageCode == langCode;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: GestureDetector(
-                    onTap: () async {
-                      await LocalizationService.changeLocale(langCode);
-                      Get.back();
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: isSelected
-                            ? AppColors.primary.withOpacityCompat(0.2)
-                            : AppColors.bg700,
-                        border: Border.all(
-                          color: isSelected ? AppColors.primary : Colors.transparent,
-                          width: isSelected ? 2 : 0,
+
+                return InkWell(
+                  onTap: () async {
+                    await LocalizationService.changeLocale(langCode);
+                    if (sheetContext.mounted) {
+                      Navigator.of(sheetContext).pop();
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 8,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextWidget(
+                          text: langName,
+                          color: AppColors.white,
+                          size: 16,
+                          fontWeight: FontWeight.w500,
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          TextWidget(
-                            text: langName,
-                            textStyle: AppTextStyle.semiBold16,
-                            color: isSelected ? AppColors.primary : AppColors.white,
+                        if (isSelected)
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.primary,
+                            ),
+                            alignment: Alignment.center,
+                            child: Container(
+                              width: 7,
+                              height: 7,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.white,
+                              ),
+                            ),
+                          )
+                        else
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.white.withOpacityCompat(0.25),
+                                width: 1.5,
+                              ),
+                            ),
                           ),
-                          if (isSelected)
-                            const Icon(Icons.check_circle_rounded, color: AppColors.primary),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
                 );
@@ -236,23 +354,29 @@ class _SettingsCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.d500,
         border: Border.symmetric(
-          horizontal: BorderSide(color: AppColors.white.withOpacityCompat(0.06), width: 1),
+          horizontal: BorderSide(
+            color: AppColors.white.withOpacityCompat(0.06),
+            width: 1,
+          ),
         ),
       ),
-      child: Column(
-        children: [
-          for (int i = 0; i < children.length; i++) ...[
-            children[i],
-            if (i < children.length - 1)
-              Divider(
-                height: 1,
-                thickness: 0.5,
-                indent: 52,
-                endIndent: 0,
-                color: AppColors.white.withOpacityCompat(0.08),
-              ),
+      child: Material(
+        color: AppColors.transparent,
+        child: Column(
+          children: [
+            for (int i = 0; i < children.length; i++) ...[
+              children[i],
+              if (i < children.length - 1)
+                Divider(
+                  height: 1,
+                  thickness: 0.5,
+                  indent: 52,
+                  endIndent: 0,
+                  color: AppColors.white.withOpacityCompat(0.08),
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -273,18 +397,30 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      leading: Icon(icon, color: AppColors.n70, size: 21),
-      title: TextWidget(text: label, color: AppColors.white, size: 14, fontWeight: FontWeight.w500),
-      trailing:
-          trailing ??
-          (onTap != null
-              ? const Icon(Icons.chevron_right_rounded, color: AppColors.n400, size: 20)
-              : null),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-      minLeadingWidth: 24,
-      dense: true,
+    return Material(
+      color: AppColors.transparent,
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(icon, color: AppColors.n70, size: 21),
+        title: TextWidget(
+          text: label,
+          color: AppColors.white,
+          size: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        trailing:
+            trailing ??
+            (onTap != null
+                ? const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.n400,
+                    size: 20,
+                  )
+                : null),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+        minLeadingWidth: 24,
+        dense: true,
+      ),
     );
   }
 }

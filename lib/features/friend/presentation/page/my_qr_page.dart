@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
+import 'package:keep_link/core/config/assets/app_images.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
@@ -17,7 +18,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
-enum QrTemplateType { chibiCute, darkCarbon, cleanLight, deepAurora }
+enum QrTemplateType {
+  chibiBlue,
+  chibiPink,
+  chibiPurple,
+  darkCarbon,
+  cleanLight,
+}
 
 class MyQrPage extends StatefulWidget {
   static const routeName = '/MyQrPage';
@@ -33,12 +40,14 @@ class MyQrPage extends StatefulWidget {
 class _MyQrPageState extends State<MyQrPage> {
   final GlobalKey _qrCardKey = GlobalKey();
 
-  QrTemplateType _selectedTemplate = QrTemplateType.chibiCute;
+  QrTemplateType _selectedTemplate = QrTemplateType.chibiBlue;
   bool _isExporting = false;
 
   Future<Uint8List?> _captureCardBytes() async {
     try {
-      final boundary = _qrCardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      final boundary =
+          _qrCardKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) return null;
       final image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -58,7 +67,7 @@ class _MyQrPageState extends State<MyQrPage> {
         AppToast.showToast(
           'personal_qr_save_failed'.tr,
           Icons.error_outline_rounded,
-          color: Colors.red,
+          color: AppColors.error,
         );
         return;
       }
@@ -69,25 +78,26 @@ class _MyQrPageState extends State<MyQrPage> {
         name: 'keeplink_qr_${DateTime.now().millisecondsSinceEpoch}',
       );
 
-      final isSuccess = (result['isSuccess'] == true) || (result['filePath'] != null);
+      final isSuccess =
+          (result['isSuccess'] == true) || (result['filePath'] != null);
       if (isSuccess) {
         AppToast.showToast(
           'personal_qr_saved'.tr,
           Icons.download_done_rounded,
-          color: Colors.green,
+          color: AppColors.success,
         );
       } else {
         AppToast.showToast(
           'personal_qr_save_failed'.tr,
           Icons.error_outline_rounded,
-          color: Colors.red,
+          color: AppColors.error,
         );
       }
     } catch (_) {
       AppToast.showToast(
         'personal_qr_save_failed'.tr,
         Icons.error_outline_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
     } finally {
       if (mounted) setState(() => _isExporting = false);
@@ -104,7 +114,7 @@ class _MyQrPageState extends State<MyQrPage> {
         AppToast.showToast(
           'personal_qr_save_failed'.tr,
           Icons.error_outline_rounded,
-          color: Colors.red,
+          color: AppColors.error,
         );
         return;
       }
@@ -113,12 +123,14 @@ class _MyQrPageState extends State<MyQrPage> {
       final file = File('${tempDir.path}/keeplink_qr.png');
       await file.writeAsBytes(bytes);
 
-      await Share.shareXFiles([XFile(file.path)], text: 'KeepLink Friend QR'.tr);
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: 'KeepLink Friend QR'.tr);
     } catch (_) {
       AppToast.showToast(
         'personal_qr_save_failed'.tr,
         Icons.error_outline_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
     } finally {
       if (mounted) setState(() => _isExporting = false);
@@ -127,13 +139,19 @@ class _MyQrPageState extends State<MyQrPage> {
 
   void _copyLink(String friendLink) {
     Clipboard.setData(ClipboardData(text: friendLink));
-    AppToast.showToast('personal_link_copied'.tr, Icons.check_circle_rounded, color: Colors.green);
+    AppToast.showToast(
+      'personal_link_copied'.tr,
+      Icons.check_circle_rounded,
+      color: AppColors.success,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseService.currentUser;
-    final friendLink = user != null ? FriendConnectionService.buildLink(user) : null;
+    final friendLink = user != null
+        ? FriendConnectionService.buildLink(user)
+        : null;
     final displayName = user?.displayName ?? 'KeepLink User';
     final email = user?.email ?? '';
 
@@ -144,7 +162,11 @@ class _MyQrPageState extends State<MyQrPage> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.white, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.white,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: TextWidget(
@@ -156,12 +178,20 @@ class _MyQrPageState extends State<MyQrPage> {
         actions: [
           if (friendLink != null) ...[
             IconButton(
-              icon: const Icon(Icons.brush_rounded, color: AppColors.white, size: 22),
+              icon: const Icon(
+                Icons.brush_rounded,
+                color: AppColors.white,
+                size: 22,
+              ),
               tooltip: 'Choose Template'.tr,
               onPressed: () => _openCustomizeBottomSheet(context),
             ),
             IconButton(
-              icon: const Icon(Icons.share_rounded, color: AppColors.white, size: 22),
+              icon: const Icon(
+                Icons.share_rounded,
+                color: AppColors.white,
+                size: 22,
+              ),
               tooltip: 'Share QR'.tr,
               onPressed: _shareQrCard,
             ),
@@ -218,8 +248,8 @@ class _MyQrPageState extends State<MyQrPage> {
                             icon: Icons.download_rounded,
                             label: 'Save Image'.tr,
                             color: AppColors.primary,
-                            iconColor: Colors.white,
-                            textColor: Colors.white,
+                            iconColor: AppColors.white,
+                            textColor: AppColors.white,
                             onTap: _saveToGallery,
                           ),
                         ),
@@ -243,6 +273,12 @@ class _MyQrPageState extends State<MyQrPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            void selectTemplate(QrTemplateType type) {
+              setModalState(() => _selectedTemplate = type);
+              setState(() => _selectedTemplate = type);
+              Navigator.of(context).pop();
+            }
+
             return SafeArea(
               top: false,
               child: Padding(
@@ -280,43 +316,96 @@ class _MyQrPageState extends State<MyQrPage> {
                     // Template Options Grid
                     Row(
                       children: [
-                        // Template 1: Chibi Cute
+                        // Template 1: Chibi Blue (i_qr_1)
                         Expanded(
                           child: _TemplateThumbnailCard(
-                            title: 'Chibi Cute'.tr,
-                            subtitle: 'Linkeep Poster',
-                            isSelected: _selectedTemplate == QrTemplateType.chibiCute,
+                            title: 'Chibi Blue'.tr,
+                            subtitle: 'Linkeep Poster 1',
+                            isSelected:
+                                _selectedTemplate == QrTemplateType.chibiBlue,
                             previewWidget: Container(
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.white,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.asset(
-                                  'assets/images/qr_template_chibi.jpg',
+                                  AppImages.iQr1.path,
                                   fit: BoxFit.cover,
                                 ),
                               ),
                             ),
-                            onTap: () {
-                              setModalState(() => _selectedTemplate = QrTemplateType.chibiCute);
-                              setState(() => _selectedTemplate = QrTemplateType.chibiCute);
-                            },
+                            onTap: () =>
+                                selectTemplate(QrTemplateType.chibiBlue),
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // Template 2: Dark Minimal
+                        // Template 2: Chibi Pink (i_qr_2)
+                        Expanded(
+                          child: _TemplateThumbnailCard(
+                            title: 'Chibi Pink'.tr,
+                            subtitle: 'Linkeep Poster 2',
+                            isSelected:
+                                _selectedTemplate == QrTemplateType.chibiPink,
+                            previewWidget: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.asset(
+                                  AppImages.iQr2.path,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            onTap: () =>
+                                selectTemplate(QrTemplateType.chibiPink),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        // Template 3: Chibi Purple (i_qr_3)
+                        Expanded(
+                          child: _TemplateThumbnailCard(
+                            title: 'Chibi Purple'.tr,
+                            subtitle: 'Linkeep Poster 3',
+                            isSelected:
+                                _selectedTemplate == QrTemplateType.chibiPurple,
+                            previewWidget: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.asset(
+                                  AppImages.iQr3.path,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            onTap: () =>
+                                selectTemplate(QrTemplateType.chibiPurple),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Template 4: Dark Minimal
                         Expanded(
                           child: _TemplateThumbnailCard(
                             title: 'Dark Modern'.tr,
                             subtitle: 'Minimalist',
-                            isSelected: _selectedTemplate == QrTemplateType.darkCarbon,
+                            isSelected:
+                                _selectedTemplate == QrTemplateType.darkCarbon,
                             previewWidget: Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1B1C21),
+                                color: AppColors.navigationSurface,
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.white24, width: 1),
                               ),
                               child: const Center(
                                 child: Icon(
@@ -326,10 +415,8 @@ class _MyQrPageState extends State<MyQrPage> {
                                 ),
                               ),
                             ),
-                            onTap: () {
-                              setModalState(() => _selectedTemplate = QrTemplateType.darkCarbon);
-                              setState(() => _selectedTemplate = QrTemplateType.darkCarbon);
-                            },
+                            onTap: () =>
+                                selectTemplate(QrTemplateType.darkCarbon),
                           ),
                         ),
                       ],
@@ -337,59 +424,32 @@ class _MyQrPageState extends State<MyQrPage> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        // Template 3: Clean Light
+                        // Template 5: Clean Light
                         Expanded(
                           child: _TemplateThumbnailCard(
                             title: 'Clean Light'.tr,
                             subtitle: 'Minimalist',
-                            isSelected: _selectedTemplate == QrTemplateType.cleanLight,
+                            isSelected:
+                                _selectedTemplate == QrTemplateType.cleanLight,
                             previewWidget: Container(
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.white,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Center(
                                 child: Icon(
                                   Icons.qr_code_2_rounded,
-                                  color: Color(0xFF0068FF),
+                                  color: AppColors.brand,
                                   size: 28,
                                 ),
                               ),
                             ),
-                            onTap: () {
-                              setModalState(() => _selectedTemplate = QrTemplateType.cleanLight);
-                              setState(() => _selectedTemplate = QrTemplateType.cleanLight);
-                            },
+                            onTap: () =>
+                                selectTemplate(QrTemplateType.cleanLight),
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // Template 4: Aurora
-                        Expanded(
-                          child: _TemplateThumbnailCard(
-                            title: 'Aurora'.tr,
-                            subtitle: 'Gradient Glow',
-                            isSelected: _selectedTemplate == QrTemplateType.deepAurora,
-                            previewWidget: Container(
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF1E2838), Color(0xFF141923)],
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.qr_code_2_rounded,
-                                  color: Color(0xFF1DD1A1),
-                                  size: 28,
-                                ),
-                              ),
-                            ),
-                            onTap: () {
-                              setModalState(() => _selectedTemplate = QrTemplateType.deepAurora);
-                              setState(() => _selectedTemplate = QrTemplateType.deepAurora);
-                            },
-                          ),
-                        ),
+                        const Spacer(),
                       ],
                     ),
                   ],
@@ -409,19 +469,43 @@ class _MyQrPageState extends State<MyQrPage> {
     required String friendLink,
   }) {
     switch (template) {
-      case QrTemplateType.chibiCute:
-        return _ChibiTemplateCard(displayName: displayName, email: email, friendLink: friendLink);
+      case QrTemplateType.chibiBlue:
+        return _ChibiTemplateCard(
+          displayName: displayName,
+          email: email,
+          friendLink: friendLink,
+          imagePath: AppImages.iQr1.path,
+          qrColor: AppColors.brand,
+        );
+
+      case QrTemplateType.chibiPink:
+        return _ChibiTemplateCard(
+          displayName: displayName,
+          email: email,
+          friendLink: friendLink,
+          imagePath: AppImages.iQr2.path,
+          qrColor: AppColors.accentPink,
+        );
+
+      case QrTemplateType.chibiPurple:
+        return _ChibiTemplateCard(
+          displayName: displayName,
+          email: email,
+          friendLink: friendLink,
+          imagePath: AppImages.iQr3.path,
+          qrColor: AppColors.accentPurple,
+        );
 
       case QrTemplateType.darkCarbon:
         return _ModernCardTemplate(
           displayName: displayName,
           email: email,
           friendLink: friendLink,
-          bgColor: const Color(0xFF1B1C21),
-          primaryTextColor: Colors.white,
+          bgColor: AppColors.navigationSurface,
+          primaryTextColor: AppColors.white,
           secondaryTextColor: AppColors.n70,
-          qrColor: const Color(0xFF0068FF),
-          qrBoxBg: Colors.white,
+          qrColor: AppColors.brand,
+          qrBoxBg: AppColors.white,
         );
 
       case QrTemplateType.cleanLight:
@@ -429,27 +513,11 @@ class _MyQrPageState extends State<MyQrPage> {
           displayName: displayName,
           email: email,
           friendLink: friendLink,
-          bgColor: Colors.white,
-          primaryTextColor: const Color(0xFF1A1A1A),
-          secondaryTextColor: const Color(0xFF757575),
-          qrColor: const Color(0xFF0068FF),
-          qrBoxBg: const Color(0xFFF4F5F8),
-        );
-
-      case QrTemplateType.deepAurora:
-        return _ModernCardTemplate(
-          displayName: displayName,
-          email: email,
-          friendLink: friendLink,
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1E2838), Color(0xFF141923)],
-          ),
-          primaryTextColor: Colors.white,
-          secondaryTextColor: AppColors.n70,
-          qrColor: const Color(0xFF1DD1A1),
-          qrBoxBg: Colors.white,
+          bgColor: AppColors.white,
+          primaryTextColor: AppColors.lightTextPrimary,
+          secondaryTextColor: AppColors.lightTextSecondary,
+          qrColor: AppColors.brand,
+          qrBoxBg: AppColors.lightCanvas,
         );
     }
   }
@@ -461,25 +529,33 @@ class _ChibiTemplateCard extends StatelessWidget {
   final String displayName;
   final String email;
   final String friendLink;
+  final String imagePath;
+  final Color qrColor;
   static const double size = 330.0;
 
   const _ChibiTemplateCard({
     required this.displayName,
     required this.email,
     required this.friendLink,
+    required this.imagePath,
+    this.qrColor = AppColors.brand,
   });
 
   @override
   Widget build(BuildContext context) {
+    final userName = displayName.trim().isNotEmpty
+        ? displayName.trim()
+        : (email.trim().isNotEmpty ? email.trim() : 'Linkeep User');
+
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacityCompat(0.25),
+            color: AppColors.black.withOpacityCompat(0.25),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -489,63 +565,48 @@ class _ChibiTemplateCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         child: Stack(
           children: [
-            // 1. Illustrated Poster Background (Blank template with slots)
-            Positioned.fill(
-              child: Image.asset('assets/images/qr_template_chibi.jpg', fit: BoxFit.cover),
-            ),
+            // 1. Poster Template Background
+            Positioned.fill(child: Image.asset(imagePath, fit: BoxFit.cover)),
 
-            // 2. Dynamic QR Code inside the middle white box with center logo
+            // 2. Dynamic QR Code inside the center white square
             Positioned(
-              left: size * 0.292,
-              top: size * 0.372,
-              width: size * 0.345,
-              height: size * 0.345,
+              left: size * 0.285,
+              top: size * 0.313,
+              width: size * 0.430,
+              height: size * 0.430,
               child: QrImageView(
                 data: friendLink,
                 version: QrVersions.auto,
-                eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF0068FF)),
-                dataModuleStyle: const QrDataModuleStyle(
+                eyeStyle: QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: qrColor,
+                ),
+                dataModuleStyle: QrDataModuleStyle(
                   dataModuleShape: QrDataModuleShape.square,
-                  color: Color(0xFF0068FF),
+                  color: qrColor,
                 ),
                 embeddedImage: const AssetImage('assets/images/i_logo_app.png'),
-                embeddedImageStyle: const QrEmbeddedImageStyle(size: Size(20, 20)),
-                backgroundColor: Colors.transparent,
+                embeddedImageStyle: const QrEmbeddedImageStyle(
+                  size: Size(24, 24),
+                ),
+                backgroundColor: AppColors.transparent,
                 padding: EdgeInsets.zero,
               ),
             ),
 
-            // 3. User Name Slot (Top capsule slot)
+            // 3. User Name inside the bottom capsule slot
             Positioned(
-              left: size * 0.280,
-              right: size * 0.225,
-              top: size * 0.804,
-              height: size * 0.058,
+              left: size * 0.305,
+              right: size * 0.230,
+              top: size * 0.833,
+              height: size * 0.084,
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: TextWidget(
-                  text: displayName,
-                  color: const Color(0xFF1E272E),
-                  size: 12.0,
-                  fontWeight: FontWeight.w800,
-                  maxLines: 1,
-                ),
-              ),
-            ),
-
-            // 4. User Email Slot (Bottom capsule slot)
-            Positioned(
-              left: size * 0.280,
-              right: size * 0.220,
-              top: size * 0.885,
-              height: size * 0.058,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: TextWidget(
-                  text: email.isNotEmpty ? email : 'keeplink.app',
-                  color: const Color(0xFF57606F),
-                  size: 10.5,
-                  fontWeight: FontWeight.w600,
+                  text: userName,
+                  color: AppColors.white,
+                  size: size * 0.042,
+                  fontWeight: FontWeight.w700,
                   maxLines: 1,
                 ),
               ),
@@ -564,7 +625,6 @@ class _ModernCardTemplate extends StatelessWidget {
   final String email;
   final String friendLink;
   final Color? bgColor;
-  final Gradient? gradient;
   final Color primaryTextColor;
   final Color secondaryTextColor;
   final Color qrColor;
@@ -575,7 +635,6 @@ class _ModernCardTemplate extends StatelessWidget {
     required this.email,
     required this.friendLink,
     this.bgColor,
-    this.gradient,
     required this.primaryTextColor,
     required this.secondaryTextColor,
     required this.qrColor,
@@ -589,12 +648,14 @@ class _ModernCardTemplate extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
       decoration: BoxDecoration(
         color: bgColor,
-        gradient: gradient,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacityCompat(0.08), width: 1),
+        border: Border.all(
+          color: AppColors.white.withOpacityCompat(0.08),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacityCompat(0.35),
+            color: AppColors.black.withOpacityCompat(0.35),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -608,7 +669,9 @@ class _ModernCardTemplate extends StatelessWidget {
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [qrColor, qrColor.withOpacityCompat(0.7)]),
+              gradient: LinearGradient(
+                colors: [qrColor, qrColor.withOpacityCompat(0.7)],
+              ),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
@@ -621,7 +684,7 @@ class _ModernCardTemplate extends StatelessWidget {
             alignment: Alignment.center,
             child: TextWidget(
               text: displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-              color: Colors.white,
+              color: AppColors.white,
               size: 24,
               fontWeight: FontWeight.w700,
             ),
@@ -654,7 +717,7 @@ class _ModernCardTemplate extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacityCompat(0.06),
+                  color: AppColors.black.withOpacityCompat(0.06),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -669,7 +732,7 @@ class _ModernCardTemplate extends StatelessWidget {
                 dataModuleShape: QrDataModuleShape.circle,
                 color: qrColor,
               ),
-              backgroundColor: Colors.transparent,
+              backgroundColor: AppColors.transparent,
             ),
           ),
 
@@ -710,7 +773,7 @@ class _ActionPillButton extends StatelessWidget {
     required this.label,
     required this.color,
     required this.iconColor,
-    this.textColor = Colors.white,
+    this.textColor = AppColors.white,
     required this.onTap,
   });
 
@@ -728,14 +791,22 @@ class _ActionPillButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withOpacityCompat(0.08), width: 0.8),
+            border: Border.all(
+              color: AppColors.white.withOpacityCompat(0.08),
+              width: 0.8,
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, color: iconColor, size: 18),
               const SizedBox(width: 8),
-              TextWidget(text: label, color: textColor, size: 13, fontWeight: FontWeight.w600),
+              TextWidget(
+                text: label,
+                color: textColor,
+                size: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ],
           ),
         ),
@@ -764,7 +835,9 @@ class _TemplateThumbnailCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isSelected ? AppColors.primary.withOpacityCompat(0.15) : AppColors.bg700,
+      color: isSelected
+          ? AppColors.primary.withOpacityCompat(0.15)
+          : AppColors.bg700,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -774,14 +847,20 @@ class _TemplateThumbnailCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isSelected ? AppColors.primary : Colors.white.withOpacityCompat(0.08),
+              color: isSelected
+                  ? AppColors.primary
+                  : AppColors.white.withOpacityCompat(0.08),
               width: isSelected ? 2 : 0.8,
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: 72, width: double.infinity, child: previewWidget),
+              SizedBox(
+                height: 72,
+                width: double.infinity,
+                child: previewWidget,
+              ),
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -791,18 +870,29 @@ class _TemplateThumbnailCard extends StatelessWidget {
                       children: [
                         TextWidget(
                           text: title,
-                          color: isSelected ? AppColors.primary : Colors.white,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.white,
                           size: 13,
                           fontWeight: FontWeight.w700,
                           maxLines: 1,
                         ),
                         const SizedBox(height: 2),
-                        TextWidget(text: subtitle, color: AppColors.n70, size: 11, maxLines: 1),
+                        TextWidget(
+                          text: subtitle,
+                          color: AppColors.n70,
+                          size: 11,
+                          maxLines: 1,
+                        ),
                       ],
                     ),
                   ),
                   if (isSelected)
-                    const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
                 ],
               ),
             ],

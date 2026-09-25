@@ -59,7 +59,10 @@ class FeedbackPage extends GetView<FeedbackController> {
                   contentPadding: const EdgeInsets.all(14),
                   textAlignVertical: TextAlignVertical.top,
                   hintText: controller.inputHint,
-                  hintStyle: TextStyle(color: AppColors.outlineVariant, fontSize: 14),
+                  hintStyle: TextStyle(
+                    color: AppColors.outlineVariant,
+                    fontSize: 14,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -70,24 +73,36 @@ class FeedbackPage extends GetView<FeedbackController> {
                 height: 50,
                 child: Obx(
                   () => ElevatedButton.icon(
-                    onPressed: controller.isLoading.value ? null : controller.submit,
+                    onPressed: controller.isLoading.value
+                        ? null
+                        : controller.submit,
                     icon: controller.isLoading.value
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.white,
+                            ),
                           )
                         : Icon(controller.actionIcon, size: 18),
                     label: Text(
                       controller.isLoading.value ? 'Sending...'.tr : 'Send'.tr,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
+                      foregroundColor: AppColors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      disabledBackgroundColor: AppColors.primary.withValues(
+                        alpha: 0.5,
+                      ),
                     ),
                   ),
                 ),
@@ -148,18 +163,22 @@ class FeedbackPage extends GetView<FeedbackController> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.orange.withValues(alpha: 0.12),
+        color: AppColors.warning.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded, color: Colors.orange, size: 18),
+          const Icon(
+            Icons.info_outline_rounded,
+            color: AppColors.warning,
+            size: 18,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: TextWidget(
               text: 'Please sign in to send feedback.'.tr,
-              color: Colors.orange,
+              color: AppColors.warning,
               size: 13,
             ),
           ),
@@ -191,7 +210,7 @@ class _TabButton extends StatelessWidget {
         curve: Curves.easeInOut,
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.transparent,
+          color: isSelected ? AppColors.primary : AppColors.transparent,
           borderRadius: BorderRadius.circular(9),
         ),
         child: Row(
@@ -200,7 +219,7 @@ class _TabButton extends StatelessWidget {
             Icon(
               icon,
               size: 17,
-              color: isSelected ? Colors.white : AppColors.onSurfaceVariant,
+              color: isSelected ? AppColors.white : AppColors.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
             Text(
@@ -208,7 +227,9 @@ class _TabButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? Colors.white : AppColors.onSurfaceVariant,
+                color: isSelected
+                    ? AppColors.white
+                    : AppColors.onSurfaceVariant,
               ),
             ),
           ],

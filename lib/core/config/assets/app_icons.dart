@@ -11,6 +11,10 @@ class AppIcons {
   static const icLogoFacebook = _PngIcon("${_root}ic_logo_facebook$_ext");
   static const icLogoYoutube = _PngIcon("${_root}ic_logo_youtube$_ext");
   static const icLogoGoogle = _PngIcon("${_root}ic_logo_google$_ext");
+  static const icLogoLinkeep = _PngIcon("${_root}ic_logo_linkeep$_ext");
+  static const icLogoLinkeepFull = _PngIcon(
+    "${_root}ic_logo_linkeep_full$_ext",
+  );
 }
 
 class _PngIcon {
@@ -28,7 +32,13 @@ class _PngIcon {
       onTap: onTap,
       child: Padding(
         padding: padding ?? EdgeInsets.zero,
-        child: Image.asset(path, width: size, height: size, fit: fit, color: color),
+        child: Image.asset(
+          path,
+          width: size,
+          height: size,
+          fit: fit,
+          color: color,
+        ),
       ),
     );
 

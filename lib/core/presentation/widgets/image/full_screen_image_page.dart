@@ -61,7 +61,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black.withOpacityCompat(opacity),
+      backgroundColor: AppColors.black.withOpacityCompat(opacity),
       body: GestureDetector(
         onVerticalDragStart: startVerticalDrag,
         onVerticalDragUpdate: whileVerticalDrag,
@@ -78,7 +78,9 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                 child: Hero(
                   tag: widget.tagHero ?? widget.imageUrl,
                   child: PhotoView(
-                    backgroundDecoration: const BoxDecoration(color: Colors.transparent),
+                    backgroundDecoration: const BoxDecoration(
+                      color: AppColors.transparent,
+                    ),
                     imageProvider: CachedNetworkImageProvider(
                       widget.imageUrl.trim(),
                       errorListener: (_) {},

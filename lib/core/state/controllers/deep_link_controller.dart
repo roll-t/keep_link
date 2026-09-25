@@ -15,7 +15,8 @@ import 'package:keep_link/features/link/application/model/tiktok_meta_data.dart'
 import 'package:keep_link/features/splash/presentation/controller/splash_controller.dart';
 import 'package:tiktok_scraper/tiktok_scraper.dart';
 
-class DeepLinkController extends GetxController with ArgumentHandlerMixinController<SplashArg> {
+class DeepLinkController extends GetxController
+    with ArgumentHandlerMixinController<SplashArg> {
   final Rx<MetaDataModel?> metaData = Rx(null);
   final RxBool isLoading = false.obs;
   String? deepLink;
@@ -97,7 +98,9 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
       final pathSegments = uri.pathSegments;
       final placeIdx = pathSegments.indexOf('place');
       if (placeIdx != -1 && placeIdx + 1 < pathSegments.length) {
-        title = Uri.decodeComponent(pathSegments[placeIdx + 1]).replaceAll('+', ' ');
+        title = Uri.decodeComponent(
+          pathSegments[placeIdx + 1],
+        ).replaceAll('+', ' ');
         address = title;
       }
       // ?q=address
@@ -339,7 +342,9 @@ class DeepLinkController extends GetxController with ArgumentHandlerMixinControl
             final isPlace =
                 (type is String && placeTypes.any((t) => type.contains(t))) ||
                 (type is List &&
-                    placeTypes.any((t) => (type).any((ty) => ty.toString().contains(t))));
+                    placeTypes.any(
+                      (t) => (type).any((ty) => ty.toString().contains(t)),
+                    ));
             if (!isPlace) return;
             final addr = data['address'];
             if (addr is Map<String, dynamic>) {

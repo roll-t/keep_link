@@ -69,7 +69,9 @@ class TiktokMetaData {
     final caption = description.isNotEmpty ? '“$description”' : '';
     return MetaDataModel(
       url: "",
-      title: author.name.isNotEmpty ? author.name : '${author.username} $caption'.trim(),
+      title: author.name.isNotEmpty
+          ? author.name
+          : '${author.username} $caption'.trim(),
       description: description,
       imageUrl: thumbnail,
       favicon: '',

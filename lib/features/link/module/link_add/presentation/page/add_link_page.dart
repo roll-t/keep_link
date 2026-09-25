@@ -50,7 +50,10 @@ class AddLinkPage extends StatelessWidget {
   }
 
   // ---------------- HEADER ----------------
-  Widget _buildHeader(AddLinkController addController, CategoryController categoryController) {
+  Widget _buildHeader(
+    AddLinkController addController,
+    CategoryController categoryController,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -65,12 +68,16 @@ class AddLinkPage extends StatelessWidget {
         Row(
           spacing: 12,
           children: [
-            CustomPopupWidget(controller: categoryController.popupController, hasAll: false),
+            CustomPopupWidget(
+              controller: categoryController.popupController,
+              hasAll: false,
+            ),
             AppVectors.icAdd.show(
               size: 28,
               backgroundColor: AppColors.d200,
               padding: const EdgeInsets.all(8),
-              onTap: () => Get.dialog(const CategoryDialog()),
+              onTap: () =>
+                  Get.dialog(const CategoryDialog(), barrierDismissible: false),
             ),
           ],
         ),
@@ -136,7 +143,7 @@ class AddLinkPage extends StatelessWidget {
               isMaxParent: true,
               text: "Huỷ",
               backgroundColor: AppColors.d300,
-              color: AppColors.red,
+              color: AppColors.error,
               // Khoá luôn nút Huỷ trong lúc đang lưu — thoát giữa chừng lúc
               // request insert/update còn dang dở dễ tạo trạng thái mập mờ.
               onPressed: saving ? null : controller.onCancel,

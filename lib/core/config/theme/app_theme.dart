@@ -8,16 +8,16 @@ class AppTheme {
   static final ColorScheme lightColorScheme = ColorScheme(
     brightness: Brightness.light,
     primary: AppColors.primary,
-    onPrimary: const Color(0xFF1a1a1a),
+    onPrimary: AppColors.surface,
     primaryContainer: AppColors.primaryContainer,
-    onPrimaryContainer: const Color(0xFF1a1a1a),
-    secondary: const Color(0xFF3B9DFF),
-    onSecondary: const Color(0xFFFFFFFF),
-    error: Colors.redAccent,
-    onError: Colors.white,
+    onPrimaryContainer: AppColors.surface,
+    secondary: AppColors.secondary,
+    onSecondary: AppColors.white,
+    error: AppColors.danger,
+    onError: AppColors.white,
     surface: AppColors.l200,
-    onSurface: const Color(0xFF333333),
-    shadow: Colors.black,
+    onSurface: AppColors.t700,
+    shadow: AppColors.black,
     outline: AppColors.outlineVariant,
     outlineVariant: AppColors.outlineVariant,
   );
@@ -36,9 +36,9 @@ class AppTheme {
     secondary: AppColors.primaryDim,
     onSecondary: AppColors.onSurface,
     // Error
-    error: Colors.redAccent,
-    onError: Colors.white,
-    errorContainer: Colors.redAccent,
+    error: AppColors.danger,
+    onError: AppColors.white,
+    errorContainer: AppColors.danger,
     // Surface - Using design system colors
     surface: AppColors.surface,
     onSurface: AppColors.onSurface,
@@ -46,7 +46,7 @@ class AppTheme {
     // Variants
     outlineVariant: AppColors.outlineVariant.withValues(alpha: 0.15),
     // Shadow
-    shadow: Colors.black,
+    shadow: AppColors.black,
   );
 
   // ========================================
@@ -90,11 +90,15 @@ class AppTheme {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.15)),
+        borderSide: BorderSide(
+          color: AppColors.outlineVariant.withValues(alpha: 0.15),
+        ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.15)),
+        borderSide: BorderSide(
+          color: AppColors.outlineVariant.withValues(alpha: 0.15),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -110,7 +114,7 @@ class AppTheme {
   // ========================================
   static final ThemeData transparent = ThemeData(
     useMaterial3: true,
-    scaffoldBackgroundColor: Colors.transparent,
-    colorScheme: darkColorScheme.copyWith(surface: Colors.transparent),
+    scaffoldBackgroundColor: AppColors.transparent,
+    colorScheme: darkColorScheme.copyWith(surface: AppColors.transparent),
   );
 }

@@ -20,10 +20,7 @@ class LocalizationService extends Translations {
   static const fallbackLocale = Locale('vi', 'VN');
 
   // Supported language codes
-  static final langCodes = [
-    'en',
-    'vi',
-  ];
+  static final langCodes = ['en', 'vi'];
   // Supported language codes
   static final delegates = [
     GlobalMaterialLocalizations.delegate,
@@ -32,10 +29,7 @@ class LocalizationService extends Translations {
   ];
 
   // Supported locales
-  static final locales = [
-    const Locale('en', 'US'),
-    const Locale('vi', 'VN'),
-  ];
+  static final locales = [const Locale('en', 'US'), const Locale('vi', 'VN')];
 
   // Language options for display (e.g., for dropdown)
   static final langs = LinkedHashMap.from({
@@ -69,7 +63,7 @@ class LocalizationService extends Translations {
     if (newLocale != null) {
       locale = newLocale;
       await Get.updateLocale(locale!);
-      
+
       // Persist language preference
       final box = GetStorage(_storageKey);
       await box.write(_languageKey, langCode);
@@ -82,10 +76,7 @@ class LocalizationService extends Translations {
   }
 
   @override
-  Map<String, Map<String, String>> get keys => {
-        'en_US': en,
-        'vi_VN': vi,
-      };
+  Map<String, Map<String, String>> get keys => {'en_US': en, 'vi_VN': vi};
 
   // Private function to get locale from language code
   static Locale? _getLocaleFromLanguage({String? langCode}) {

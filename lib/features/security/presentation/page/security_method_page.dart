@@ -1,173 +1,355 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
-import 'package:keep_link/core/config/theme/app_text_styles.dart';
-import 'package:keep_link/core/config/assets/app_vectors.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
 import 'package:keep_link/core/presentation/widgets/appbar/custom_app_bar.dart';
-import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
-import 'package:keep_link/core/utils/utils.dart';
-import 'package:keep_link/features/security/application/controller/security_method_controller.dart';
+import 'package:keep_link/core/presentation/widgets/text/list_title_widget.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_extension.dart';
+import 'package:keep_link/features/security/presentation/controller/security_method_controller.dart';
 
 class SecurityMethodPage extends GetView<SecurityMethodController> {
-  static String routeName = "/SecurityMethodPage";
+  static const String routeName = '/SecurityMethodPage';
 
   const SecurityMethodPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(title: "Security Methods"),
+      backgroundColor: AppColors.background,
+      appBar: const CustomAppBar(title: 'Bảo mật', centerTitle: false),
       body: Obx(() {
-        final isAppSecOn = controller.isAppSecurityEnabled.value;
-        final isCatSecOn = controller.isCategorySecurityEnabled.value;
-        final isFingerOn = controller.isFingerprintEnabled.value;
-        final isPinActive = isAppSecOn || isCatSecOn;
-        // Trong lúc chờ xác thực PIN/vân tay cho 1 thao tác, khoá tạm các control khác
-        // để tránh double-tap tạo ra 2 luồng xác thực chồng nhau.
+        if (!controller.isVerified.value) {
+          return const Center(
+            child: SizedBox.square(
+              dimension: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+          );
+        }
+
+        final appLockEnabled = controller.isAppSecurityEnabled.value;
+        final categoryLockEnabled = controller.isCategorySecurityEnabled.value;
+        final backgroundLockEnabled = controller.isBackgroundLockEnabled.value;
+        final biometricEnabled = controller.isFingerprintEnabled.value;
+        final hasActivePin =
+            appLockEnabled || categoryLockEnabled || backgroundLockEnabled;
         final isBusy = controller.isBusy.value;
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                // ==============================
-                // PART 1: SETTING SWITCHES
-                // ==============================
-                Column(
-                  children: [
-                    _buildSwitchItem(
-                      title: "App Security",
-                      value: isAppSecOn,
-                      isEnabled: !isBusy,
-                      onChanged: (_) => controller.toggleAppSecurity(),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildSwitchItem(
-                      title: "Category Security",
-                      value: isCatSecOn,
-                      isEnabled: !isBusy,
-                      onChanged: (_) => controller.toggleCategorySecurity(),
-                    ),
-                  ],
+
+        return Stack(
+          children: [
+            AbsorbPointer(
+              absorbing: isBusy,
+              child: ListView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.only(
+                  top: 12,
+                  bottom: 24 + MediaQuery.paddingOf(context).bottom,
                 ),
-
-                const SizedBox(height: 20),
-
-                // ==============================
-                // PART 2: LARGE OPTION BUTTONS
-                // ==============================
-                SizedBox(
-                  height: Get.height * .6,
-                  child: Column(
+                children: [
+                  _SecuritySummary(
+                    appLockEnabled: appLockEnabled,
+                    categoryLockEnabled: categoryLockEnabled,
+                    backgroundLockEnabled: backgroundLockEnabled,
+                    biometricEnabled: biometricEnabled,
+                  ),
+                  const _SectionHeader(title: 'Lớp bảo vệ'),
+                  _SecuritySectionCard(
                     children: [
-                      // ----- PIN Button -----
-                      Expanded(
-                        child: _buildBigOptionCard(
-                          title: "PIN Code",
-                          iconVector: AppVectors.icPin.path,
-                          isEnabled: isPinActive && !isBusy,
-                          isActive: isPinActive,
-                          onTap: () => controller.changePin(),
+                      ListTitleWidget(
+                        icon: Icons.phonelink_lock_rounded,
+                        title: 'Khóa ứng dụng',
+                        subtitle: 'Yêu cầu mã PIN khi mở',
+                        isActive: appLockEnabled,
+                        onTap: controller.toggleAppSecurity,
+                        trailing: _SmallSwitch(
+                          value: appLockEnabled,
+                          onChanged: (_) => controller.toggleAppSecurity(),
                         ),
                       ),
-
-                      const SizedBox(height: 20),
-
-                      // ----- Fingerprint Button -----
-                      Expanded(
-                        child: _buildBigOptionCard(
-                          title: "Fingerprint",
-                          iconVector: AppVectors.icFinger.path,
-                          isEnabled: isAppSecOn && !isBusy,
-                          isActive: isFingerOn,
-                          onTap: () => controller.toggleFingerprint(),
+                      ListTitleWidget(
+                        icon: Icons.folder_special_outlined,
+                        title: 'Khóa danh mục riêng tư',
+                        subtitle: 'Bảo vệ danh mục riêng tư',
+                        isActive: categoryLockEnabled,
+                        onTap: controller.toggleCategorySecurity,
+                        trailing: _SmallSwitch(
+                          value: categoryLockEnabled,
+                          onChanged: (_) => controller.toggleCategorySecurity(),
+                        ),
+                      ),
+                      ListTitleWidget(
+                        icon: Icons.screen_lock_portrait_rounded,
+                        title: 'Khóa khi quay lại ứng dụng',
+                        subtitle: 'Xác thực khi mở lại từ nền',
+                        isActive: backgroundLockEnabled,
+                        onTap: controller.toggleBackgroundLock,
+                        trailing: _SmallSwitch(
+                          value: backgroundLockEnabled,
+                          onChanged: (_) => controller.toggleBackgroundLock(),
                         ),
                       ),
                     ],
                   ),
-                ),
-
-                SizedBox(height: Get.mediaQuery.padding.bottom),
-              ],
+                  const _SectionHeader(title: 'Phương thức xác thực'),
+                  _SecuritySectionCard(
+                    children: [
+                      ListTitleWidget(
+                        icon: Icons.password_rounded,
+                        title: 'Mã PIN',
+                        subtitle: hasActivePin
+                            ? 'Đổi mã PIN 4 chữ số'
+                            : 'Bật bảo vệ để cài mã PIN',
+                        isActive: hasActivePin,
+                        isEnabled: hasActivePin,
+                        onTap: controller.changePin,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _StatusPill(
+                              text: hasActivePin ? 'Đã thiết lập' : 'Chưa bật',
+                              isActive: hasActivePin,
+                            ),
+                            if (hasActivePin) ...[
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                color: AppColors.n400,
+                                size: 18,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      ListTitleWidget(
+                        icon: Icons.fingerprint_rounded,
+                        title: 'Sinh trắc học',
+                        subtitle: (appLockEnabled || backgroundLockEnabled)
+                            ? 'Dùng vân tay hoặc khuôn mặt'
+                            : 'Bật khóa ứng dụng trước',
+                        isActive: biometricEnabled,
+                        isEnabled: appLockEnabled || backgroundLockEnabled,
+                        onTap: controller.toggleFingerprint,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _StatusPill(
+                              text: biometricEnabled ? 'Đang dùng' : 'Đang tắt',
+                              isActive: biometricEnabled,
+                            ),
+                            if (appLockEnabled || backgroundLockEnabled) ...[
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                color: AppColors.n400,
+                                size: 18,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const _PrivacyNote(),
+                ],
+              ),
             ),
-          ),
+            IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: isBusy ? 1 : 0,
+                duration: const Duration(milliseconds: 160),
+                child: Container(
+                  color: AppColors.background.withOpacityCompat(.28),
+                  alignment: Alignment.center,
+                  child: const SizedBox.square(
+                    dimension: 30,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       }),
     );
   }
+}
 
-  /// Sub widget: Toggle switch row
-  Widget _buildSwitchItem({
-    required String title,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-    bool isEnabled = true,
-  }) {
-    return Opacity(
-      opacity: isEnabled ? 1 : 0.5,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: AppColors.d300),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+class _SecuritySummary extends StatelessWidget {
+  final bool appLockEnabled;
+  final bool categoryLockEnabled;
+  final bool backgroundLockEnabled;
+  final bool biometricEnabled;
+
+  const _SecuritySummary({
+    required this.appLockEnabled,
+    required this.categoryLockEnabled,
+    required this.backgroundLockEnabled,
+    required this.biometricEnabled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final protectionCount = [
+      appLockEnabled,
+      categoryLockEnabled,
+      backgroundLockEnabled,
+    ].where((value) => value).length;
+    final isProtected = protectionCount > 0;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.d500,
+        border: Border.symmetric(
+          horizontal: BorderSide(
+            color: AppColors.white.withOpacityCompat(0.06),
+            width: 1,
+          ),
+        ),
+      ),
+      child: ListTitleWidget(
+        icon: isProtected ? Icons.shield_rounded : Icons.shield_outlined,
+        title: isProtected ? 'Đang được bảo vệ' : 'Chưa bật bảo vệ',
+        subtitle: isProtected
+            ? '$protectionCount lớp bảo vệ${biometricEnabled ? ' • Sinh trắc học' : ''}'
+            : 'Bật bảo vệ để bắt đầu',
+        isActive: isProtected,
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: title.textSemiBold12(),
+    );
+  }
+}
+
+class _SecuritySectionCard extends StatelessWidget {
+  final List<Widget> children;
+
+  const _SecuritySectionCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.d500,
+        border: Border.symmetric(
+          horizontal: BorderSide(
+            color: AppColors.white.withOpacityCompat(0.06),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Material(
+        color: AppColors.transparent,
+        child: Column(
           children: [
-            TextWidget(text: title, textStyle: AppTextStyle.semiBold18),
-            Switch(
-              value: value,
-              onChanged: isEnabled ? onChanged : null,
-              activeThumbColor: AppColors.primary,
-              inactiveTrackColor: Colors.grey.withOpacityCompat(0.3),
-            ),
+            for (int i = 0; i < children.length; i++) ...[
+              children[i],
+              if (i < children.length - 1)
+                Divider(
+                  height: 1,
+                  thickness: 0.5,
+                  indent: 60,
+                  endIndent: 0,
+                  color: AppColors.white.withOpacityCompat(0.08),
+                ),
+            ],
           ],
         ),
       ),
     );
   }
+}
 
-  /// Sub widget: Large option card (PIN / Fingerprint)
-  Widget _buildBigOptionCard({
-    required String title,
-    required String iconVector,
-    required bool isEnabled,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    return Opacity(
-      opacity: isEnabled ? 1 : 0.5,
-      child: IgnorePointer(
-        ignoring: !isEnabled,
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColors.d300,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                width: isActive ? 2 : 0,
-                color: isActive ? AppColors.primary : Colors.transparent,
-              ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Utils.showIconsSvg(
-                  iconVector,
-                  width: Get.width * 0.25,
-                  color: isActive ? AppColors.primary : AppColors.t200,
-                ),
-                const SizedBox(height: 12),
-                TextWidget(
-                  text: title,
-                  textStyle: AppTextStyle.bold36,
-                  color: isActive ? AppColors.primary : AppColors.t200,
-                ),
-              ],
+class _SmallSwitch extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  const _SmallSwitch({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.scale(
+      scale: 0.72,
+      alignment: Alignment.centerRight,
+      child: Switch.adaptive(
+        value: value,
+        activeTrackColor: AppColors.primary,
+        activeThumbColor: AppColors.primaryContainer,
+        inactiveThumbColor: AppColors.n400,
+        inactiveTrackColor: AppColors.white.withOpacityCompat(0.12),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        onChanged: (val) {
+          HapticFeedback.selectionClick();
+          onChanged(val);
+        },
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  final String text;
+  final bool isActive;
+
+  const _StatusPill({required this.text, required this.isActive});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: isActive
+            ? AppColors.primary.withOpacityCompat(0.16)
+            : AppColors.white.withOpacityCompat(0.06),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: text.textSemiBold10(
+        color: isActive
+            ? AppColors.primaryContainer
+            : AppColors.onSurfaceVariant,
+      ),
+    );
+  }
+}
+
+class _PrivacyNote extends StatelessWidget {
+  const _PrivacyNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 14,
+            color: AppColors.n400,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: 'Mã PIN được mã hóa an toàn trên thiết bị.'.textRegular10(
+              color: AppColors.n400,
+              maxLines: 1,
             ),
           ),
-        ),
+        ],
       ),
     );
   }

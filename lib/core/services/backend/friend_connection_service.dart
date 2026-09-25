@@ -85,7 +85,9 @@ class FriendConnectionService {
       return rawInput;
     }
 
-    final match = RegExp(r'keeplink://open/friend\?data=[^\s]+').firstMatch(rawInput);
+    final match = RegExp(
+      r'keeplink://open/friend\?data=[^\s]+',
+    ).firstMatch(rawInput);
     return match?.group(0);
   }
 }

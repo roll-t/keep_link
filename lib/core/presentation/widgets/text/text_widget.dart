@@ -20,6 +20,9 @@ class TextWidget extends StatelessWidget {
   final Color? decorationColor; // << NEW
   final EdgeInsets padding;
   final bool? colorFixed;
+  final double? height;
+  final double? letterSpacing;
+  final TextOverflow? overflow;
 
   const TextWidget({
     super.key,
@@ -38,6 +41,9 @@ class TextWidget extends StatelessWidget {
     this.transform = TextTransformType.normal,
     this.textStyle,
     this.padding = EdgeInsets.zero,
+    this.height,
+    this.letterSpacing,
+    this.overflow = TextOverflow.ellipsis,
   });
 
   String _applyTransform(String value) {
@@ -81,7 +87,9 @@ class TextWidget extends StatelessWidget {
           fontWeight: textStyle?.fontWeight ?? fontWeight,
           decoration: textDecoration,
           decorationColor: decorationColor, // << NEW
-          overflow: TextOverflow.ellipsis,
+          overflow: overflow,
+          height: height,
+          letterSpacing: letterSpacing,
         ),
       ),
     );

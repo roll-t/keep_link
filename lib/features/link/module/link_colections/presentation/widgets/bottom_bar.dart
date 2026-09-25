@@ -1,6 +1,5 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
@@ -9,85 +8,68 @@ import 'package:keep_link/features/link/module/link_colections/presentation/cont
 import 'package:keep_link/features/link/module/link_search/presentation/page/search_link_page.dart';
 import 'package:keep_link/features/personal/presentation/page/personal_page.dart';
 
-// ─── Controller (Giữ nguyên) ───────────────────────────────────────────────────
-class BottomBarController extends GetxController with GetSingleTickerProviderStateMixin {
-  final selectedIndex = 0.obs;
+class BottomBarController extends GetxController {
   final isAddPressed = false.obs;
-  late AnimationController pulseController;
+  bool _isNavigating = false;
 
-  @override
-  void onInit() {
-    super.onInit();
-    pulseController = AnimationController(vsync: this, duration: const Duration(milliseconds: 2000))
-      ..repeat(reverse: true);
-  }
-
-  @override
-  void onClose() {
-    pulseController.dispose();
-    super.onClose();
-  }
-
-  void selectTab(int index) {
-    selectedIndex.value = index;
-    if (index == 0) {
-      Get.toNamed(SearchLinkPage.routeName);
-    } else if (index == 1) {
-      Get.toNamed(PersonalPage.routeName);
+  Future<void> openPage(String routeName) async {
+    if (_isNavigating) return;
+    _isNavigating = true;
+    try {
+      await Get.toNamed(routeName);
+    } finally {
+      _isNavigating = false;
     }
   }
 
-  Future<void> pressAdd(VoidCallback? onTap) async {
+  Future<void> addLink() async {
+    if (_isNavigating) return;
+    _isNavigating = true;
     isAddPressed.value = true;
-    await Future.delayed(const Duration(milliseconds: 150));
-    isAddPressed.value = false;
-    onTap?.call();
+    HapticFeedback.lightImpact();
+
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 90));
+      isAddPressed.value = false;
+      final result = await Get.toNamed(AddLinkPage.routeName);
+      if (result == true && Get.isRegistered<LinkCollectionController>()) {
+        Get.find<LinkCollectionController>().refreshData();
+      }
+    } finally {
+      isAddPressed.value = false;
+      _isNavigating = false;
+    }
   }
 }
 
-class _NavItem {
-  final IconData icon;
-  final String label;
-  const _NavItem(this.icon, this.label);
-}
-
-// ─── Main widget (Chỉnh Stack để nút nhô cao) ──────────────────────────────────
+/// Dock điều hướng trên màn hình thư viện.
+///
+/// Tìm kiếm và Cá nhân là các hành động mở trang mới, không phải tab được chọn,
+/// vì vậy thanh này không hiển thị trạng thái selected gây hiểu nhầm.
 class GlassBottomBar extends StatelessWidget {
   const GlassBottomBar({super.key});
-
-  static final _navItems = [
-    _NavItem(Icons.search_rounded, 'Search'),
-    _NavItem(Icons.person_outline_rounded, 'Profile'),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    final ctrl = Get.put(BottomBarController());
-    final sidePadding = MediaQuery.sizeOf(context).width * 0.12;
+    final controller = Get.put(BottomBarController());
+    final screenWidth = MediaQuery.sizeOf(context).width;
 
-    return Padding(
-      padding: EdgeInsets.only(left: sidePadding, right: sidePadding),
+    // Chiều rộng lý tưởng cho dock gồm 2 tab + 1 nút Add ở giữa là ~210 - 224px.
+    // Dùng clamp:
+    // - Khóa tối đa 224px để không bị bè ngang, dư khoảng trống trên màn hình lớn / tablet.
+    // - Giảm về tối thiểu 190px trên màn hình siêu nhỏ để không bị tràn viền.
+    final dockWidth = (screenWidth - 100).clamp(190.0, 224.0);
+
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 6),
       child: SizedBox(
-        height: 85, // Tăng chiều cao tổng để có không gian nhô lên
+        width: dockWidth,
+        height: 62,
         child: Stack(
-          clipBehavior: Clip.none,
           alignment: Alignment.bottomCenter,
           children: [
-            // Thanh Menu bo tròn phẳng phía dưới
-            _DarkBar(items: _navItems, ctrl: ctrl),
-
-            // Nút Add nằm ở vị trí cao hơn hẳn
-            Positioned(
-              top: 0, // Đưa lên sát đỉnh của SizedBox
-              child: _AddButton(
-                ctrl: ctrl,
-                onTap: () => Get.toNamed(AddLinkPage.routeName)?.then((success) {
-                  if (success is bool && success) {
-                    Get.find<LinkCollectionController>().refreshData();
-                  }
-                }),
-              ),
-            ),
+            _NavigationDock(controller: controller),
+            Positioned(top: 0, child: _AddButton(controller: controller)),
           ],
         ),
       ),
@@ -95,49 +77,102 @@ class GlassBottomBar extends StatelessWidget {
   }
 }
 
-// ─── Glass Bar phẳng bo tròn 2 đầu ───────────────────────────────────────────
-class _DarkBar extends StatelessWidget {
-  final List<_NavItem> items;
-  final BottomBarController ctrl;
+class _NavigationDock extends StatelessWidget {
+  const _NavigationDock({required this.controller});
 
-  const _DarkBar({required this.items, required this.ctrl});
+  final BottomBarController controller;
 
   @override
   Widget build(BuildContext context) {
-    const barRadius = BorderRadius.all(Radius.circular(30));
+    const radius = BorderRadius.all(Radius.circular(20));
 
     return Container(
-      height: 60, // Chiều cao thanh menu thấp hơn SizedBox tổng
+      height: 54,
       decoration: BoxDecoration(
-        borderRadius: barRadius,
+        borderRadius: radius,
         boxShadow: [
           BoxShadow(
-            color: AppColors.black.withOpacityCompat(0.2),
+            color: AppColors.black.withOpacityCompat(.3),
             blurRadius: 20,
-            offset: const Offset(0, 10),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: barRadius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color.fromARGB(255, 30, 35, 46).withOpacityCompat(0.75),
-              borderRadius: barRadius,
-              border: Border.all(color: Colors.white.withOpacityCompat(0.12), width: 1.2),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _NavItemWidget(item: items[0], index: 0, ctrl: ctrl),
-                  SizedBox(width: 60),
-                  _NavItemWidget(item: items[1], index: 1, ctrl: ctrl),
-                ],
+        borderRadius: radius,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.navigationSurface.withOpacityCompat(.98),
+            borderRadius: radius,
+            border: Border.all(color: AppColors.white.withOpacityCompat(.1)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _DockAction(
+                  icon: Icons.search_rounded,
+                  label: 'Search'.tr,
+                  onTap: () => controller.openPage(SearchLinkPage.routeName),
+                ),
               ),
+              const SizedBox(width: 64),
+              Expanded(
+                child: _DockAction(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Personal'.tr,
+                  onTap: () => controller.openPage(PersonalPage.routeName),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DockAction extends StatelessWidget {
+  const _DockAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: AppColors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(18),
+          child: SizedBox.expand(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: AppColors.primaryContainer, size: 20),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.n70,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -146,75 +181,59 @@ class _DarkBar extends StatelessWidget {
   }
 }
 
-// ─── Các component hỗ trợ (Giữ nguyên logic animation thở) ─────────────────────
-class _NavItemWidget extends StatelessWidget {
-  final _NavItem item;
-  final int index;
-  final BottomBarController ctrl;
-  const _NavItemWidget({required this.item, required this.index, required this.ctrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: IconButton(
-        onPressed: () => ctrl.selectTab(index),
-        icon: Icon(item.icon, color: const Color.fromARGB(255, 103, 110, 255), size: 28),
-      ),
-    );
-  }
-}
-
 class _AddButton extends StatelessWidget {
-  final BottomBarController ctrl;
-  final VoidCallback? onTap;
-  const _AddButton({required this.ctrl, this.onTap});
+  const _AddButton({required this.controller});
+
+  final BottomBarController controller;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => ctrl.pressAdd(onTap),
-      child: Obx(() {
-        final pressed = ctrl.isAddPressed.value;
-        return AnimatedScale(
-          scale: pressed ? 0.88 : 1.0,
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOutBack,
-          child: AnimatedBuilder(
-            animation: ctrl.pulseController,
-            builder: (context, child) {
-              final value = ctrl.pulseController.value;
-              final shadowSpread = 15.0 + (value * 10.0);
-              final shadowOpacity = 0.3 + (value * 0.2);
-
-              return Container(
-                width: 62, // Tăng nhẹ kích thước nút Add
-                height: 62,
+    return Tooltip(
+      message: 'Add Link'.tr,
+      child: Semantics(
+        button: true,
+        label: 'Add Link'.tr,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: controller.addLink,
+          child: Obx(() {
+            final pressed = controller.isAddPressed.value;
+            return AnimatedScale(
+              scale: pressed ? .9 : 1,
+              duration: const Duration(milliseconds: 120),
+              curve: Curves.easeOutCubic,
+              child: Container(
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment(0, -1.0 + (value * 0.5)),
-                    end: Alignment(0, 1.0 + (value * 0.5)),
-                    colors: const [
-                      Color.fromARGB(255, 149, 197, 255),
-                      AppColors.primary,
-                      Color.fromARGB(255, 120, 160, 255),
-                    ],
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.primaryBright, AppColors.primary],
+                  ),
+                  border: Border.all(
+                    color: AppColors.navigationSurface,
+                    width: 4,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacityCompat(pressed ? 0.2 : shadowOpacity),
-                      blurRadius: pressed ? 10 : shadowSpread,
-                      spreadRadius: pressed ? 0 : (value * 4),
-                      offset: Offset(0, 4 + (value * 2)),
+                      color: AppColors.primary.withOpacityCompat(.32),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
                     ),
                   ],
                 ),
-                child: const Center(child: Icon(Icons.add_rounded, color: Colors.white, size: 36)),
-              );
-            },
-          ),
-        );
-      }),
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: AppColors.white,
+                  size: 26,
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
     );
   }
 }

@@ -2,7 +2,10 @@ import 'package:get/get.dart';
 
 class DependencyUtils {
   /// Put dependency immediately if it is not registered yet
-  static T put<T extends Object>(T Function() builder, {bool permanent = false}) {
+  static T put<T extends Object>(
+    T Function() builder, {
+    bool permanent = false,
+  }) {
     if (!Get.isRegistered<T>()) {
       return Get.put<T>(builder(), permanent: permanent);
     } else {
@@ -11,7 +14,10 @@ class DependencyUtils {
   }
 
   /// Put dependency lazily if it is not registered yet
-  static void lazyPut<T extends Object>(T Function() builder, {bool fenix = false}) {
+  static void lazyPut<T extends Object>(
+    T Function() builder, {
+    bool fenix = false,
+  }) {
     if (!Get.isRegistered<T>()) {
       Get.lazyPut<T>(builder, fenix: fenix);
     }

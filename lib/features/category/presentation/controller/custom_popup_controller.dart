@@ -24,12 +24,20 @@ class CustomPopupController extends GetxController {
     isEnableSecurity.value = AppGetStorage.isCategorySecurity();
   }
 
-  Future<void> selectItem(ItemModel item) async {
-    if (item.visibility == VisibilityStatus.private && AppGetStorage.isCategorySecurity()) {
+  @override
+  void onClose() {
+    scrollController.dispose();
+    super.onClose();
+  }
+
+  Future<bool> selectItem(ItemModel item) async {
+    if (item.visibility == VisibilityStatus.private &&
+        AppGetStorage.isCategorySecurity()) {
       final bool isAuth = await Utils.verifySecurity();
-      if (!isAuth) return;
+      if (!isAuth) return false;
     }
     selectedItem.value = item;
+    return true;
   }
 
   /// Auto scroll đến item đang chọn khi pop mở lại
@@ -38,8 +46,15 @@ class CustomPopupController extends GetxController {
     final index = items.indexWhere((e) => e.id == selectedItem.value?.id);
     if (index >= 0) {
       Future.delayed(const Duration(milliseconds: 200), () {
+        // Popup/controller may have been closed during the delay. Avoid using
+        // a disposed ScrollController and only scroll once the list is mounted.
+        if (isClosed || !scrollController.hasClients) return;
+        final target = (index * itemHeight).clamp(
+          scrollController.position.minScrollExtent,
+          scrollController.position.maxScrollExtent,
+        );
         scrollController.animateTo(
-          index * itemHeight,
+          target,
           duration: const Duration(milliseconds: 400),
           curve: Curves.easeOutBack,
         );

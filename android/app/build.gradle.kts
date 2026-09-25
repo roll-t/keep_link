@@ -49,8 +49,8 @@ android {
         applicationId = "com.phamtruong.keeplink"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 15
-        versionName = "1.0.4"
+        versionCode = 19
+        versionName = "1.0.5"
     }
 
     buildTypes {

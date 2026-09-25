@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/data/repositories/friend_repository.dart';
@@ -26,24 +27,40 @@ class FriendController extends GetxController {
   final searchController = TextEditingController();
   final RxString searchQuery = ''.obs;
   final RxBool isLoading = false.obs;
+  final RxnString errorMessage = RxnString();
   final RxBool isSearching = false.obs;
-  final RxBool favoritesOnly = false.obs;
   final RxList<FriendModel> visibleFriends = <FriendModel>[].obs;
-  final RxList<FriendRequestModel> incomingRequests = <FriendRequestModel>[].obs;
+  final RxList<FriendRequestModel> incomingRequests =
+      <FriendRequestModel>[].obs;
   final RxList<String> pendingRequestUserIds = <String>[].obs;
+  final RxSet<String> processingRequestUserIds = <String>{}.obs;
+  final Set<String> _sendingRequestUserIds = {};
+  final Set<String> _deletingFriendUserIds = {};
   StreamSubscription<List<FriendRequestModel>>? _requestWatcher;
   StreamSubscription<Set<String>>? _sharedCategoryWatcher;
+  StreamSubscription<Set<String>>? _sharedLinkWatcher;
   StreamSubscription<int>? _friendsWatcher;
   StreamSubscription<User?>? _authSub;
-  final Map<String, StreamSubscription<Map<String, int>>> _linkCountWatchers = {};
+  final Map<String, StreamSubscription<Map<String, int>>> _linkCountWatchers =
+      {};
+  final Map<String, Set<String>> _watchedCategoryIds = {};
   final Map<String, int> _knownLinkCounts = {}; // key: "ownerUid/catId"
+  Future<void>? _fetchFuture;
+  Future<void>? _syncFuture;
+  bool _fetchQueued = false;
+  bool _forceRemoteOnNextFetch = false;
+  String? _activeUserId;
+  bool _isFriendPageActive = false;
   bool _isInitialLoad = true;
   bool _isSharedInitialLoad = true;
+  bool _isSharedLinkInitialLoad = true;
   bool _isFriendsInitialLoad = true;
   Set<String> _knownSharedKeys = {};
+  Set<String> _knownSharedLinkKeys = {};
+  Set<String> _unseenCategoryKeys = {};
+  Set<String> _unseenLinkKeys = {};
 
   int get totalFriends => AppCache.friends.length;
-  int get favoriteFriends => AppCache.friends.where((friend) => friend.isFavorite).length;
   int get remainingSlots => maxFriends - totalFriends;
   bool get hasReachedLimit => totalFriends >= maxFriends;
 
@@ -51,15 +68,21 @@ class FriendController extends GetxController {
   void onInit() {
     super.onInit();
     final initialUser = FirebaseService.currentUser;
+    _activeUserId = initialUser?.uid;
     currentUser.value = initialUser;
     searchController.addListener(() {
       searchQuery.value = searchController.text;
     });
-    debounce(searchQuery, (_) => _applyFilters(), time: const Duration(milliseconds: 200));
+    debounce(
+      searchQuery,
+      (_) => _applyFilters(),
+      time: const Duration(milliseconds: 200),
+    );
     ever(AppCache.friends, (_) => _applyFilters());
     fetchFriends();
     _startRequestWatcher();
     _startSharedCategoryWatcher();
+    _startSharedLinkWatcher();
     _startFriendsWatcher();
     // `authStateChanges` always replays the current auth state as its first
     // event. Without this guard that first event repeats the exact fetch +
@@ -70,11 +93,23 @@ class FriendController extends GetxController {
         isFirstAuthEvent = false;
         if (user?.uid == initialUser?.uid) return;
       }
+      final nextUserId = user?.uid;
+      final accountChanged = _activeUserId != nextUserId;
+      _activeUserId = nextUserId;
       currentUser.value = user;
+      if (accountChanged) {
+        // Never keep another account's friends on screen or restore their
+        // local favorites while the new account is being fetched.
+        AppCache.invalidateFriends();
+        visibleFriends.clear();
+        pendingRequestUserIds.clear();
+        _forceRemoteOnNextFetch = user != null;
+      }
       if (user != null) {
         fetchFriends();
         _startRequestWatcher();
         _startSharedCategoryWatcher();
+        _startSharedLinkWatcher();
         _startFriendsWatcher();
       } else {
         _requestWatcher?.cancel();
@@ -83,12 +118,18 @@ class FriendController extends GetxController {
         pendingRequestCount.value = 0;
         _sharedCategoryWatcher?.cancel();
         _sharedCategoryWatcher = null;
+        _sharedLinkWatcher?.cancel();
+        _sharedLinkWatcher = null;
         _knownSharedKeys = {};
+        _knownSharedLinkKeys = {};
+        _unseenCategoryKeys = {};
+        _unseenLinkKeys = {};
         pendingSharedCount.value = 0;
         for (final sub in _linkCountWatchers.values) {
           sub.cancel();
         }
         _linkCountWatchers.clear();
+        _watchedCategoryIds.clear();
         _knownLinkCounts.clear();
         _friendsWatcher?.cancel();
         _friendsWatcher = null;
@@ -101,11 +142,13 @@ class FriendController extends GetxController {
     _authSub?.cancel();
     _requestWatcher?.cancel();
     _sharedCategoryWatcher?.cancel();
+    _sharedLinkWatcher?.cancel();
     _friendsWatcher?.cancel();
     for (final sub in _linkCountWatchers.values) {
       sub.cancel();
     }
     _linkCountWatchers.clear();
+    _watchedCategoryIds.clear();
     searchController.dispose();
     super.onClose();
   }
@@ -151,12 +194,10 @@ class FriendController extends GetxController {
           _isFriendsInitialLoad = false;
           return;
         }
-        // Khi số lượng tăng (bị ai đó chấp nhận lời mời) → sync lại
-        if (remoteCount > lastCount) {
+        // Đồng bộ cả khi tăng lẫn giảm (người phía bên kia có thể xoá kết nối).
+        if (remoteCount != lastCount) {
           lastCount = remoteCount;
-          await _syncRemoteFriendState();
-        } else {
-          lastCount = remoteCount;
+          await _syncRemoteFriendState(includeOutgoingRequests: false);
         }
       },
       onError: (Object _) {
@@ -179,37 +220,111 @@ class FriendController extends GetxController {
           _knownSharedKeys = Set.from(keys);
           // So sánh với keys đã xem lần trước (lưu local)
           final seenKeys = AppGetStorage.getSeenSharedKeys(uid);
-          final unseen = keys.difference(seenKeys);
-          pendingSharedCount.value = unseen.length;
-          // Bắt đầu watch link counts cho tất cả shared categories
-          _reconcileLinkWatchers(keys);
+          _unseenCategoryKeys = _isFriendPageActive
+              ? <String>{}
+              : keys.difference(seenKeys);
+          if (_isFriendPageActive) _saveSeenKeys(uid);
+          _updatePendingSharedCount();
+          if (_isFriendPageActive) _reconcileLinkWatchers(keys);
           return;
         }
         // Real-time: có key mới xuất hiện
         final newKeys = keys.difference(_knownSharedKeys);
         final removedKeys = _knownSharedKeys.difference(keys);
         if (newKeys.isNotEmpty) {
-          pendingSharedCount.value += newKeys.length;
-          LocalNotificationService.showSharedCategoryNotification(
-            title: 'Linkeep',
-            body: 'shared_new_category_received'.tr,
-          );
+          if (_isFriendPageActive) {
+            _refreshSharedDataIfVisible();
+          } else {
+            _unseenCategoryKeys.addAll(newKeys);
+            LocalNotificationService.showSharedCategoryNotification(
+              title: 'Linkeep',
+              body: 'shared_new_category_received'.tr,
+            );
+          }
         }
+        _unseenCategoryKeys.removeAll(removedKeys);
+        _updatePendingSharedCount();
         if (newKeys.isNotEmpty || removedKeys.isNotEmpty) {
           SharedCategoryController.invalidateCache();
+          if (removedKeys.isNotEmpty && _isFriendPageActive) {
+            _refreshSharedDataIfVisible();
+          }
         }
         _knownSharedKeys = Set.from(keys);
-        // Cập nhật link watchers khi shared categories thay đổi
-        _reconcileLinkWatchers(keys);
+        if (_isFriendPageActive) _reconcileLinkWatchers(keys);
       },
       onError: (Object error) {
         _sharedCategoryWatcher?.cancel();
         _sharedCategoryWatcher = null;
         _knownSharedKeys = {};
-        pendingSharedCount.value = 0;
+        _unseenCategoryKeys = {};
+        _updatePendingSharedCount();
       },
       cancelOnError: true,
     );
+  }
+
+  void _startSharedLinkWatcher() {
+    final uid = FirebaseService.currentUser?.uid;
+    if (uid == null) return;
+    _sharedLinkWatcher?.cancel();
+    _isSharedLinkInitialLoad = true;
+    _sharedLinkWatcher = FirebaseService.watchSharedLinkAccess().listen(
+      (keys) {
+        final prefixedKeys = keys.map((key) => 'link:$key').toSet();
+        if (_isSharedLinkInitialLoad) {
+          _isSharedLinkInitialLoad = false;
+          _knownSharedLinkKeys = Set.from(keys);
+          final seenKeys = AppGetStorage.getSeenSharedKeys(uid);
+          _unseenLinkKeys = _isFriendPageActive
+              ? <String>{}
+              : prefixedKeys.difference(seenKeys);
+          if (_isFriendPageActive) _saveSeenKeys(uid);
+          _updatePendingSharedCount();
+          return;
+        }
+
+        final newKeys = keys.difference(_knownSharedLinkKeys);
+        final removedKeys = _knownSharedLinkKeys.difference(keys);
+        if (newKeys.isNotEmpty) {
+          SharedCategoryController.invalidateCache();
+          if (_isFriendPageActive) {
+            _refreshSharedDataIfVisible();
+          } else {
+            _unseenLinkKeys.addAll(newKeys.map((key) => 'link:$key'));
+            LocalNotificationService.showSharedCategoryNotification(
+              title: 'Linkeep',
+              body: 'shared_new_link_received'.tr,
+            );
+          }
+        }
+        _unseenLinkKeys.removeAll(removedKeys.map((key) => 'link:$key'));
+        if (removedKeys.isNotEmpty) {
+          SharedCategoryController.invalidateCache();
+          if (_isFriendPageActive) _refreshSharedDataIfVisible();
+        }
+        _knownSharedLinkKeys = Set.from(keys);
+        _updatePendingSharedCount();
+      },
+      onError: (Object _) {
+        _sharedLinkWatcher?.cancel();
+        _sharedLinkWatcher = null;
+        _knownSharedLinkKeys = {};
+        _unseenLinkKeys = {};
+        _updatePendingSharedCount();
+      },
+      cancelOnError: true,
+    );
+  }
+
+  void _updatePendingSharedCount() {
+    pendingSharedCount.value =
+        _unseenCategoryKeys.length + _unseenLinkKeys.length;
+  }
+
+  void _refreshSharedDataIfVisible() {
+    if (!Get.isRegistered<SharedCategoryController>()) return;
+    Get.find<SharedCategoryController>().loadAllSharedData(force: true);
   }
 
   /// Đánh dấu tất cả danh mục chia sẻ hiện tại là "đã xem"
@@ -217,13 +332,21 @@ class FriendController extends GetxController {
     final uid = FirebaseService.currentUser?.uid;
     if (uid == null) return;
     pendingSharedCount.value = 0;
+    if (Get.isRegistered<FriendController>()) {
+      final ctrl = Get.find<FriendController>();
+      ctrl._unseenCategoryKeys.clear();
+      ctrl._unseenLinkKeys.clear();
+    }
     _saveSeenKeys(uid);
   }
 
   static void _saveSeenKeys(String uid) {
     if (Get.isRegistered<FriendController>()) {
       final ctrl = Get.find<FriendController>();
-      AppGetStorage.setSeenSharedKeys(uid, Set.from(ctrl._knownSharedKeys));
+      AppGetStorage.setSeenSharedKeys(uid, {
+        ...ctrl._knownSharedKeys,
+        ...ctrl._knownSharedLinkKeys.map((key) => 'link:$key'),
+      });
     }
   }
 
@@ -245,9 +368,12 @@ class FriendController extends GetxController {
     final ownerCats = _ownerCatMap(keys);
 
     // Cancel watchers for owners no longer in the shared set
-    final removed = _linkCountWatchers.keys.where((o) => !ownerCats.containsKey(o)).toList();
+    final removed = _linkCountWatchers.keys
+        .where((o) => !ownerCats.containsKey(o))
+        .toList();
     for (final owner in removed) {
       _linkCountWatchers.remove(owner)?.cancel();
+      _watchedCategoryIds.remove(owner);
       _knownLinkCounts.removeWhere((k, _) => k.startsWith('$owner/'));
     }
 
@@ -258,8 +384,17 @@ class FriendController extends GetxController {
   }
 
   void _startLinkWatcherForOwner(String ownerUid, Set<String> catIds) {
-    // Cancel existing watcher before replacing (catIds may have changed)
+    final current = _watchedCategoryIds[ownerUid];
+    if (current != null &&
+        current.length == catIds.length &&
+        current.every(catIds.contains) &&
+        _linkCountWatchers.containsKey(ownerUid)) {
+      return;
+    }
+
+    // Chỉ thay listener khi tập category thực sự thay đổi.
     _linkCountWatchers.remove(ownerUid)?.cancel();
+    _watchedCategoryIds[ownerUid] = Set.from(catIds);
 
     bool isInitial = true;
     _linkCountWatchers[ownerUid] =
@@ -294,41 +429,93 @@ class FriendController extends GetxController {
               // (stream trong SharedCategoryController đã tự update)
               String? viewingCatId;
               if (Get.isRegistered<SharedCategoryController>()) {
-                final active = Get.find<SharedCategoryController>().activeSharedCategory;
+                final active =
+                    Get.find<SharedCategoryController>().activeSharedCategory;
                 if (active != null && active.ownerUid == ownerUid) {
                   viewingCatId = active.categoryId;
                 }
               }
-              final unviewedCount = newLinkCatIds.where((id) => id != viewingCatId).length;
+              final unviewedCount = newLinkCatIds
+                  .where((id) => id != viewingCatId)
+                  .length;
               if (unviewedCount > 0) {
-                pendingSharedCount.value += unviewedCount;
+                _unseenCategoryKeys.addAll(
+                  newLinkCatIds
+                      .where((id) => id != viewingCatId)
+                      .map((id) => '$ownerUid/$id'),
+                );
+                _updatePendingSharedCount();
               }
             }
           },
           onError: (Object _) {
             _linkCountWatchers.remove(ownerUid)?.cancel();
+            _watchedCategoryIds.remove(ownerUid);
           },
           cancelOnError: true,
         );
   }
 
+  void setFriendPageActive(bool active) {
+    if (_isFriendPageActive == active) return;
+    _isFriendPageActive = active;
+    if (active) {
+      _reconcileLinkWatchers(_knownSharedKeys);
+      return;
+    }
+    for (final sub in _linkCountWatchers.values) {
+      sub.cancel();
+    }
+    _linkCountWatchers.clear();
+    _watchedCategoryIds.clear();
+    _knownLinkCounts.clear();
+  }
+
   Future<void> fetchFriends() async {
+    final pending = _fetchFuture;
+    if (pending != null) {
+      // Authentication may change while an earlier account fetch is still in
+      // flight. Queue one fresh pass instead of dropping the new request.
+      _fetchQueued = true;
+      return pending;
+    }
+    final fetch = _performFetchFriends();
+    _fetchFuture = fetch;
     try {
-      isLoading.value = true;
-      await FriendRepository.ensureLoaded();
-      await _syncRemoteFriendState();
-      _applyFilters();
-      if (Get.isRegistered<SharedCategoryController>()) {
-        Get.find<SharedCategoryController>().loadSharedCategories();
-      }
+      await fetch;
     } finally {
-      isLoading.value = false;
+      if (identical(_fetchFuture, fetch)) _fetchFuture = null;
+    }
+    if (_fetchQueued) {
+      _fetchQueued = false;
+      await fetchFriends();
     }
   }
 
-  void toggleFavoritesOnly() {
-    favoritesOnly.value = !favoritesOnly.value;
-    _applyFilters();
+  Future<void> _performFetchFriends() async {
+    try {
+      errorMessage.value = null;
+      isLoading.value = !AppCache.friendsLoaded;
+      final forceRemote = _forceRemoteOnNextFetch;
+      final targetUserId = FirebaseService.currentUser?.uid;
+      if (!forceRemote) {
+        await FriendRepository.ensureLoaded();
+        _applyFilters();
+      }
+      await _syncRemoteFriendState(
+        preserveFavorites: !forceRemote,
+        requireFresh: forceRemote,
+      );
+      if (forceRemote && FirebaseService.currentUser?.uid == targetUserId) {
+        _forceRemoteOnNextFetch = false;
+      }
+      _applyFilters();
+    } catch (error) {
+      debugPrint('Fetch friends error: $error');
+      errorMessage.value = 'Không thể tải danh sách bạn bè. Vui lòng thử lại.';
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   void openSearch() => isSearching.value = true;
@@ -343,25 +530,37 @@ class FriendController extends GetxController {
   Future<bool> addFriendFromLink(String rawInput) async {
     final currentUser = FirebaseService.currentUser;
     if (currentUser == null) {
-      AppToast.showToast('friend_sign_in_required'.tr, Icons.login_rounded, color: Colors.orange);
+      AppToast.showToast(
+        'friend_sign_in_required'.tr,
+        Icons.login_rounded,
+        color: AppColors.warning,
+      );
       return false;
     }
     if (hasReachedLimit) {
       AppToast.showToast(
         'friend_limit_reached'.trParams({'0': '$maxFriends'}),
         Icons.people_outline_rounded,
-        color: Colors.orange,
+        color: AppColors.warning,
       );
       return false;
     }
 
     final payload = FriendConnectionService.parseLink(rawInput);
     if (payload == null) {
-      AppToast.showToast('friend_invalid_link'.tr, Icons.error_outline_rounded, color: Colors.red);
+      AppToast.showToast(
+        'friend_invalid_link'.tr,
+        Icons.error_outline_rounded,
+        color: AppColors.error,
+      );
       return false;
     }
     if (payload.userId == currentUser.uid) {
-      AppToast.showToast('friend_cannot_add_self'.tr, Icons.info_outline_rounded, color: Colors.orange);
+      AppToast.showToast(
+        'friend_cannot_add_self'.tr,
+        Icons.info_outline_rounded,
+        color: AppColors.warning,
+      );
       return false;
     }
 
@@ -369,7 +568,11 @@ class FriendController extends GetxController {
       (friend) => friend.friendUserId == payload.userId,
     );
     if (existing != null) {
-      AppToast.showToast('friend_already_exists'.tr, Icons.info_outline_rounded, color: Colors.orange);
+      AppToast.showToast(
+        'friend_already_exists'.tr,
+        Icons.info_outline_rounded,
+        color: AppColors.warning,
+      );
       return false;
     }
 
@@ -384,26 +587,40 @@ class FriendController extends GetxController {
 
   Future<bool> addFriendFromEmail(String rawEmail) async {
     final email = rawEmail.trim().toLowerCase();
-    if (email.isEmpty || !GetUtils.isEmail(email) || !email.endsWith('@gmail.com')) {
-      AppToast.showToast('friend_invalid_email'.tr, Icons.error_outline_rounded, color: Colors.red);
+    if (email.isEmpty ||
+        !GetUtils.isEmail(email) ||
+        !email.endsWith('@gmail.com')) {
+      AppToast.showToast(
+        'friend_invalid_email'.tr,
+        Icons.error_outline_rounded,
+        color: AppColors.error,
+      );
       return false;
     }
 
     final currentUser = FirebaseService.currentUser;
     if (currentUser == null) {
-      AppToast.showToast('friend_sign_in_required'.tr, Icons.login_rounded, color: Colors.orange);
+      AppToast.showToast(
+        'friend_sign_in_required'.tr,
+        Icons.login_rounded,
+        color: AppColors.warning,
+      );
       return false;
     }
     if (hasReachedLimit) {
       AppToast.showToast(
         'friend_limit_reached'.trParams({'0': '$maxFriends'}),
         Icons.people_outline_rounded,
-        color: Colors.orange,
+        color: AppColors.warning,
       );
       return false;
     }
     if ((currentUser.email ?? '').trim().toLowerCase() == email) {
-      AppToast.showToast('friend_cannot_add_self'.tr, Icons.info_outline_rounded, color: Colors.orange);
+      AppToast.showToast(
+        'friend_cannot_add_self'.tr,
+        Icons.info_outline_rounded,
+        color: AppColors.warning,
+      );
       return false;
     }
 
@@ -411,13 +628,21 @@ class FriendController extends GetxController {
       (friend) => (friend.email ?? '').trim().toLowerCase() == email,
     );
     if (existingByEmail != null) {
-      AppToast.showToast('friend_already_exists'.tr, Icons.info_outline_rounded, color: Colors.orange);
+      AppToast.showToast(
+        'friend_already_exists'.tr,
+        Icons.info_outline_rounded,
+        color: AppColors.warning,
+      );
       return false;
     }
 
     final profile = await FirebaseService.findUserProfileByEmail(email);
     if (profile == null) {
-      AppToast.showToast('friend_email_not_found'.tr, Icons.error_outline_rounded, color: Colors.red);
+      AppToast.showToast(
+        'friend_email_not_found'.tr,
+        Icons.error_outline_rounded,
+        color: AppColors.error,
+      );
       return false;
     }
 
@@ -427,16 +652,26 @@ class FriendController extends GetxController {
     final profilePhoto = profile['photoUrl'];
 
     if (userId.isEmpty) {
-      AppToast.showToast('friend_email_not_found'.tr, Icons.error_outline_rounded, color: Colors.red);
+      AppToast.showToast(
+        'friend_email_not_found'.tr,
+        Icons.error_outline_rounded,
+        color: AppColors.error,
+      );
       return false;
     }
     if (userId == currentUser.uid) {
-      AppToast.showToast('friend_cannot_add_self'.tr, Icons.info_outline_rounded, color: Colors.orange);
+      AppToast.showToast(
+        'friend_cannot_add_self'.tr,
+        Icons.info_outline_rounded,
+        color: AppColors.warning,
+      );
       return false;
     }
 
     final fallbackName = (profileEmail ?? email).split('@').first;
-    final safeDisplayName = profileDisplayName.trim().isEmpty ? fallbackName : profileDisplayName;
+    final safeDisplayName = profileDisplayName.trim().isEmpty
+        ? fallbackName
+        : profileDisplayName;
 
     return _sendFriendRequest(
       userId: userId,
@@ -457,52 +692,70 @@ class FriendController extends GetxController {
   Future<bool> addFriendFromClipboard() async {
     final text = await readClipboardLink();
     if (text == null) {
-      AppToast.showToast('friend_clipboard_empty'.tr, Icons.warning_rounded, color: Colors.orange);
+      AppToast.showToast(
+        'friend_clipboard_empty'.tr,
+        Icons.warning_rounded,
+        color: AppColors.warning,
+      );
       return false;
     }
     return addFriendFromLink(text);
   }
 
-  Future<void> acceptFriendRequest(FriendRequestModel request) async {
+  Future<bool> acceptFriendRequest(FriendRequestModel request) async {
+    if (!processingRequestUserIds.add(request.fromUserId)) return false;
     if (hasReachedLimit) {
       AppToast.showToast(
         'friend_limit_reached'.trParams({'0': '$maxFriends'}),
         Icons.people_outline_rounded,
-        color: Colors.orange,
+        color: AppColors.warning,
       );
-      return;
+      processingRequestUserIds.remove(request.fromUserId);
+      return false;
     }
 
     try {
       await FirebaseService.acceptFriendRequest(request);
-      await _syncRemoteFriendState();
-      AppToast.showToast('friend_request_accepted'.tr, Icons.check_circle_rounded, color: Colors.green);
+      await _syncRemoteFriendState(includeOutgoingRequests: false);
+      AppToast.showToast(
+        'friend_request_accepted'.tr,
+        Icons.check_circle_rounded,
+        color: AppColors.success,
+      );
+      return true;
     } catch (_) {
       AppToast.showToast(
         'friend_request_action_failed'.tr,
         Icons.error_outline_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
+      return false;
+    } finally {
+      processingRequestUserIds.remove(request.fromUserId);
     }
   }
 
   Future<void> declineFriendRequest(FriendRequestModel request) async {
+    if (!processingRequestUserIds.add(request.fromUserId)) return;
     try {
       await FirebaseService.declineFriendRequest(request.fromUserId);
-      incomingRequests.removeWhere((item) => item.fromUserId == request.fromUserId);
-      AppToast.showToast('friend_request_declined'.tr, Icons.info_outline_rounded, color: Colors.orange);
+      incomingRequests.removeWhere(
+        (item) => item.fromUserId == request.fromUserId,
+      );
+      AppToast.showToast(
+        'friend_request_declined'.tr,
+        Icons.info_outline_rounded,
+        color: AppColors.warning,
+      );
     } catch (_) {
       AppToast.showToast(
         'friend_request_action_failed'.tr,
         Icons.error_outline_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
+    } finally {
+      processingRequestUserIds.remove(request.fromUserId);
     }
-  }
-
-  Future<void> toggleFavorite(FriendModel friend) async {
-    final updated = friend.copyWith(isFavorite: !friend.isFavorite, updatedAt: DateTime.now());
-    await FriendRepository.update(updated);
   }
 
   void confirmDeleteFriend(FriendModel friend) {
@@ -513,22 +766,34 @@ class FriendController extends GetxController {
       confirmText: 'Delete'.tr,
       cancelText: 'Cancel'.tr,
       onConfirm: () async {
-        await FirebaseService.removeFriend(friend.friendUserId);
-        await _syncRemoteFriendState();
-        // Xoá bạn khỏi sharedWithCache để ShareCategorySheet cập nhật ngay.
-        AppCache.removeSharedFriendFromAll(friend.friendUserId);
-        // Invalidate SharedCategoriesPage cache để lần mở tiếp sẽ fetch lại.
-        SharedCategoryController.invalidateCache();
-        // Nếu SharedCategoryController đang active, load lại ngay.
-        if (Get.isRegistered<SharedCategoryController>()) {
-          Get.find<SharedCategoryController>().loadSharedCategories();
-        }
+        if (!_deletingFriendUserIds.add(friend.friendUserId)) return;
         Get.back();
-        AppToast.showToast(
-          'friend_deleted_success'.tr,
-          Icons.check_circle_rounded,
-          color: Colors.green,
-        );
+        try {
+          await FirebaseService.removeFriend(friend.friendUserId);
+          await _syncRemoteFriendState(includeOutgoingRequests: false);
+          AppCache.removeSharedFriendFromAll(friend.friendUserId);
+          SharedCategoryController.invalidateCache();
+          if (_isFriendPageActive &&
+              Get.isRegistered<SharedCategoryController>()) {
+            await Get.find<SharedCategoryController>().loadSharedCategories(
+              force: true,
+            );
+          }
+          AppToast.showToast(
+            'friend_deleted_success'.tr,
+            Icons.check_circle_rounded,
+            color: AppColors.success,
+          );
+        } catch (error) {
+          debugPrint('Delete friend error: $error');
+          AppToast.showToast(
+            'friend_request_action_failed'.tr,
+            Icons.error_outline_rounded,
+            color: AppColors.error,
+          );
+        } finally {
+          _deletingFriendUserIds.remove(friend.friendUserId);
+        }
       },
       onCancel: Get.back,
     );
@@ -537,9 +802,6 @@ class FriendController extends GetxController {
   void _applyFilters() {
     final query = searchController.text.trim().toLowerCase();
     final filtered = AppCache.friends.where((friend) {
-      if (favoritesOnly.value && !friend.isFavorite) {
-        return false;
-      }
       if (query.isEmpty) return true;
 
       return friend.displayName.toLowerCase().contains(query) ||
@@ -557,28 +819,37 @@ class FriendController extends GetxController {
     String? photoUrl,
     required String sourceLink,
   }) async {
-    final existing = AppCache.friends.firstWhereOrNull((friend) => friend.friendUserId == userId);
+    if (_sendingRequestUserIds.contains(userId)) return false;
+    final existing = AppCache.friends.firstWhereOrNull(
+      (friend) => friend.friendUserId == userId,
+    );
     if (existing != null) {
-      AppToast.showToast('friend_already_exists'.tr, Icons.info_outline_rounded, color: Colors.orange);
+      AppToast.showToast(
+        'friend_already_exists'.tr,
+        Icons.info_outline_rounded,
+        color: AppColors.warning,
+      );
       return false;
     }
 
-    final incoming = incomingRequests.firstWhereOrNull((request) => request.fromUserId == userId);
+    final incoming = incomingRequests.firstWhereOrNull(
+      (request) => request.fromUserId == userId,
+    );
     if (incoming != null) {
-      await acceptFriendRequest(incoming);
-      return true;
+      return acceptFriendRequest(incoming);
     }
 
     if (pendingRequestUserIds.contains(userId)) {
       AppToast.showToast(
         'friend_request_already_sent'.tr,
         Icons.info_outline_rounded,
-        color: Colors.orange,
+        color: AppColors.warning,
       );
       return false;
     }
 
     try {
+      _sendingRequestUserIds.add(userId);
       await FirebaseService.sendFriendRequest(
         targetUserId: userId,
         displayName: displayName,
@@ -587,19 +858,54 @@ class FriendController extends GetxController {
         sourceLink: sourceLink,
       );
       pendingRequestUserIds.add(userId);
-      AppToast.showToast('friend_request_sent'.tr, Icons.check_circle_rounded, color: Colors.green);
+      AppToast.showToast(
+        'friend_request_sent'.tr,
+        Icons.check_circle_rounded,
+        color: AppColors.success,
+      );
       return true;
     } catch (_) {
       AppToast.showToast(
         'friend_request_action_failed'.tr,
         Icons.error_outline_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
       return false;
+    } finally {
+      _sendingRequestUserIds.remove(userId);
     }
   }
 
-  Future<void> _syncRemoteFriendState() async {
+  Future<void> _syncRemoteFriendState({
+    bool includeOutgoingRequests = true,
+    bool preserveFavorites = true,
+    bool requireFresh = false,
+  }) async {
+    final pending = _syncFuture;
+    if (pending != null) {
+      await pending;
+      if (!requireFresh) return;
+      return _performRemoteFriendSync(
+        includeOutgoingRequests: includeOutgoingRequests,
+        preserveFavorites: preserveFavorites,
+      );
+    }
+    final sync = _performRemoteFriendSync(
+      includeOutgoingRequests: includeOutgoingRequests,
+      preserveFavorites: preserveFavorites,
+    );
+    _syncFuture = sync;
+    try {
+      await sync;
+    } finally {
+      if (identical(_syncFuture, sync)) _syncFuture = null;
+    }
+  }
+
+  Future<void> _performRemoteFriendSync({
+    required bool includeOutgoingRequests,
+    bool preserveFavorites = true,
+  }) async {
     final currentUser = FirebaseService.currentUser;
     if (currentUser == null) {
       incomingRequests.clear();
@@ -607,18 +913,27 @@ class FriendController extends GetxController {
       return;
     }
 
-    final results = await Future.wait<dynamic>([
-      FirebaseService.getRemoteFriends(),
-      FirebaseService.getIncomingFriendRequests(),
-      FirebaseService.getOutgoingFriendRequestUserIds(),
-    ]);
+    late final List<FriendModel> remoteFriends;
+    List<String>? outgoingIds;
+    if (includeOutgoingRequests) {
+      final results = await Future.wait<dynamic>([
+        FirebaseService.getRemoteFriends(),
+        FirebaseService.getOutgoingFriendRequestUserIds(),
+      ]);
+      remoteFriends = results[0] as List<FriendModel>;
+      outgoingIds = results[1] as List<String>;
+    } else {
+      remoteFriends = await FirebaseService.getRemoteFriends();
+    }
 
-    final remoteFriends = results[0] as List<FriendModel>;
-    final requests = results[1] as List<FriendRequestModel>;
-    final outgoingIds = results[2] as List<String>;
+    // Discard a response that belongs to an account which was replaced while
+    // the network request was running.
+    if (FirebaseService.currentUser?.uid != currentUser.uid) return;
 
-    await FriendRepository.replaceAll(remoteFriends);
-    incomingRequests.assignAll(requests);
-    pendingRequestUserIds.assignAll(outgoingIds);
+    await FriendRepository.replaceAll(
+      remoteFriends,
+      preserveFavorites: preserveFavorites,
+    );
+    if (outgoingIds != null) pendingRequestUserIds.assignAll(outgoingIds);
   }
 }

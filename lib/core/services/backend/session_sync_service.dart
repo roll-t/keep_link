@@ -76,7 +76,9 @@ class SessionSyncService {
     final existing = _loadStoredQueue();
 
     // Merge: in-memory wins over persisted (newer data).
-    final mergedLinkUpserts = <String, dynamic>{...existing['linkUpserts'] as Map? ?? {}};
+    final mergedLinkUpserts = <String, dynamic>{
+      ...existing['linkUpserts'] as Map? ?? {},
+    };
     _pendingLinkUpserts.forEach((k, v) => mergedLinkUpserts[k] = v);
 
     final mergedLinkDeletes = <String>{
@@ -88,7 +90,9 @@ class SessionSyncService {
       mergedLinkUpserts.remove(id);
     }
 
-    final mergedCategoryUpserts = <String, dynamic>{...existing['categoryUpserts'] as Map? ?? {}};
+    final mergedCategoryUpserts = <String, dynamic>{
+      ...existing['categoryUpserts'] as Map? ?? {},
+    };
     _pendingCategoryUpserts.forEach((k, v) => mergedCategoryUpserts[k] = v);
 
     final mergedCategoryDeletes = <String>{
@@ -142,10 +146,18 @@ class SessionSyncService {
 
     _isFlushing = true;
     try {
-      final linkUpserts = Map<String, dynamic>.from(stored['linkUpserts'] as Map? ?? {});
-      final linkDeletes = List<String>.from(stored['linkDeletes'] as List? ?? []);
-      final categoryUpserts = Map<String, dynamic>.from(stored['categoryUpserts'] as Map? ?? {});
-      final categoryDeletes = List<String>.from(stored['categoryDeletes'] as List? ?? []);
+      final linkUpserts = Map<String, dynamic>.from(
+        stored['linkUpserts'] as Map? ?? {},
+      );
+      final linkDeletes = List<String>.from(
+        stored['linkDeletes'] as List? ?? [],
+      );
+      final categoryUpserts = Map<String, dynamic>.from(
+        stored['categoryUpserts'] as Map? ?? {},
+      );
+      final categoryDeletes = List<String>.from(
+        stored['categoryDeletes'] as List? ?? [],
+      );
 
       final updates = <String, dynamic>{};
       linkUpserts.forEach((id, data) => updates['links/$id'] = data);
@@ -221,7 +233,9 @@ class SessionSyncService {
     for (final id in _pendingLinkDeletes) {
       updates['links/$id'] = null;
     }
-    _pendingCategoryUpserts.forEach((id, data) => updates['categories/$id'] = data);
+    _pendingCategoryUpserts.forEach(
+      (id, data) => updates['categories/$id'] = data,
+    );
     for (final id in _pendingCategoryDeletes) {
       updates['categories/$id'] = null;
     }
@@ -282,7 +296,9 @@ class SessionSyncService {
       // Merge in-memory queue with any previously persisted (offline) queue.
       final stored = _loadStoredQueue();
 
-      final linkUpserts = Map<String, dynamic>.from(stored['linkUpserts'] as Map? ?? {});
+      final linkUpserts = Map<String, dynamic>.from(
+        stored['linkUpserts'] as Map? ?? {},
+      );
       _pendingLinkUpserts.forEach((k, v) => linkUpserts[k] = v);
 
       final linkDeletes = <String>{
@@ -293,7 +309,9 @@ class SessionSyncService {
         linkUpserts.remove(id);
       }
 
-      final categoryUpserts = Map<String, dynamic>.from(stored['categoryUpserts'] as Map? ?? {});
+      final categoryUpserts = Map<String, dynamic>.from(
+        stored['categoryUpserts'] as Map? ?? {},
+      );
       _pendingCategoryUpserts.forEach((k, v) => categoryUpserts[k] = v);
 
       final categoryDeletes = <String>{
@@ -310,8 +328,12 @@ class SessionSyncService {
       await CategoryRepository.ensureLoaded();
 
       final remoteData = await FirebaseService.getUserData(userId);
-      final remoteLinks = Map<String, dynamic>.from(remoteData?['links'] as Map? ?? {});
-      final remoteCategories = Map<String, dynamic>.from(remoteData?['categories'] as Map? ?? {});
+      final remoteLinks = Map<String, dynamic>.from(
+        remoteData?['links'] as Map? ?? {},
+      );
+      final remoteCategories = Map<String, dynamic>.from(
+        remoteData?['categories'] as Map? ?? {},
+      );
 
       // ── Guest-default category guard ──────────────────────────────────────
       // The default "Danh Mục" category is auto-created for guests.
@@ -319,7 +341,8 @@ class SessionSyncService {
       // • Returning/different account (has remote categories) → exclude it from
       //   the push, remap its links to uncategorized, and delete it locally.
       final guestDefaultCatId = AppGetStorage.guestDefaultCategoryId;
-      final excludeGuestDefault = guestDefaultCatId != null && remoteCategories.isNotEmpty;
+      final excludeGuestDefault =
+          guestDefaultCatId != null && remoteCategories.isNotEmpty;
 
       if (excludeGuestDefault) {
         categoryUpserts.remove(guestDefaultCatId);
@@ -334,7 +357,8 @@ class SessionSyncService {
       }
 
       for (final link in AppCache.links) {
-        if (!linkUpserts.containsKey(link.id) && !remoteLinks.containsKey(link.id)) {
+        if (!linkUpserts.containsKey(link.id) &&
+            !remoteLinks.containsKey(link.id)) {
           linkUpserts[link.id] = link.toJson();
         }
       }
@@ -344,7 +368,8 @@ class SessionSyncService {
         // Never push the guest default category to an account that already has
         // its own categories.
         if (id == guestDefaultCatId && excludeGuestDefault) continue;
-        if (!categoryUpserts.containsKey(id) && !remoteCategories.containsKey(id)) {
+        if (!categoryUpserts.containsKey(id) &&
+            !remoteCategories.containsKey(id)) {
           categoryUpserts[id] = cat.toJson();
         }
       }
@@ -376,7 +401,9 @@ class SessionSyncService {
             .where((l) => l.categoryId == guestDefaultCatId)
             .toList();
         for (final link in affectedLinks) {
-          await DbHelper.update(LinkModel(id: '').tableName, link.id, {'categoryId': null});
+          await DbHelper.update(LinkModel(id: '').tableName, link.id, {
+            'categoryId': null,
+          });
         }
         log(
           'Guest default category removed locally. '
@@ -397,10 +424,13 @@ class SessionSyncService {
       for (final entry in remoteCategories.entries) {
         if (!localCategoryIds.contains(entry.key)) {
           try {
-            final data = Map<String, dynamic>.from(entry.value as Map)..['id'] = entry.key;
+            final data = Map<String, dynamic>.from(entry.value as Map)
+              ..['id'] = entry.key;
             categoriesToInsert.add(CategoryModel.fromJson(data));
           } catch (e) {
-            log('Post-login sync: failed to parse remote category ${entry.key}: $e');
+            log(
+              'Post-login sync: failed to parse remote category ${entry.key}: $e',
+            );
           }
         }
       }
@@ -412,7 +442,9 @@ class SessionSyncService {
             final data = Map<String, dynamic>.from(entry.value as Map);
             linksToInsert.add(LinkModel.fromJson(data, id: entry.key));
           } catch (e) {
-            log('Post-login sync: failed to parse remote link ${entry.key}: $e');
+            log(
+              'Post-login sync: failed to parse remote link ${entry.key}: $e',
+            );
           }
         }
       }
@@ -434,8 +466,13 @@ class SessionSyncService {
       // Reload AppCache from SQLite so it's an exact, duplicate-free mirror of
       // the DB after all upserts. Incremental AppCache.add* calls are avoided
       // because they have no duplicate guard and can race with UI loads.
-      if (categoriesToInsert.isNotEmpty || linksToInsert.isNotEmpty || excludeGuestDefault) {
-        AppCache.invalidateAll();
+      if (categoriesToInsert.isNotEmpty ||
+          linksToInsert.isNotEmpty ||
+          excludeGuestDefault) {
+        // This reconciliation only changes links/categories. Clearing the
+        // whole cache here also removed friends that FriendController had
+        // just fetched for the newly signed-in account.
+        AppCache.invalidateContent();
         await CategoryRepository.ensureLoaded();
         await LinkRepository.ensureLoaded();
       }
@@ -481,8 +518,12 @@ class SessionSyncService {
 
       // 1 GET — fetch existing Firebase data
       final remoteData = await FirebaseService.getUserData(userId);
-      final remoteLinks = Map<String, dynamic>.from(remoteData?['links'] as Map? ?? {});
-      final remoteCategories = Map<String, dynamic>.from(remoteData?['categories'] as Map? ?? {});
+      final remoteLinks = Map<String, dynamic>.from(
+        remoteData?['links'] as Map? ?? {},
+      );
+      final remoteCategories = Map<String, dynamic>.from(
+        remoteData?['categories'] as Map? ?? {},
+      );
 
       // Diff: find local records missing from Firebase
       final updates = <String, dynamic>{};

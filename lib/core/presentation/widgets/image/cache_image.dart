@@ -12,6 +12,8 @@ class CacheImageWidget extends StatelessWidget {
   final Widget? placeholder;
   final Widget? errorWidget;
   final IconData emptyIcon;
+  final int? memCacheWidth;
+  final int? memCacheHeight;
 
   const CacheImageWidget({
     super.key,
@@ -23,6 +25,8 @@ class CacheImageWidget extends StatelessWidget {
     this.placeholder,
     this.errorWidget,
     this.emptyIcon = Icons.photo_outlined,
+    this.memCacheWidth,
+    this.memCacheHeight,
   });
 
   bool _isValidUrl(String? url) {
@@ -37,12 +41,9 @@ class CacheImageWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final valid = _isValidUrl(imageUrl);
 
-    Widget fallback = errorWidget ??
-        _DefaultEmptyImage(
-          width: width,
-          height: height,
-          icon: emptyIcon,
-        );
+    Widget fallback =
+        errorWidget ??
+        _DefaultEmptyImage(width: width, height: height, icon: emptyIcon);
 
     if (!valid) {
       if (borderRadius != null) {
@@ -58,6 +59,10 @@ class CacheImageWidget extends StatelessWidget {
       fit: fit,
       fadeInDuration: Duration.zero,
       fadeOutDuration: Duration.zero,
+      memCacheWidth: memCacheWidth,
+      memCacheHeight: memCacheHeight,
+      maxWidthDiskCache: memCacheWidth,
+      maxHeightDiskCache: memCacheHeight,
       errorListener: (_) {
         // Silently catch remote server failures (403, 404, 501, SSL error)
       },
@@ -79,11 +84,7 @@ class _DefaultEmptyImage extends StatelessWidget {
   final double? height;
   final IconData icon;
 
-  const _DefaultEmptyImage({
-    this.width,
-    this.height,
-    required this.icon,
-  });
+  const _DefaultEmptyImage({this.width, this.height, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +99,7 @@ class _DefaultEmptyImage extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      color: const Color(0xFF2C2E35),
+      color: AppColors.surfaceHigh,
       alignment: Alignment.center,
       child: Icon(
         icon,

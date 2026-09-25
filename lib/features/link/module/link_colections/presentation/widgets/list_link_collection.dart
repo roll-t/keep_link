@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:get/get.dart';
+import 'package:keep_link/core/config/assets/app_vectors.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/config/theme/app_text_styles.dart';
-import 'package:keep_link/core/config/assets/app_vectors.dart';
+import 'package:keep_link/core/presentation/widgets/shimmer/app_shimmer.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
@@ -15,7 +17,8 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
   Widget build(BuildContext context) {
     return Obx(() {
       if (controller.isLoading.value && controller.listLink.isEmpty) {
-        return const Center(child: CircularProgressIndicator());
+        final topInset = MediaQuery.paddingOf(context).top + 81;
+        return LinkGridShimmer(padding: EdgeInsets.fromLTRB(12, topInset, 12, 112));
       }
 
       final listLink = controller.listLink;
@@ -23,69 +26,131 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
         return _buildEmptyState();
       }
 
-      return _buildLinkGrid(listLink);
+      return _buildLinkGrid(context, listLink, isLoadingMore: controller.isLoadMore.value);
     });
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AppVectors.icEmpty.show(color: AppColors.d100, size: Get.width * .3),
-          const SizedBox(height: 18),
-          const TextWidget(
-            text: "No links yet",
-            color: AppColors.t100,
-            textStyle: AppTextStyle.medium18,
-          ),
-          const SizedBox(height: 6),
-          const TextWidget(
-            text: "Save your favorite links",
-            color: AppColors.t400,
-            textStyle: AppTextStyle.medium14,
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () {
-              controller.onRefreshData();
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: AppColors.d100,
-              ),
-              child: const Row(
+    return RefreshIndicator(
+      onRefresh: controller.onRefreshData,
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [TextWidget(text: "Reload")],
+                children: [
+                  AppVectors.icEmpty.show(color: AppColors.navigationSurface, size: Get.width * .3),
+                  const SizedBox(height: 18),
+                  const TextWidget(
+                    text: "No links yet",
+                    color: AppColors.white,
+                    textStyle: AppTextStyle.medium18,
+                  ),
+                  const SizedBox(height: 6),
+                  const TextWidget(
+                    text: "Save your favorite links",
+                    color: AppColors.primaryContainer,
+                    textStyle: AppTextStyle.regular12,
+                  ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: GestureDetector(
+                      onTap: controller.onRefreshData,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.navigationSurface,
+                          borderRadius: BorderRadius.all(Radius.circular(4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          spacing: 4,
+                          children: [
+                            const Icon(
+                              Icons.refresh_rounded,
+                              size: 18,
+                              color: AppColors.primaryContainer,
+                            ),
+                            Center(
+                              child: TextWidget(
+                                text: 'Reload'.tr,
+                                color: AppColors.primaryContainer,
+                                textStyle: AppTextStyle.regular14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildLinkGrid(List<LinkModel> listLink) {
+  Widget _buildLinkGrid(
+    BuildContext context,
+    List<LinkModel> listLink, {
+    required bool isLoadingMore,
+  }) {
+    final topInset = MediaQuery.paddingOf(context).top + 81;
     return RefreshIndicator(
       onRefresh: controller.onRefreshData,
-      child: Column(
+      child: Stack(
         children: [
-          Expanded(
-            child: GridView.builder(
-              controller: controller.scrollController,
-              padding: const EdgeInsets.only(top: 105, bottom: 20, left: 12, right: 12),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 1.0,
-              ),
-              itemCount: listLink.length,
-              itemBuilder: (context, index) => LinkItem(index: index, item: listLink[index]),
+          GridView.builder(
+            controller: controller.scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            scrollCacheExtent: const ScrollCacheExtent.pixels(600),
+            // Chừa đúng vùng cho dock nổi để hàng cuối không bị che và vẫn
+            // có thể cuộn hoàn toàn lên trên thanh điều hướng.
+            padding: const EdgeInsets.only(
+              bottom: 112,
+              left: 12,
+              right: 12,
+            ).copyWith(top: topInset),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 1.0,
             ),
+            itemCount: listLink.length + (isLoadingMore ? 2 : 0),
+            itemBuilder: (context, index) {
+              if (index >= listLink.length) {
+                return const AppShimmer(child: LinkGridItemSkeleton());
+              }
+              final item = listLink[index];
+              return LinkItem(
+                key: ValueKey(item.id),
+                index: index,
+                item: item,
+                controller: controller,
+              );
+            },
           ),
+          Obx(() {
+            if (!controller.isRefreshing.value) {
+              return const SizedBox.shrink();
+            }
+            return Positioned(
+              top: topInset - 1,
+              left: 0,
+              right: 0,
+              child: const LinearProgressIndicator(
+                minHeight: 2,
+                color: AppColors.primary,
+                backgroundColor: AppColors.transparent,
+              ),
+            );
+          }),
         ],
       ),
     );

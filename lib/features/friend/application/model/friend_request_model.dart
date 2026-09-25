@@ -19,12 +19,17 @@ class FriendRequestModel {
   final DateTime? updatedAt;
   final String status;
 
-  factory FriendRequestModel.fromJson(String fromUserId, Map<String, dynamic> json) {
+  factory FriendRequestModel.fromJson(
+    String fromUserId,
+    Map<String, dynamic> json,
+  ) {
     return FriendRequestModel(
       fromUserId: fromUserId,
-      displayName: (json['displayName'] ?? json['display_name'] ?? '').toString(),
+      displayName: (json['displayName'] ?? json['display_name'] ?? '')
+          .toString(),
       email: json['email']?.toString(),
-      photoUrl: (json['photoUrl'] ?? json['photo_url'] ?? json['avatarUrl'])?.toString(),
+      photoUrl: (json['photoUrl'] ?? json['photo_url'] ?? json['avatarUrl'])
+          ?.toString(),
       sourceLink: json['sourceLink']?.toString(),
       createdAt: _parseDate(json['createdAt']),
       updatedAt: _parseDate(json['updatedAt']),

@@ -8,6 +8,7 @@ class SharedCategoryModel {
   final String? categoryDescription;
   final int linkCount;
   final DateTime? sharedAt;
+  final String? message;
 
   const SharedCategoryModel({
     required this.ownerUid,
@@ -18,6 +19,7 @@ class SharedCategoryModel {
     this.categoryDescription,
     this.linkCount = 0,
     this.sharedAt,
+    this.message,
   });
 
   factory SharedCategoryModel.fromJson({
@@ -28,6 +30,7 @@ class SharedCategoryModel {
     required Map<String, dynamic> categoryJson,
     int linkCount = 0,
     DateTime? sharedAt,
+    String? message,
   }) {
     return SharedCategoryModel(
       ownerUid: ownerUid,
@@ -38,6 +41,7 @@ class SharedCategoryModel {
       categoryDescription: categoryJson['description']?.toString(),
       linkCount: linkCount,
       sharedAt: sharedAt,
+      message: message,
     );
   }
 
@@ -51,6 +55,7 @@ class SharedCategoryModel {
       categoryDescription: categoryDescription,
       linkCount: linkCount,
       sharedAt: sharedAt,
+      message: message,
     );
   }
 }

@@ -16,7 +16,10 @@ class PrivacyPolicyPage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: AppColors.bg700,
         appBar: CustomAppBar(title: 'Privacy Policy'.tr),
-        body: const SingleChildScrollView(padding: EdgeInsets.all(20), child: _PolicyContent()),
+        body: const SingleChildScrollView(
+          padding: EdgeInsets.all(20),
+          child: _PolicyContent(),
+        ),
       ),
     );
   }
@@ -30,14 +33,35 @@ class _PolicyContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Section(title: 'privacy.introduction.title'.tr, body: 'privacy.introduction.body'.tr),
-        _Section(title: 'privacy.info_collect.title'.tr, body: 'privacy.info_collect.body'.tr),
-        _Section(title: 'privacy.usage.title'.tr, body: 'privacy.usage.body'.tr),
-        _Section(title: 'privacy.storage.title'.tr, body: 'privacy.storage.body'.tr),
-        _Section(title: 'privacy.third_party.title'.tr, body: 'privacy.third_party.body'.tr),
-        _Section(title: 'privacy.deletion.title'.tr, body: 'privacy.deletion.body'.tr),
+        _Section(
+          title: 'privacy.introduction.title'.tr,
+          body: 'privacy.introduction.body'.tr,
+        ),
+        _Section(
+          title: 'privacy.info_collect.title'.tr,
+          body: 'privacy.info_collect.body'.tr,
+        ),
+        _Section(
+          title: 'privacy.usage.title'.tr,
+          body: 'privacy.usage.body'.tr,
+        ),
+        _Section(
+          title: 'privacy.storage.title'.tr,
+          body: 'privacy.storage.body'.tr,
+        ),
+        _Section(
+          title: 'privacy.third_party.title'.tr,
+          body: 'privacy.third_party.body'.tr,
+        ),
+        _Section(
+          title: 'privacy.deletion.title'.tr,
+          body: 'privacy.deletion.body'.tr,
+        ),
         _ContactSection(title: 'privacy.contact.title'.tr),
-        _Section(title: 'privacy.notice.title'.tr, body: 'privacy.notice.body'.tr),
+        _Section(
+          title: 'privacy.notice.title'.tr,
+          body: 'privacy.notice.body'.tr,
+        ),
         const _LastUpdated(date: '21/04/2026'),
       ],
     );

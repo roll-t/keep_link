@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -22,14 +23,16 @@ class FeedbackController extends GetxController {
 
   String get title => 'Feedback & Bug Report'.tr;
 
-  String get currentHeader =>
-      selectedType.value == FeedbackType.feedback ? 'Send Feedback'.tr : 'Report a Bug'.tr;
+  String get currentHeader => selectedType.value == FeedbackType.feedback
+      ? 'Send Feedback'.tr
+      : 'Report a Bug'.tr;
 
   String get hint => selectedType.value == FeedbackType.feedback
       ? 'Share your thoughts, suggestions, or ideas...'.tr
       : 'Describe the bug, steps to reproduce, and expected behavior...'.tr;
 
-  String get typeKey => selectedType.value == FeedbackType.feedback ? 'feedback' : 'bug_report';
+  String get typeKey =>
+      selectedType.value == FeedbackType.feedback ? 'feedback' : 'bug_report';
 
   String get dailyLimitMessage => selectedType.value == FeedbackType.feedback
       ? 'Today you can send only 1 feedback. Please try again tomorrow.'.tr
@@ -39,8 +42,9 @@ class FeedbackController extends GetxController {
       ? 'Your message...'.tr
       : 'Describe the issue...'.tr;
 
-  IconData get actionIcon =>
-      selectedType.value == FeedbackType.feedback ? Icons.send_rounded : Icons.bug_report_rounded;
+  IconData get actionIcon => selectedType.value == FeedbackType.feedback
+      ? Icons.send_rounded
+      : Icons.bug_report_rounded;
 
   String get successMessage => selectedType.value == FeedbackType.feedback
       ? 'Feedback sent. Thank you!'.tr
@@ -60,7 +64,7 @@ class FeedbackController extends GetxController {
       AppToast.showToast(
         'Please sign in to send feedback.'.tr,
         Icons.lock_outline_rounded,
-        color: Colors.orange,
+        color: AppColors.warning,
       );
       return;
     }
@@ -79,30 +83,41 @@ class FeedbackController extends GetxController {
         } catch (_) {}
       }
 
-      await FirebaseService.submitFeedback(type: typeKey, message: finalMessage);
+      await FirebaseService.submitFeedback(
+        type: typeKey,
+        message: finalMessage,
+      );
       Get.back();
-      AppToast.showToast(successMessage, Icons.check_circle_rounded, color: Colors.green);
+      AppToast.showToast(
+        successMessage,
+        Icons.check_circle_rounded,
+        color: AppColors.success,
+      );
     } on FirebaseException catch (e) {
       if (e.code == 'unauthenticated') {
         AppToast.showToast(
           'Please sign in to send feedback.'.tr,
           Icons.lock_outline_rounded,
-          color: Colors.orange,
+          color: AppColors.warning,
         );
       } else if (e.code == 'quota-exceeded') {
-        AppToast.showToast(dailyLimitMessage, Icons.info_outline_rounded, color: Colors.orange);
+        AppToast.showToast(
+          dailyLimitMessage,
+          Icons.info_outline_rounded,
+          color: AppColors.warning,
+        );
       } else {
         AppToast.showToast(
           'Failed to send. Please try again.'.tr,
           Icons.error_outline_rounded,
-          color: Colors.red,
+          color: AppColors.error,
         );
       }
     } catch (_) {
       AppToast.showToast(
         'Failed to send. Please try again.'.tr,
         Icons.error_outline_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
     } finally {
       isLoading.value = false;

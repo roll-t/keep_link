@@ -9,6 +9,7 @@ import 'package:keep_link/core/localization/translation_service.dart';
 import 'package:keep_link/core/services/platform/deep_link_service.dart';
 import 'package:keep_link/core/services/platform/local_notification_service.dart';
 import 'package:keep_link/core/services/backend/session_sync_service.dart';
+import 'package:keep_link/core/services/backend/single_device_session_service.dart';
 import 'package:keep_link/core/config/theme/theme_service.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/application/model/category_model.dart';
@@ -44,6 +45,10 @@ Future<void> appConfig() async {
 
   // Initialize theme service to load saved theme preference
   await ThemeService.initialize();
+
+  // Validate the restored login before any account data is pushed or pulled.
+  // The realtime watcher remains active for the lifetime of the app.
+  await SingleDeviceSessionService.instance.initialize();
 
   Utils.ignoreException();
   WidgetsBinding.instance.addObserver(AppLifecycleHandler());

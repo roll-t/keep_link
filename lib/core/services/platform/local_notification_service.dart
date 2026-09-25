@@ -21,21 +21,28 @@ class LocalNotificationService {
   static Future<void> init() async {
     if (_initialized) return;
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const darwinSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
 
-    const settings = InitializationSettings(android: androidSettings, iOS: darwinSettings);
+    const settings = InitializationSettings(
+      android: androidSettings,
+      iOS: darwinSettings,
+    );
 
     await _plugin.initialize(settings);
 
     // Android 8+: tạo notification channels
     if (Platform.isAndroid) {
       final androidPlugin = _plugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
 
       await androidPlugin?.createNotificationChannel(
         const AndroidNotificationChannel(
@@ -119,7 +126,10 @@ class LocalNotificationService {
       presentSound: true,
     );
 
-    final details = NotificationDetails(android: androidDetails, iOS: darwinDetails);
+    final details = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+    );
 
     await _plugin.show(id, title, body, details);
   }

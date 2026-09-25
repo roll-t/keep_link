@@ -7,6 +7,10 @@ import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
 
 class PinVerifyController extends GetxController {
+  final FromType? initialMode;
+
+  PinVerifyController({this.initialMode});
+
   // PIN cũ (xác thực)
   final TextEditingController pinController = TextEditingController();
   final FocusNode focusNode = FocusNode();
@@ -19,7 +23,6 @@ class PinVerifyController extends GetxController {
   final TextEditingController confirmPinController = TextEditingController();
   final FocusNode confirmPinFocus = FocusNode();
   final Rx<FromType> mode = FromType.create.obs;
-  bool isPINCorrect = false;
   final firstPin = "".obs;
 
   // Lỗi hiển thị ngay trên khung PIN (viền đỏ + text), thay vì chỉ toast thoáng qua
@@ -34,7 +37,9 @@ class PinVerifyController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    if (AppGetStorage.hasPin()) {
+    if (initialMode != null) {
+      mode.value = initialMode!;
+    } else if (AppGetStorage.hasPin()) {
       if (Get.arguments == FromType.changePassword) {
         mode.value = FromType.changePassword;
       } else {
@@ -81,31 +86,34 @@ class PinVerifyController extends GetxController {
   // ========================================================
   // XỬ LÝ USER Nhập Đủ 4 số
   // ========================================================
-  void onCompleted(String pin) {
+  bool onCompleted(String pin) {
     switch (mode.value) {
       case FromType.create:
         _handleCreatePin(pin);
-        break;
+        return false;
 
       case FromType.confirm:
-        _verifyOldPin(pin);
-        break;
+        return _verifyOldPin(pin);
 
       case FromType.changePassword:
-        _verifyOldPin(pin);
-        break;
+        return _verifyOldPin(pin);
     }
   }
 
   // Khi nhập PIN mới (đổi PIN)
   void onCompletedNewPin(String pin) {
+    errorText.value = null;
     firstPin.value = pin;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (confirmPinFocus.canRequestFocus) confirmPinFocus.requestFocus();
+    });
   }
 
   // Khi xác nhận PIN mới (đổi PIN)
   void onCompletedConfirmPin(String pin) {
     if (pin != firstPin.value) {
-      _toast("PIN xác nhận không khớp");
+      errorText.value = "PIN xác nhận không khớp";
+      _toast(errorText.value!);
       confirmPinController.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (confirmPinFocus.canRequestFocus) confirmPinFocus.requestFocus();
@@ -114,6 +122,7 @@ class PinVerifyController extends GetxController {
     }
 
     AppGetStorage.savePin(pin);
+    errorText.value = null;
     _toast("Đổi PIN thành công");
     Get.back(result: true);
   }
@@ -121,28 +130,28 @@ class PinVerifyController extends GetxController {
   // ========================================================
   // XÁC THỰC PIN CŨ
   // ========================================================
-  void _verifyOldPin(String pin) {
+  bool _verifyOldPin(String pin) {
     if (isLocked) {
-      isPINCorrect = false;
       // clear() trước vì nó tự kích hoạt onChanged -> clearError(); set message SAU để không bị ghi đè về null.
       _resetAllInput();
-      errorText.value = "Đã khoá tạm thời, thử lại sau ${lockRemainingSeconds.value}s";
-      return;
+      errorText.value =
+          "Đã khoá tạm thời, thử lại sau ${lockRemainingSeconds.value}s";
+      return false;
     }
 
     if (!AppGetStorage.verifyPin(pin)) {
       AppGetStorage.registerPinFailure();
       _refreshLockState();
-      isPINCorrect = false;
       _resetAllInput();
 
       if (isLocked) {
-        errorText.value = "Sai PIN nhiều lần. Đã khoá ${lockRemainingSeconds.value}s";
+        errorText.value =
+            "Sai PIN nhiều lần. Đã khoá ${lockRemainingSeconds.value}s";
       } else {
         errorText.value = "PIN không đúng";
       }
       _toast(errorText.value!);
-      return;
+      return false;
     }
 
     errorText.value = null;
@@ -154,13 +163,12 @@ class PinVerifyController extends GetxController {
       firstPin.value = "";
       _resetAllInput();
       _toast("Nhập PIN mới");
-      return;
+      return false;
     }
 
-    // Dùng cho xác thực mở khóa
-    _toast("PIN chính xác");
-    isPINCorrect = true;
-    Get.back(result: true);
+    // Việc đóng dialog/page hoặc điều hướng tiếp do widget gọi form quyết định.
+    // Không Get.back() tại đây để tránh pop route hai lần khi form có callback.
+    return true;
   }
 
   // ========================================================

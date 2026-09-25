@@ -4,6 +4,9 @@ import 'package:keep_link/features/friend/presentation/controller/shared_categor
 class SharedCategoryBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<SharedCategoryController>(() => SharedCategoryController(), fenix: true);
+    Get.lazyPut<SharedCategoryController>(
+      () => SharedCategoryController(),
+      fenix: true,
+    );
   }
 }

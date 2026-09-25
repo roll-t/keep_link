@@ -45,15 +45,13 @@ class AppLifecycleHandler extends WidgetsBindingObserver {
   }
 
   /// Bắt buộc xác thực lại (PIN/vân tay) khi app quay lại foreground sau khi đã
-  /// bị đưa xuống nền, nếu "Bảo mật ứng dụng" đang bật. Trước đây app chỉ khoá
-  /// lúc khởi động (SplashPage) nên mở lại từ background hoàn toàn không hỏi lại
-  /// PIN — đây là lỗ hổng chính khiến tính năng khoá ứng dụng gần như vô nghĩa.
+  /// bị đưa xuống nền, nếu "Khóa khi quay lại ứng dụng" đang bật.
   void _maybeShowLockScreen() {
     if (!_wasBackgrounded) return;
     _wasBackgrounded = false;
 
     if (_isLockScreenShowing) return;
-    if (!AppGetStorage.isSecurityEnabled()) return;
+    if (!AppGetStorage.isBackgroundLockEnabled()) return;
     // SplashPage đã tự xử lý xác thực ban đầu của riêng nó — tránh chồng thêm
     // 1 màn khoá nữa nếu app bị backgroud ngay trong lúc còn đang ở màn splash.
     if (Get.currentRoute == SplashPage.routeName) return;

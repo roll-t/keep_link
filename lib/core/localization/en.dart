@@ -57,6 +57,8 @@ Map<String, String> en = {
   "Name A → Z": 'Name A → Z',
   "Name Z → A": 'Name Z → A',
   "Reset filters": 'Reset filters',
+  "Filters": 'Filters',
+  "Apply filters": 'Apply',
   "Top sources": 'Top sources',
   "Saved date": 'Saved date',
   "Clear": 'Clear',
@@ -81,7 +83,8 @@ Map<String, String> en = {
   "No friends yet": 'No friends yet',
   "Add Friend": 'Add Friend',
   "Delete Friend": 'Delete Friend',
-  "Add friends with personal link or QR": 'Add friends with personal link or QR',
+  "Add friends with personal link or QR":
+      'Add friends with personal link or QR',
   "Choose Add Friend Method": 'Choose Add Friend Method',
   "Friends & Shared": 'Friends & Shared',
   "Friends & Requests": 'Friends & Requests',
@@ -98,13 +101,16 @@ Map<String, String> en = {
   "Add via Gmail": 'Add via Gmail',
   "Add via Link": 'Add via Link',
   "Add via QR": 'Add via QR',
-  "Find a friend account with their Gmail.": 'Find a friend account with their Gmail.',
+  "Find a friend account with their Gmail.":
+      'Find a friend account with their Gmail.',
   "Paste your friend's personal link.": 'Paste your friend\'s personal link.',
-  "Scan your friend's personal QR code.": 'Scan your friend\'s personal QR code.',
+  "Scan your friend's personal QR code.":
+      'Scan your friend\'s personal QR code.',
   "Add Friend by Gmail": 'Add Friend by Gmail',
   "Enter your friend's Gmail to find and send them a request.":
       'Enter your friend\'s Gmail to find and send them a request.',
-  "Each account can keep up to @0 friends.": 'Each account can keep up to @0 friends.',
+  "Each account can keep up to @0 friends.":
+      'Each account can keep up to @0 friends.',
   "Paste a personal link or scan a personal QR to send a request.":
       'Paste a personal link or scan a personal QR to send a request.',
   "Paste Link": 'Paste Link',
@@ -117,8 +123,10 @@ Map<String, String> en = {
   "Pick from Gallery": 'Pick from Gallery',
   "Align QR code within frame to scan.": 'Align QR code within frame to scan.',
   "No QR code found": 'No QR code found',
-  "Let your friends scan this QR to connect.": 'Let your friends scan this QR to connect.',
-  "Please sign in to view your QR code.": 'Please sign in to view your QR code.',
+  "Let your friends scan this QR to connect.":
+      'Let your friends scan this QR to connect.',
+  "Please sign in to view your QR code.":
+      'Please sign in to view your QR code.',
   "Scanning image...": 'Scanning image...',
   "Scan Personal QR": 'Scan Personal QR',
   "Point the camera at your friend's personal QR code.":
@@ -141,12 +149,14 @@ Map<String, String> en = {
   "friend_request_sent": 'Friend request sent',
   "friend_request_accepted": 'Friend request accepted',
   "friend_request_declined": 'Friend request declined',
-  "friend_request_action_failed": 'Unable to complete the friend request action',
+  "friend_request_action_failed":
+      'Unable to complete the friend request action',
   "friend_request_preview_title": 'Send friend request?',
   "friend_request_preview_desc":
       'This name is self-declared by the link/QR and not verified yet. Their real identity is only confirmed once they accept.',
   "friend_clipboard_empty": 'Clipboard does not contain a valid personal link',
-  "friend_no_qr_found_in_image": 'No valid QR code was found in the selected image',
+  "friend_no_qr_found_in_image":
+      'No valid QR code was found in the selected image',
   "friend_scan_image_failed": 'Unable to scan QR from the selected image',
   "friend_added_success": 'Friend added successfully',
   "friend_deleted_success": 'Friend deleted successfully',
@@ -163,8 +173,12 @@ Map<String, String> en = {
   "Share QR": 'Share QR',
   "Customize QR": 'Customize QR',
   "Choose Template": 'Choose Template',
-  "Select your favorite QR poster design.": 'Select your favorite QR poster design.',
+  "Select your favorite QR poster design.":
+      'Select your favorite QR poster design.',
   "Chibi Cute": 'Chibi Cute',
+  "Chibi Blue": 'Chibi Blue',
+  "Chibi Pink": 'Chibi Pink',
+  "Chibi Purple": 'Chibi Purple',
   "Dark Modern": 'Dark Modern',
   "Choose colors and shapes to personalize your QR code.":
       'Choose colors and shapes to personalize your QR code.',
@@ -205,7 +219,8 @@ Map<String, String> en = {
   "Delete": 'Delete',
   "Category": 'Category',
   "Update successful": 'Update successful',
-  "Category contains links\nCannot delete!": 'Category contains links\nCannot delete!',
+  "Category contains links\nCannot delete!":
+      'Category contains links\nCannot delete!',
   "Confirm": 'Confirm',
   "Private": 'Private',
   "Public": 'Public',
@@ -245,6 +260,14 @@ Map<String, String> en = {
 
   // Splash
   "Or": 'Or',
+  "Keep everything worth revisiting": 'Keep everything worth revisiting',
+  "Welcome back": 'Welcome back',
+  "Authenticate to continue using Linkeep":
+      'Authenticate to continue using Linkeep',
+  "Enter your PIN to unlock KeepLink": 'Enter your PIN to unlock KeepLink',
+  "Unlock with biometrics": 'Unlock with biometrics',
+  "Biometrics is currently unavailable": 'Biometrics is currently unavailable',
+  "Preparing your space...": 'Preparing your space...',
 
   // Toast - Category
   "max_categories_limit": 'You can create a maximum of @0 categories',
@@ -253,7 +276,9 @@ Map<String, String> en = {
   // Link Detail
   "Original Destination": 'Original Destination',
   "Open in App": 'Open in App',
-  "webview_load_error": 'This page failed to load. It may be blocked or temporarily unavailable.',
+  "webview_loading": 'Opening page...',
+  "webview_load_error":
+      'This page failed to load. It may be blocked or temporarily unavailable.',
   "Reload": 'Reload',
   "View Now": 'View Now',
   "Back to origin": 'Back to origin',
@@ -288,8 +313,10 @@ Map<String, String> en = {
   "Please enable app security first": 'Please enable app security first',
   "Please set up a PIN first": 'Please set up a PIN first',
   "Fingerprint login disabled": 'Fingerprint login disabled',
-  "Device does not support fingerprint / Face ID": 'Device does not support fingerprint / Face ID',
-  "Please set up fingerprint in device Settings": 'Please set up fingerprint in device Settings',
+  "Device does not support fingerprint / Face ID":
+      'Device does not support fingerprint / Face ID',
+  "Please set up fingerprint in device Settings":
+      'Please set up fingerprint in device Settings',
   "Fingerprint verification failed": 'Fingerprint verification failed',
   "Fingerprint login enabled": 'Fingerprint login enabled',
 
@@ -337,11 +364,15 @@ Map<String, String> en = {
   "Edit Username": 'Edit Username',
   "Enter your name": 'Enter your name',
   "Username must not be empty": 'Username must not be empty',
-  "Username must be at least 3 characters": 'Username must be at least 3 characters',
-  "Username must be at most 30 characters": 'Username must be at most 30 characters',
-  "Failed to update username, please try again": 'Failed to update username, please try again',
+  "Username must be at least 3 characters":
+      'Username must be at least 3 characters',
+  "Username must be at most 30 characters":
+      'Username must be at most 30 characters',
+  "Failed to update username, please try again":
+      'Failed to update username, please try again',
   "Cancel": 'Cancel',
-  "You have already rated this app.\nThank you!": 'You have already rated this app.\nThank you!',
+  "You have already rated this app.\nThank you!":
+      'You have already rated this app.\nThank you!',
   "Review request sent. Google Play may decide not to show the dialog every time.":
       'Review request sent. Google Play may decide not to show the dialog every time.',
 
@@ -350,7 +381,8 @@ Map<String, String> en = {
   "Feedback": 'Feedback',
   "Bug Report": 'Bug Report',
   "Sign in to send feedback": 'Sign in to send feedback & report bugs',
-  "Share your thoughts, suggestions, or ideas...": 'Share your thoughts, suggestions, or ideas...',
+  "Share your thoughts, suggestions, or ideas...":
+      'Share your thoughts, suggestions, or ideas...',
   "Describe the bug, steps to reproduce, and expected behavior...":
       'Describe the bug, steps to reproduce, and expected behavior...',
   "Today you can send only 1 feedback. Please try again tomorrow.":
@@ -365,7 +397,8 @@ Map<String, String> en = {
   "Failed to send. Please try again.": 'Failed to send. Please try again.',
   "Sending...": 'Sending...',
   "Send": 'Send',
-  "Your feedback helps us improve Linkeep.": 'Your feedback helps us improve Linkeep.',
+  "Your feedback helps us improve Linkeep.":
+      'Your feedback helps us improve Linkeep.',
 
   // Privacy Policy
   "privacy.introduction.title": 'Introduction',
@@ -450,6 +483,18 @@ Map<String, String> en = {
 
   // Category & Link Sharing
   "share_category": 'Share Category',
+  "share_send_to": 'Send to',
+  "share_other": 'Other',
+  "share_search": 'Search',
+  "share_message_hint": 'Write a message...',
+  "share_send": 'Send',
+  "share_action": 'Share',
+  "revoke_share": 'Revoke',
+  "share_select_recipient": 'Select at least one recipient',
+  "share_update_failed": 'Some sharing changes could not be saved',
+  "share_other_hint":
+      'Categories can currently be shared with Linkeep friends only',
+  "shared_link_read_only": 'Shared links are view-only',
   "share_link": 'Share Link',
   "shared_with_me": 'Shared With Me',
   "shared_categories": 'Categories',
@@ -464,7 +509,8 @@ Map<String, String> en = {
   "no_shared_categories": 'No shared categories',
   "no_shared_categories_desc": 'Shared categories will appear here.',
   "no_shared_links": 'No shared links',
-  "no_shared_links_desc": 'Individual links shared by friends will appear here.',
+  "no_shared_links_desc":
+      'Individual links shared by friends will appear here.',
   "shared_by": 'Shared by',
   "save_to_collection": 'Save to Collection',
   "link_saved_to_collection": 'Link saved to your collection',
@@ -478,4 +524,11 @@ Map<String, String> en = {
   "pending_friend_requests": '@0 pending friend request(s)',
   "no_friend_search_results": 'No friends match your search',
   "Send Friend Request": 'Send Friend Request',
+  "account_signed_in_on_another_device":
+      'This account was signed in on another device. You have been signed out.',
+  "links": 'links',
+  "Links": 'Links',
+  "Search categories": 'Search categories',
+  "No categories available to share": 'No categories available to share',
+  "No matching categories": 'No matching categories',
 };

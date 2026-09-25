@@ -15,14 +15,21 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid",
+        "activeSession": {
+          ".validate": "!newData.exists() || (newData.hasChildren(['id', 'signedInAt']) && newData.child('id').isString() && newData.child('id').val().length >= 32 && newData.child('signedInAt').isNumber())"
+        },
         "categories": {
           "$catId": {
-            ".read": "auth != null && (auth.uid === $uid || root.child('users/' + $uid + '/sharedWith/' + auth.uid + '/' + $catId).val() === true)"
+            ".read": "auth != null && (auth.uid === $uid || root.child('users/' + $uid + '/sharedWith/' + auth.uid + '/' + $catId).val() === true)",
+            ".write": "auth != null && auth.uid === $uid"
           }
         },
         "links": {
           ".read": "auth != null && (auth.uid === $uid || root.child('users/' + $uid + '/sharedWith/' + auth.uid).exists() || root.child('users/' + $uid + '/sharedLinksWith/' + auth.uid).exists())",
-          ".indexOn": ["categoryId"]
+          ".indexOn": ["categoryId"],
+          "$linkId": {
+            ".write": "auth != null && auth.uid === $uid"
+          }
         },
         "sharedWith": {
           "$viewerUid": {

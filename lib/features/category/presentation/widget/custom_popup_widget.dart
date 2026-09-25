@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/data/cache/app_cache.dart';
-import 'package:keep_link/core/config/theme/app_colors.dart';
-import 'package:keep_link/core/config/constants/app_enum.dart';
-import 'package:keep_link/core/config/theme/app_text_styles.dart';
 import 'package:keep_link/core/config/assets/app_vectors.dart';
-import 'package:keep_link/core/presentation/widgets/popup/custom_popup.dart';
+import 'package:keep_link/core/config/constants/app_enum.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/config/theme/app_text_styles.dart';
+import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/models/item_model.dart';
 import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
+import 'package:keep_link/core/presentation/widgets/popup/custom_popup.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/category/presentation/controller/custom_popup_controller.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
@@ -29,8 +29,14 @@ class CustomPopupWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 45,
-      constraints: BoxConstraints(minWidth: Get.width * .3, maxWidth: Get.width * .45),
-      decoration: BoxDecoration(color: AppColors.d300, borderRadius: BorderRadius.circular(100)),
+      constraints: BoxConstraints(
+        minWidth: Get.width * .3,
+        maxWidth: Get.width * .45,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.navigationSurface,
+        borderRadius: BorderRadius.circular(100),
+      ),
       alignment: Alignment.center,
       child: Obx(() {
         String nameWithCount(ItemModel? item, String fallback) {
@@ -41,15 +47,18 @@ class CustomPopupWidget extends StatelessWidget {
           return count != null ? '$base ($count)' : base;
         }
 
-        final RxString displayTitle =
-            (hasAll
-                    ? nameWithCount(controller.selectedItem.value, "Select Category".tr)
-                    : (controller.selectedItem.value?.id == 'all'
-                          ? "Select Category".tr
-                          : nameWithCount(controller.selectedItem.value, "Select Category".tr)))
-                .obs;
+        // Giá trị chỉ dùng cho frame hiện tại; tạo Rx bên trong build trước
+        // đây sinh subscription/object thừa mỗi lần dropdown rebuild.
+        final displayTitle = hasAll
+            ? nameWithCount(controller.selectedItem.value, "Select Category".tr)
+            : (controller.selectedItem.value?.id == 'all'
+                  ? "Select Category".tr
+                  : nameWithCount(
+                      controller.selectedItem.value,
+                      "Select Category".tr,
+                    ));
         return CustomPopup(
-          barrierColor: Colors.transparent,
+          barrierColor: AppColors.transparent,
           showArrow: false,
           arrowColor: AppColors.white,
           position: PopupPosition.bottom,
@@ -63,7 +72,7 @@ class CustomPopupWidget extends StatelessWidget {
 
           // ===== POPUP CONTENT =====
           contentDecoration: BoxDecoration(
-            color: AppColors.d200,
+            color: AppColors.navigationSurface,
             borderRadius: BorderRadius.circular(12),
           ),
           content: Builder(
@@ -85,12 +94,14 @@ class CustomPopupWidget extends StatelessWidget {
                   itemCount: displayItems.length,
                   itemBuilder: (context, index) {
                     final item = displayItems[index];
-                    final isSelected = controller.selectedItem.value?.id == item.id;
+                    final isSelected =
+                        controller.selectedItem.value?.id == item.id;
                     final isLastItem = index == displayItems.length - 1;
                     return GestureDetector(
                       onTap: () async {
                         final nav = Navigator.of(context);
-                        await controller.selectItem(item);
+                        final didSelect = await controller.selectItem(item);
+                        if (!didSelect) return;
                         nav.pop();
                         onSelected?.call();
                       },
@@ -100,9 +111,17 @@ class CustomPopupWidget extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         decoration: BoxDecoration(
                           border: !isLastItem
-                              ? Border(bottom: BorderSide(color: AppColors.d100))
+                              ? Border(
+                                  bottom: BorderSide(
+                                    color: AppColors.white.withValues(
+                                      alpha: .1,
+                                    ),
+                                  ),
+                                )
                               : null,
-                          color: isSelected ? AppColors.d100 : Colors.transparent,
+                          color: isSelected
+                              ? AppColors.primary.withValues(alpha: .14)
+                              : AppColors.transparent,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -115,22 +134,30 @@ class CustomPopupWidget extends StatelessWidget {
                                           ? '${item.name ?? ''} (${item.chilrenCount})'
                                           : (item.name ?? '')),
                                 maxLines: 1,
-                                textStyle: AppTextStyle.semiBold16,
+                                textStyle: AppTextStyle.semiBold14,
                               ),
                             ),
                             if (item.visibility == VisibilityStatus.private &&
                                 controller.isEnableSecurity.value)
                               Padding(
                                 padding: const EdgeInsets.only(left: 4),
-                                child: Icon(Icons.lock, size: 16, color: AppColors.t300),
+                                child: Icon(
+                                  Icons.lock,
+                                  size: 16,
+                                  color: AppColors.t300,
+                                ),
                               ),
                             // Shared avatars + share-status icon (only for real categories, not "all")
                             if (item.id != null && item.id != 'all')
                               Obx(() {
-                                final isLoggedIn = FriendController.currentUser.value != null;
+                                final isLoggedIn =
+                                    FriendController.currentUser.value != null;
                                 final isPinned = item.isPinned;
-                                if (!isLoggedIn && !isPinned) return const SizedBox.shrink();
-                                final friends = AppCache.sharedWithCache[item.id] ?? [];
+                                if (!isLoggedIn && !isPinned) {
+                                  return const SizedBox.shrink();
+                                }
+                                final friends =
+                                    AppCache.sharedWithCache[item.id] ?? [];
                                 final isSharedOut = friends.isNotEmpty;
                                 return Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -139,7 +166,7 @@ class CustomPopupWidget extends StatelessWidget {
                                       const Icon(
                                         Icons.push_pin_rounded,
                                         size: 14,
-                                        color: Color(0xFF4CAF50),
+                                        color: AppColors.successBright,
                                       ),
                                       const SizedBox(width: 4),
                                     ],
@@ -148,7 +175,9 @@ class CustomPopupWidget extends StatelessWidget {
                                         _SharedAvatarRow(friends: friends),
                                         const SizedBox(width: 4),
                                       ],
-                                      _ShareStatusIcon(isSharedOut: isSharedOut),
+                                      _ShareStatusIcon(
+                                        isSharedOut: isSharedOut,
+                                      ),
                                     ],
                                   ],
                                 );
@@ -172,9 +201,9 @@ class CustomPopupWidget extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextWidget(
-                    text: displayTitle.value,
+                    text: displayTitle,
                     maxLines: 1,
-                    textStyle: AppTextStyle.semiBold16,
+                    textStyle: AppTextStyle.semiBold14,
                   ),
                 ),
                 Obx(() {
@@ -211,12 +240,16 @@ class _ShareStatusIcon extends StatelessWidget {
       width: 22,
       height: 22,
       decoration: BoxDecoration(
-        color: const Color(0xFF4CAF50).withAlpha(40),
+        color: AppColors.successBright.withAlpha(40),
         shape: BoxShape.circle,
       ),
       child: Transform.rotate(
         angle: 0.785398,
-        child: const Icon(Icons.arrow_upward_rounded, size: 13, color: Color(0xFF4CAF50)),
+        child: const Icon(
+          Icons.arrow_upward_rounded,
+          size: 13,
+          color: AppColors.successBright,
+        ),
       ),
     );
   }
@@ -253,7 +286,11 @@ class _SharedAvatarRow extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               '+$extra',
-              style: TextStyle(color: AppColors.primary, fontSize: 9, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -278,7 +315,10 @@ class _Avatar extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: url.isNotEmpty ? AppColors.d300 : AppColors.primary, width: .5),
+          border: Border.all(
+            color: url.isNotEmpty ? AppColors.d300 : AppColors.primary,
+            width: .5,
+          ),
         ),
         child: ClipOval(
           child: url.isNotEmpty

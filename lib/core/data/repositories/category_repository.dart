@@ -25,7 +25,9 @@ class CategoryRepository {
       GROUP BY c.id
       ORDER BY c.created_at DESC
     ''');
-    final list = rows.map((r) => CategoryModel.fromJson(Map<String, dynamic>.from(r))).toList();
+    final list = rows
+        .map((r) => CategoryModel.fromJson(Map<String, dynamic>.from(r)))
+        .toList();
     AppCache.setCategories(list);
   }
 

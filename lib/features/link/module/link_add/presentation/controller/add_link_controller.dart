@@ -16,7 +16,8 @@ import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/presentation/controller/custom_popup_controller.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 
-class AddLinkController extends GetxController with ArgumentHandlerMixinController<LinkModel> {
+class AddLinkController extends GetxController
+    with ArgumentHandlerMixinController<LinkModel> {
   final DeepLinkController _deepLink = Get.find<DeepLinkController>();
   final popup = Get.find<CustomPopupController>();
   final linkController = TextEditingController();
@@ -64,7 +65,9 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
 
       if (isOriginalDeepLink) {
         if (_deepLink.isLoading.value) return; // Bên kia đang fetch rồi
-        if (_deepLink.metaData.value?.url == link) return; // Đã có data của link này rồi
+        if (_deepLink.metaData.value?.url == link) {
+          return; // Đã có data của link này rồi
+        }
       }
 
       _deepLink.fetchMetaData(link);
@@ -84,7 +87,9 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
       if (meta.title.isEmpty) return;
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_titleEditedByUser) return; // user có thể đã gõ trong lúc chờ frame này
+        if (_titleEditedByUser) {
+          return; // user có thể đã gõ trong lúc chờ frame này
+        }
         titleController.text = meta.title;
         titleText.value = meta.title;
       });
@@ -106,7 +111,8 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
         }
 
         // ensure we keep original metadata if deepLink.metaData is empty
-        if (_deepLink.metaData.value == null && argsData!.metaDataModel != null) {
+        if (_deepLink.metaData.value == null &&
+            argsData!.metaDataModel != null) {
           _deepLink.metaData.value = argsData!.metaDataModel;
         }
 
@@ -139,7 +145,8 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   // VALIDATION
   // ===============================================================
   bool validateInput() {
-    if (popup.selectedItem.value?.id == "all" || popup.selectedItem.value?.id == "") {
+    if (popup.selectedItem.value?.id == "all" ||
+        popup.selectedItem.value?.id == "") {
       DialogUtils.showAlert(
         alertType: AlertType.error,
         title: "Cảnh báo",
@@ -150,12 +157,18 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
     final link = linkController.text.trim();
     final title = titleController.text.trim();
 
-    if (link.isEmpty) return _setError(errorLinkMess, "Link không được để trống");
-    if (!_isValidUrl(link)) return _setError(errorLinkMess, "Link không hợp lệ");
+    if (link.isEmpty) {
+      return _setError(errorLinkMess, "Link không được để trống");
+    }
+    if (!_isValidUrl(link)) {
+      return _setError(errorLinkMess, "Link không hợp lệ");
+    }
 
     errorLinkMess.value = "";
 
-    if (title.isEmpty) return _setError(errorTitleMess, "Tiêu đề không được để trống");
+    if (title.isEmpty) {
+      return _setError(errorTitleMess, "Tiêu đề không được để trống");
+    }
 
     errorTitleMess.value = "";
     return true;
@@ -173,7 +186,9 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
   bool _isValidUrl(String url) {
     // Relaxed check: must have scheme (http/https)
     final uri = Uri.tryParse(url);
-    return uri != null && uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https');
+    return uri != null &&
+        uri.hasScheme &&
+        (uri.scheme == 'http' || uri.scheme == 'https');
   }
 
   // ===============================================================
@@ -263,7 +278,9 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
       final extractedUrl = _extractUrl(text!);
       linkController.text = extractedUrl;
       errorLinkMess.value = "";
-      if (text != extractedUrl && titleController.text.isEmpty && !isEditModel.value) {
+      if (text != extractedUrl &&
+          titleController.text.isEmpty &&
+          !isEditModel.value) {
         final remainingText = text.replaceAll(extractedUrl, '').trim();
         titleController.text = remainingText;
         titleText.value = remainingText;
@@ -278,9 +295,13 @@ class AddLinkController extends GetxController with ArgumentHandlerMixinControll
 
   String _extractUrl(String input) {
     // Regex tìm chuỗi bắt đầu bằng http hoặc https và không chứa khoảng trắng
-    final RegExp urlRegex = RegExp(r'(https?:\/\/[^\s]+)', caseSensitive: false);
+    final RegExp urlRegex = RegExp(
+      r'(https?:\/\/[^\s]+)',
+      caseSensitive: false,
+    );
     final match = urlRegex.firstMatch(input);
-    return match?.group(0) ?? input; // Nếu có link thì trả về link, không thì trả về chuỗi gốc
+    return match?.group(0) ??
+        input; // Nếu có link thì trả về link, không thì trả về chuỗi gốc
   }
 
   // ===============================================================

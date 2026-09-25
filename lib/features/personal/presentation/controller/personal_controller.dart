@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:in_app_review/in_app_review.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/data/cache/sql_lite.dart';
@@ -16,11 +17,14 @@ import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/core/services/backend/friend_connection_service.dart';
 import 'package:keep_link/core/services/backend/image_kit_service.dart';
 import 'package:keep_link/core/services/backend/session_sync_service.dart';
+import 'package:keep_link/core/services/backend/single_device_session_service.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/presentation/controller/category_controller.dart';
+import 'package:keep_link/features/friend/presentation/controller/friend_controller.dart';
+import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
 import 'package:keep_link/features/personal/di/feedback_binding.dart';
 import 'package:keep_link/features/personal/presentation/controller/feedback_controller.dart';
@@ -36,7 +40,12 @@ class PersonalController extends GetxController {
   final isLoading = false.obs;
   final isUploadingAvatar = false.obs;
   final appVersion = ''.obs;
+  final savedAccounts = <Map<String, dynamic>>[].obs;
   StreamSubscription<User?>? _authSub;
+
+  void loadSavedAccounts() {
+    savedAccounts.assignAll(AppGetStorage.getSavedAccounts());
+  }
 
   // ── Stats (computed from reactive cache) ─────────────────────────────────
 
@@ -46,14 +55,22 @@ class PersonalController extends GetxController {
 
   int get linksThisWeek {
     final weekAgo = DateTime.now().subtract(const Duration(days: 7));
-    return AppCache.links.where((l) => l.createdAt != null && l.createdAt!.isAfter(weekAgo)).length;
+    return AppCache.links
+        .where((l) => l.createdAt != null && l.createdAt!.isAfter(weekAgo))
+        .length;
   }
 
   int get currentStreak {
     final dates =
         AppCache.links
             .where((l) => l.createdAt != null)
-            .map((l) => DateTime(l.createdAt!.year, l.createdAt!.month, l.createdAt!.day))
+            .map(
+              (l) => DateTime(
+                l.createdAt!.year,
+                l.createdAt!.month,
+                l.createdAt!.day,
+              ),
+            )
             .toSet()
             .toList()
           ..sort((a, b) => b.compareTo(a));
@@ -62,7 +79,9 @@ class PersonalController extends GetxController {
 
     final today = DateTime.now();
     final todayDate = DateTime(today.year, today.month, today.day);
-    if (dates.first.isBefore(todayDate.subtract(const Duration(days: 1)))) return 0;
+    if (dates.first.isBefore(todayDate.subtract(const Duration(days: 1)))) {
+      return 0;
+    }
 
     int streak = 1;
     for (int i = 0; i < dates.length - 1; i++) {
@@ -84,9 +103,18 @@ class PersonalController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    loadSavedAccounts();
     final initialUser = FirebaseService.currentUser;
     user.value = initialUser;
     if (initialUser != null) {
+      AppGetStorage.saveAccountProfile(
+        uid: initialUser.uid,
+        email: initialUser.email,
+        displayName: initialUser.displayName,
+        photoUrl: initialUser.photoURL,
+        isActive: true,
+      );
+      loadSavedAccounts();
       Future<void>(() => FirebaseService.syncFriendLookupProfile());
     }
     // `authStateChanges` always replays the current auth state as its first
@@ -100,7 +128,17 @@ class PersonalController extends GetxController {
       }
       user.value = u;
       if (u != null) {
+        AppGetStorage.saveAccountProfile(
+          uid: u.uid,
+          email: u.email,
+          displayName: u.displayName,
+          photoUrl: u.photoURL,
+          isActive: true,
+        );
+        loadSavedAccounts();
         Future<void>(() => FirebaseService.syncFriendLookupProfile());
+      } else {
+        loadSavedAccounts();
       }
     });
     _loadAppVersion();
@@ -125,19 +163,32 @@ class PersonalController extends GetxController {
     if (isLoading.value) return;
     isLoading.value = true;
     try {
-      final result = await FirebaseService.signInWithGoogle();
+      final result = await SingleDeviceSessionService.instance
+          .signInWithGoogle();
       if (result == null) {
         AppToast.showToast(
           'Google sign in cancelled'.tr,
           Icons.cancel_outlined,
-          color: Colors.orange,
+          color: AppColors.warning,
         );
         return;
       }
-      AppToast.showToast('Signed in successfully'.tr, Icons.check_circle_rounded, color: Colors.green);
-      final uid = result.user?.uid;
-      if (uid != null) {
-        SessionSyncService.instance.syncAfterLogin(uid).then((_) {
+      AppToast.showToast(
+        'Signed in successfully'.tr,
+        Icons.check_circle_rounded,
+        color: AppColors.success,
+      );
+      final u = result.user;
+      if (u != null) {
+        AppGetStorage.saveAccountProfile(
+          uid: u.uid,
+          email: u.email,
+          displayName: u.displayName,
+          photoUrl: u.photoURL,
+          isActive: true,
+        );
+        loadSavedAccounts();
+        SessionSyncService.instance.syncAfterLogin(u.uid).then((_) {
           _refreshDataControllers();
         });
       }
@@ -148,7 +199,7 @@ class PersonalController extends GetxController {
       AppToast.showToast(
         'Sign in failed, please try again'.tr,
         Icons.error_outline_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
     } finally {
       isLoading.value = false;
@@ -159,12 +210,19 @@ class PersonalController extends GetxController {
   /// (DB, cache, storage), so a stray tap shouldn't be able to trigger it
   /// with no way back.
   void confirmSignOut() {
+    final currentUser = user.value;
+    final accountName = currentUser?.displayName?.isNotEmpty == true
+        ? currentUser!.displayName!
+        : (currentUser?.email?.isNotEmpty == true
+              ? currentUser!.email!
+              : 'tài khoản này');
+
     DialogUtils.showConfirm(
       alertType: AlertType.warning,
-      title: 'Sign Out'.tr,
-      content: 'sign_out_confirm'.tr,
-      confirmText: 'Sign Out'.tr,
-      cancelText: 'Cancel'.tr,
+      title: 'Đăng xuất?'.tr,
+      content: 'Bạn sẽ đăng xuất khỏi tài khoản $accountName.'.tr,
+      confirmText: 'Đăng xuất'.tr,
+      cancelText: 'Hủy'.tr,
       onConfirm: () {
         Get.back();
         signOut();
@@ -177,45 +235,51 @@ class PersonalController extends GetxController {
     if (isLoading.value) return;
     isLoading.value = true;
     try {
-      // Push any in-session mutations before signing out so data is not lost.
+      // Đánh dấu unactive cho tài khoản hiện tại nhưng vẫn giữ trong danh sách tài khoản lưu trữ
       final uid = FirebaseService.currentUserId;
       if (uid != null) {
+        AppGetStorage.deactivateAccount(uid);
         await SessionSyncService.instance.flushCurrentSession(uid);
       }
       // FirebaseService.signOut() now throws if the actual Firebase sign-out
       // fails (it used to swallow that silently) — caught below so local
       // data is only wiped once we're sure the account is really signed out.
-      await FirebaseService.signOut();
-      // Clear all local data so the next guest/account session starts fresh.
+      await SingleDeviceSessionService.instance.signOutCurrentDevice();
+      // Clear account-owned data so the next guest/account session starts
+      // fresh, but keep this device's PIN and lock preferences. Those values
+      // are intentionally local-only and must survive account switching.
       SessionSyncService.instance.clearOnSignOut();
       await DbHelper.resetDatabase();
       AppCache.invalidateAll();
-      AppGetStorage.clearUserData();
+      AppGetStorage.clearUserData(preserveSecurity: true);
+      loadSavedAccounts();
       _refreshDataControllers();
-      if (Get.currentRoute == SettingsPage.routeName || Get.isDialogOpen == true) {
-        Get.until((route) => route.settings.name == PersonalPage.routeName || route.isFirst);
+      if (Get.currentRoute == SettingsPage.routeName ||
+          Get.isDialogOpen == true) {
+        Get.until(
+          (route) =>
+              route.settings.name == PersonalPage.routeName || route.isFirst,
+        );
       }
       AppToast.showToast(
         'Signed out successfully'.tr,
         Icons.logout_rounded,
-        color: Colors.blueGrey,
+        color: AppColors.infoMuted,
       );
     } catch (e) {
       AppToast.showToast(
         'Sign out failed, please try again'.tr,
         Icons.error_outline_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
     } finally {
       isLoading.value = false;
     }
   }
 
-  /// Refresh [LinkCollectionController] and [CategoryController] if they are
-  /// registered. Called after login and logout. FriendController is NOT
-  /// refreshed here — it already reacts to `authStateChanges` on its own via
-  /// its own listener, so calling fetchFriends() here too would just repeat
-  /// the same 3 Firebase reads a second time for every sign-in.
+  /// Refresh account-owned controllers after login/logout synchronization.
+  /// The explicit friend refresh is intentional: authStateChanges can fire
+  /// before post-login content reconciliation finishes.
   void _refreshDataControllers() {
     if (Get.isRegistered<LinkCollectionController>()) {
       Get.find<LinkCollectionController>().refreshData();
@@ -223,11 +287,17 @@ class PersonalController extends GetxController {
     if (Get.isRegistered<CategoryController>()) {
       Get.find<CategoryController>().fetchCategories();
     }
+    if (Get.isRegistered<FriendController>()) {
+      unawaited(Get.find<FriendController>().fetchFriends());
+    }
+    SharedCategoryController.invalidateCache();
   }
 
   // ── Support ────────────────────────────────────────────────────────────
 
-  Future<void> openFeedbackAndBugReport({FeedbackType initialType = FeedbackType.feedback}) async {
+  Future<void> openFeedbackAndBugReport({
+    FeedbackType initialType = FeedbackType.feedback,
+  }) async {
     return Get.to(
       () => const FeedbackPage(),
       binding: FeedbackBinding(type: initialType),
@@ -235,10 +305,12 @@ class PersonalController extends GetxController {
   }
 
   @Deprecated('Use openFeedbackAndBugReport')
-  Future<void> sendFeedback() => openFeedbackAndBugReport(initialType: FeedbackType.feedback);
+  Future<void> sendFeedback() =>
+      openFeedbackAndBugReport(initialType: FeedbackType.feedback);
 
   @Deprecated('Use openFeedbackAndBugReport')
-  Future<void> reportBug() => openFeedbackAndBugReport(initialType: FeedbackType.bugReport);
+  Future<void> reportBug() =>
+      openFeedbackAndBugReport(initialType: FeedbackType.bugReport);
 
   Future<void> rateApp() async {
     final inAppReview = InAppReview.instance;
@@ -255,8 +327,9 @@ class PersonalController extends GetxController {
     // Fallback nếu InAppReview không mở được (mở trực tiếp store URL)
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      final packageName =
-          packageInfo.packageName.isNotEmpty ? packageInfo.packageName : 'com.phamtruong.keeplink';
+      final packageName = packageInfo.packageName.isNotEmpty
+          ? packageInfo.packageName
+          : 'com.phamtruong.keeplink';
 
       final storeUrl = Platform.isIOS
           ? 'https://apps.apple.com/app/id$packageName'
@@ -264,7 +337,9 @@ class PersonalController extends GetxController {
 
       await Utils.lanchUrl(storeUrl);
     } catch (_) {
-      await Utils.lanchUrl('https://play.google.com/store/apps/details?id=com.phamtruong.keeplink');
+      await Utils.lanchUrl(
+        'https://play.google.com/store/apps/details?id=com.phamtruong.keeplink',
+      );
     }
   }
 
@@ -274,19 +349,30 @@ class PersonalController extends GetxController {
     );
     if (saved == true) {
       user.value = FirebaseService.currentUser;
-      AppToast.showToast('Username updated successfully'.tr, Icons.edit_rounded);
+      AppToast.showToast(
+        'Username updated successfully'.tr,
+        Icons.edit_rounded,
+      );
     }
   }
 
   Future<void> copyPersonalFriendLink() async {
     final link = personalFriendLink;
     if (link == null) {
-      AppToast.showToast('friend_sign_in_required'.tr, Icons.login_rounded, color: Colors.orange);
+      AppToast.showToast(
+        'friend_sign_in_required'.tr,
+        Icons.login_rounded,
+        color: AppColors.warning,
+      );
       return;
     }
 
     await Clipboard.setData(ClipboardData(text: link));
-    AppToast.showToast('personal_link_copied'.tr, Icons.copy_rounded, color: Colors.green);
+    AppToast.showToast(
+      'personal_link_copied'.tr,
+      Icons.copy_rounded,
+      color: AppColors.success,
+    );
   }
 
   Future<void> savePersonalQrToDevice(Uint8List pngBytes) async {
@@ -297,25 +383,26 @@ class PersonalController extends GetxController {
         name: 'keeplink_friend_qr_${DateTime.now().millisecondsSinceEpoch}',
       );
 
-      final isSuccess = (result['isSuccess'] == true) || (result['filePath'] != null);
+      final isSuccess =
+          (result['isSuccess'] == true) || (result['filePath'] != null);
       if (isSuccess) {
         AppToast.showToast(
           'personal_qr_saved'.tr,
           Icons.download_done_rounded,
-          color: Colors.green,
+          color: AppColors.success,
         );
         return;
       }
       AppToast.showToast(
         'personal_qr_save_failed'.tr,
         Icons.error_outline_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
     } catch (_) {
       AppToast.showToast(
         'personal_qr_save_failed'.tr,
         Icons.error_outline_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
     }
   }
@@ -323,7 +410,11 @@ class PersonalController extends GetxController {
   Future<void> sharePersonalQr(Uint8List pngBytes) async {
     final link = personalFriendLink;
     if (link == null) {
-      AppToast.showToast('friend_sign_in_required'.tr, Icons.login_rounded, color: Colors.orange);
+      AppToast.showToast(
+        'friend_sign_in_required'.tr,
+        Icons.login_rounded,
+        color: AppColors.warning,
+      );
       return;
     }
 
@@ -332,12 +423,16 @@ class PersonalController extends GetxController {
       final file = File('${dir.path}/keep_link_friend_qr.png');
       await file.writeAsBytes(pngBytes, flush: true);
 
-      await Share.shareXFiles([XFile(file.path)], text: link, subject: 'Linkeep Friend QR');
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: link,
+        subject: 'Linkeep Friend QR',
+      );
     } catch (_) {
       AppToast.showToast(
         'personal_qr_share_failed'.tr,
         Icons.error_outline_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
     }
   }
@@ -347,7 +442,7 @@ class PersonalController extends GetxController {
       AppToast.showToast(
         'Please sign in to change avatar'.tr,
         Icons.login_rounded,
-        color: Colors.orange,
+        color: AppColors.warning,
       );
       return;
     }
@@ -359,7 +454,7 @@ class PersonalController extends GetxController {
       AppToast.showToast(
         'You can only change your avatar 2 times per day'.tr,
         Icons.block_rounded,
-        color: Colors.red,
+        color: AppColors.error,
       );
       return;
     }
@@ -381,7 +476,7 @@ class PersonalController extends GetxController {
       AppToast.showToast(
         'This is already your current avatar'.tr,
         Icons.image_rounded,
-        color: Colors.orange,
+        color: AppColors.warning,
       );
       return;
     }
@@ -397,7 +492,7 @@ class PersonalController extends GetxController {
         AppToast.showToast(
           'Upload failed. Please try again.'.tr,
           Icons.error_outline_rounded,
-          color: Colors.red,
+          color: AppColors.error,
         );
         return;
       }
@@ -408,10 +503,14 @@ class PersonalController extends GetxController {
       AppToast.showToast(
         'Avatar updated successfully'.tr,
         Icons.check_circle_rounded,
-        color: Colors.green,
+        color: AppColors.success,
       );
     } catch (e) {
-      AppToast.showToast('Something went wrong'.tr, Icons.error_outline_rounded, color: Colors.red);
+      AppToast.showToast(
+        'Something went wrong'.tr,
+        Icons.error_outline_rounded,
+        color: AppColors.error,
+      );
     } finally {
       isUploadingAvatar.value = false;
     }
@@ -499,7 +598,10 @@ class _EditNameDialogState extends State<_EditNameDialog> {
             controller: _nameController,
             autofocus: true,
             maxLength: 30,
-            decoration: InputDecoration(hintText: 'Enter your name'.tr, counterText: ''),
+            decoration: InputDecoration(
+              hintText: 'Enter your name'.tr,
+              counterText: '',
+            ),
             textInputAction: TextInputAction.done,
             onChanged: (_) {
               if (_errorText != null) {
@@ -511,7 +613,11 @@ class _EditNameDialogState extends State<_EditNameDialog> {
           if (_errorText != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: TextWidget(text: _errorText!, color: Colors.red, size: 12),
+              child: TextWidget(
+                text: _errorText!,
+                color: AppColors.error,
+                size: 12,
+              ),
             ),
         ],
       ),

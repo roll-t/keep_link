@@ -19,12 +19,17 @@ class AppVectors {
   static const icLock = _SvgIcon("${_root}ic_lock$_ext");
   static const icWarning = _SvgIcon("${_root}ic_warning$_ext");
   static const icCopy = _SvgIcon("${_root}ic_copy$_ext");
-  static const icFloatingExtension = _SvgIcon("${_root}ic_floating_extension$_ext");
+  static const icFloatingExtension = _SvgIcon(
+    "${_root}ic_floating_extension$_ext",
+  );
   static const icSearch = _SvgIcon("${_root}ic_search$_ext");
   static const icSearchNotFound = _SvgIcon("${_root}ic_search_not_found$_ext");
   static const icSearchFile = _SvgIcon("${_root}ic_search_file$_ext");
   static const icLang = _SvgIcon("${_root}ic_lang$_ext");
   static const icFriends = _SvgIcon("${_root}ic_friends$_ext");
+  static const icShareLink = _SvgIcon("${_root}ic_share_link$_ext");
+  static const icSharedCategory = _SvgIcon("${_root}ic_shared_category$_ext");
+  static const icCategory = _SvgIcon("${_root}ic_category$_ext");
 }
 
 class _SvgIcon {
@@ -44,14 +49,20 @@ class _SvgIcon {
       onTap: onTap,
       child: Container(
         padding: padding,
-        decoration: BoxDecoration(color: backgroundColor, shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          shape: BoxShape.circle,
+        ),
         width: widthParent,
         height: heightParent ?? widthParent,
         child: SvgPicture.asset(
           path,
           width: size,
           height: size,
-          colorFilter: ColorFilter.mode(color ?? AppColors.white, BlendMode.srcIn),
+          colorFilter: ColorFilter.mode(
+            color ?? AppColors.white,
+            BlendMode.srcIn,
+          ),
         ),
       ),
     );

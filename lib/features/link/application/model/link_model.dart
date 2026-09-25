@@ -33,8 +33,12 @@ class LinkModel implements DbModel {
           ? MetaDataModel.fromMap(jsonDecode(json['metaData']))
           : null,
       categoryId: json['categoryId'],
-      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
-      updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt']) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'])
+          : null,
     );
   }
 
@@ -44,7 +48,9 @@ class LinkModel implements DbModel {
       "id": id,
       "name": name,
       "image": image,
-      "metaData": metaDataModel != null ? jsonEncode(metaDataModel!.toMap()) : null,
+      "metaData": metaDataModel != null
+          ? jsonEncode(metaDataModel!.toMap())
+          : null,
       "categoryId": categoryId,
       "createdAt": createdAt?.toIso8601String(),
       "updatedAt": updatedAt?.toIso8601String(),

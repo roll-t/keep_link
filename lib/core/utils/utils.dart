@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -31,7 +30,10 @@ class Utils {
     };
   }
 
-  static Future<void> launchUrlString(String url, {BuildContext? context}) async {
+  static Future<void> launchUrlString(
+    String url, {
+    BuildContext? context,
+  }) async {
     await lanchUrl(url, context: context);
   }
 
@@ -41,9 +43,12 @@ class Utils {
     // (vd: link trong danh mục được bạn bè chia sẻ), nên không được launch
     // thẳng các scheme khác (intent://, content://, file://...) — kẻ xấu có
     // thể lợi dụng để mở app/thành phần khác ngoài ý muốn người dùng.
-    if (uri.toString().isEmpty || (uri.scheme != 'http' && uri.scheme != 'https')) {
+    if (uri.toString().isEmpty ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
       if (context != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Invalid URL".tr)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Invalid URL".tr)));
       }
       return;
     }
@@ -59,9 +64,9 @@ class Utils {
       }
     } catch (e) {
       if (context != null && context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("${'Error opening URL'.tr}: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("${'Error opening URL'.tr}: $e")),
+        );
       }
     }
   }
@@ -69,26 +74,20 @@ class Utils {
   // Hàm này dùng để verify ở các chỗ khác trong app (Ví dụ: trước khi xoá link, mở danh mục...)
   static Future<bool> verifySecurity() async {
     // Nếu cả 2 đều tắt -> Return true luôn (hoặc tuỳ logic gọi hàm)
-    if (!AppGetStorage.isSecurityEnabled() && !AppGetStorage.isCategorySecurity()) return true;
+    if (!AppGetStorage.isSecurityEnabled() &&
+        !AppGetStorage.isCategorySecurity()) {
+      return true;
+    }
 
     // Ưu tiên check vân tay nếu App Security đang bật và Vân tay đang bật
-    if (AppGetStorage.isSecurityEnabled() && AppGetStorage.isFingerprintEnabled()) {
+    if (AppGetStorage.isSecurityEnabled() &&
+        AppGetStorage.isFingerprintEnabled()) {
       final bioSuccess = await BiometricService.authenticate();
       if (bioSuccess) return true;
     }
 
-    // Fallback sang PIN Dialog
-    final completer = Completer<bool>();
-    DialogUtils.showPinDialog(
-      onCompleted: () {
-        if (Get.isDialogOpen ?? false) Get.back();
-        if (!completer.isCompleted) completer.complete(true);
-      },
-      onDismiss: () {
-        if (!completer.isCompleted) completer.complete(false);
-      },
-    );
-    return completer.future;
+    // Fallback sang PIN Dialog và chờ người dùng hoàn tất/hủy.
+    return DialogUtils.showPinDialog();
   }
 
   // Hàm loại bỏ dấu tiếng Việt và đưa về chữ thường
@@ -119,7 +118,9 @@ class Utils {
       width: width ?? size,
       height: height ?? size,
       fit: fit,
-      colorFilter: color != null ? ColorFilter.mode(color, BlendMode.srcIn) : null,
+      colorFilter: color != null
+          ? ColorFilter.mode(color, BlendMode.srcIn)
+          : null,
     );
   }
 

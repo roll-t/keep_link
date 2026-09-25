@@ -2,16 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 import 'package:keep_link/features/link/application/model/link_type.dart';
 import 'package:keep_link/features/link/module/link_add/presentation/page/add_link_page.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+class LinkDetailArguments {
+  const LinkDetailArguments({required this.link, this.readOnly = false});
+
+  final LinkModel link;
+  final bool readOnly;
+}
 
 class LinkDetailController extends GetxController {
   final LinkModel link;
-  LinkDetailController({required this.link});
+  final bool readOnly;
+
+  LinkDetailController({required this.link, this.readOnly = false});
 
   final isPlayingVideo = false.obs;
   final isExpanded = false.obs;
@@ -19,13 +30,16 @@ class LinkDetailController extends GetxController {
   final canGoForward = false.obs;
   final currentUrl = ''.obs;
   final isWebLoading = false.obs;
+  final webLoadProgress = 0.obs;
+  final hasWebContent = false.obs;
+  final webViewGeneration = 0.obs;
   // Trang chính (không phải sub-resource) tải lỗi — vd. site chặn kết nối,
   // SSL handshake fail... Không có cờ này thì người dùng chỉ thấy màn hình
   // đen im lìm không rõ đang tải hay đã hỏng, không biết phải làm gì tiếp.
   final hasLoadError = false.obs;
   InAppWebViewController? webViewController;
 
-  late final String url = link.metaDataModel?.url ?? '';
+  late final String url = _normalizeWebUrl(link.metaDataModel?.url);
   late final LinkType linkType = LinkTypeDetector.detect(url);
 
   bool get isVideo => linkType == LinkType.video;
@@ -67,52 +81,29 @@ class LinkDetailController extends GetxController {
     'admaven.com',
   ];
 
-  static bool _isAdHost(String host) => _adDomains.any((domain) => host.contains(domain));
+  static bool _isAdHost(String host) =>
+      _adDomains.any((domain) => host.contains(domain));
 
-  static String get _adDomainsJsArray => '[${_adDomains.map((d) => "'$d'").join(',')}]';
+  static String get _adDomainsJsArray =>
+      '[${_adDomains.map((d) => "'$d'").join(',')}]';
 
-  // ── Domain lock (chỉ cho điều hướng trong cùng trang gốc) ──────────────────
-
-  /// Domain của trang đang xem, "khoá" lại sau lần tải thành công đầu tiên.
-  /// Null nghĩa là còn đang trong chuỗi redirect ban đầu (vd. motchilltv.ltd
-  /// → motchilltv.yt) nên chưa chặn gì — chặn sớm quá sẽ chặn nhầm chính
-  /// redirect hợp lệ của trang, y hệt lỗi từng gặp với shouldInterceptRequest.
-  String? _lockedHost;
-
-  /// true nếu [host] cùng domain (hoặc là subdomain) với trang đang khoá.
-  /// Còn null (chưa khoá) thì cho qua hết — domain lock chỉ có tác dụng SAU
-  /// khi trang gốc đã tải xong, để không chặn nhầm redirect ban đầu của site.
-  bool _isAllowedHost(String host) {
-    final locked = _lockedHost;
-    if (locked == null || locked.isEmpty) return true;
-    return host == locked || host.endsWith('.$locked');
-  }
+  bool _isLaunchingFallback = false;
 
   // ── Shared WebView configuration ────────────────────────────────────────────
 
-  /// Mobile Chrome UA cho trang thông thường.
-  /// TikTok yêu cầu iOS Safari UA để hiển thị đúng mobile layout.
-  String get webViewUserAgent => isTikTok
-      ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) '
-            'AppleWebKit/605.1.15 (KHTML, like Gecko) '
-            'Version/17.0 Mobile/15E148 Safari/604.1'
-      : 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
-            'AppleWebKit/537.36 (KHTML, like Gecko) '
-            'Chrome/124.0.0.0 Mobile Safari/537.36';
-
   /// Cấu hình InAppWebView dùng chung cho cả inline lẫn expanded mode.
   InAppWebViewSettings get webViewSettings => InAppWebViewSettings(
-    userAgent: webViewUserAgent,
-
     // ── JavaScript & Storage ─────────────────────────────────────────────
     javaScriptEnabled: true,
     domStorageEnabled: true, // localStorage / sessionStorage cho SPA
     databaseEnabled: true,
+    thirdPartyCookiesEnabled: true,
 
     // ── Cache ────────────────────────────────────────────────────────────
     cacheEnabled: true,
-    // Dùng cache trước, chỉ fetch mạng khi không có — giảm latency.
-    cacheMode: CacheMode.LOAD_CACHE_ELSE_NETWORK,
+    // LOAD_DEFAULT vẫn tận dụng HTTP cache nhưng revalidate khi cần. Chế độ
+    // cache-first trước đây giữ lại redirect/trang lỗi cũ quá lâu.
+    cacheMode: CacheMode.LOAD_DEFAULT,
 
     // ── Rendering (Android) ──────────────────────────────────────────────
     // Dùng HybridComposition để giảm lỗi/log BLASTBufferQueue trên một số máy.
@@ -130,6 +121,9 @@ class LinkDetailController extends GetxController {
     // ── Misc ─────────────────────────────────────────────────────────────
     disableDefaultErrorPage: true, // tự xử lý trang lỗi nếu cần
     safeBrowsingEnabled: true, // bảo vệ người dùng khỏi trang độc hại
+    mixedContentMode: MixedContentMode.MIXED_CONTENT_COMPATIBILITY_MODE,
+    useShouldOverrideUrlLoading: true,
+    supportMultipleWindows: true,
     // Bật để shouldInterceptRequest được gọi — chặn quảng cáo ở tầng network.
     useShouldInterceptRequest: true,
     // Giữ true (mặc định): nhiều trang phim/streaming tự mở window.open()
@@ -143,37 +137,52 @@ class LinkDetailController extends GetxController {
   // --- WebView Logic ---
 
   void openWebView() {
-    if (url.isEmpty) return;
+    if (url.isEmpty) {
+      _showOpenError();
+      return;
+    }
+    _prepareInitialWebLoad();
     isExpanded.value = true;
     isPlayingVideo.value = true;
   }
 
   void playVideo() {
-    if (url.isEmpty) return;
+    if (url.isEmpty) {
+      _showOpenError();
+      return;
+    }
+    _prepareInitialWebLoad();
     isExpanded.value = true;
     isPlayingVideo.value = true;
+  }
+
+  void _prepareInitialWebLoad() {
+    currentUrl.value = url;
+    webLoadProgress.value = 0;
+    hasWebContent.value = false;
+    hasLoadError.value = false;
+    isWebLoading.value = true;
   }
 
   // CÁC CALLBACK ĐƯỢC DỜI TỪ _initWebViewController ĐỂ UI GỌI
   void onPageStarted(String? newUrl) {
     isWebLoading.value = true;
+    webLoadProgress.value = 0;
     hasLoadError.value = false;
-    currentUrl.value = newUrl ?? '';
+    currentUrl.value = (newUrl == null || newUrl.isEmpty) ? url : newUrl;
     _updateNavState();
   }
 
+  void onProgressChanged(int progress) {
+    webLoadProgress.value = progress.clamp(0, 100);
+  }
+
   void onPageFinished(String? newUrl) {
+    webLoadProgress.value = 100;
     isWebLoading.value = false;
+    hasWebContent.value = true;
     currentUrl.value = newUrl ?? '';
     _updateNavState();
-
-    // Khoá domain vào đúng lúc trang gốc (hoặc trang đã redirect tới) tải
-    // xong — từ giờ mọi điều hướng sang domain khác (ads, shopee, link rác...)
-    // sẽ bị chặn ở shouldOverrideUrlLoading/onCreateWindow bên dưới. Cập nhật
-    // lại mỗi lần tải xong (không chỉ lần đầu) để tự "đi theo" nếu người dùng
-    // điều hướng hợp lệ trong cùng site (đổi tập phim...).
-    final finishedHost = Uri.tryParse(newUrl ?? '')?.host ?? '';
-    if (finishedHost.isNotEmpty) _lockedHost = finishedHost;
 
     // 1. Tiêm JS chặn quảng cáo chung cho mọi trang
     webViewController?.evaluateJavascript(source: _adBlockerJS);
@@ -188,30 +197,64 @@ class LinkDetailController extends GetxController {
   /// Chỉ set cờ khi lỗi thuộc về main frame — lỗi của 1 sub-resource lẻ
   /// (ảnh, script quảng cáo bị chặn) không nên làm cả trang báo lỗi.
   void onReceivedError(WebResourceRequest request) {
-    if (request.isForMainFrame ?? true) {
+    if (request.isForMainFrame == true) {
       isWebLoading.value = false;
+      webLoadProgress.value = 0;
       hasLoadError.value = true;
     }
   }
 
-  Future<NavigationActionPolicy> shouldOverrideUrlLoading(NavigationAction navigationAction) async {
+  void onHistoryUpdated(String? newUrl) {
+    if (newUrl == null || newUrl.isEmpty) return;
+    currentUrl.value = newUrl;
+    _updateNavState();
+  }
+
+  void onReceivedHttpError(
+    WebResourceRequest request,
+    WebResourceResponse response,
+  ) {
+    if (request.isForMainFrame == true && (response.statusCode ?? 0) >= 400) {
+      isWebLoading.value = false;
+      webLoadProgress.value = 0;
+      hasLoadError.value = true;
+    }
+  }
+
+  void onRenderProcessGone() {
+    isWebLoading.value = false;
+    webLoadProgress.value = 0;
+    hasWebContent.value = false;
+    hasLoadError.value = true;
+    webViewController = null;
+    webViewGeneration.value++;
+  }
+
+  Future<NavigationActionPolicy> shouldOverrideUrlLoading(
+    NavigationAction navigationAction,
+  ) async {
     final uri = navigationAction.request.url;
     if (uri == null) return NavigationActionPolicy.ALLOW;
 
     if (_isAdHost(uri.host)) return NavigationActionPolicy.CANCEL;
 
-    if (!uri.scheme.startsWith('http')) return NavigationActionPolicy.CANCEL;
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') {
+      // App/deep-link chỉ được phép bật khi phát sinh từ thao tác thật của
+      // người dùng; redirect tự động không được tự ý mở ứng dụng khác.
+      if (navigationAction.hasGesture == true) {
+        await _launchExternalScheme(uri);
+      }
+      return NavigationActionPolicy.CANCEL;
+    }
 
     if (uri.host.contains('tiktok.com') && uri.path.contains('download')) {
       return NavigationActionPolicy.CANCEL;
     }
 
-    // Khoá điều hướng trong đúng domain của trang — chặn kiểu quảng cáo phổ
-    // biến trên site phim/đọc truyện: bấm bất kỳ đâu trên trang cũng bị đẩy
-    // sang shopee/link rác/domain lạ, dù domain đó không nằm trong danh sách
-    // ads cố định ở trên.
-    if (!_isAllowedHost(uri.host)) return NavigationActionPolicy.CANCEL;
-
+    // Không khoá theo domain: đăng nhập, short-link, CDN và payment thường
+    // redirect qua domain hợp lệ khác. Khoá cũ là nguyên nhân nhiều link bị
+    // đứng im dù trang đích hoàn toàn hợp lệ.
     return NavigationActionPolicy.ALLOW;
   }
 
@@ -226,7 +269,9 @@ class LinkDetailController extends GetxController {
   /// thật; lỡ chặn nhầm 1 bước redirect ở đây thì cả trang không tải được
   /// gì, chỉ còn nền đen — trong khi mục tiêu ban đầu chỉ là chặn ads/tracker
   /// phụ, không phải nội dung chính.
-  Future<WebResourceResponse?> shouldInterceptRequest(WebResourceRequest request) async {
+  Future<WebResourceResponse?> shouldInterceptRequest(
+    WebResourceRequest request,
+  ) async {
     if (request.isForMainFrame ?? true) return null;
     final host = request.url.host;
     if (_isAdHost(host)) {
@@ -248,10 +293,12 @@ class LinkDetailController extends GetxController {
     final uri = createWindowAction.request.url;
     if (uri == null) return false;
     if (_isAdHost(uri.host)) return false;
-    // Cùng lý do domain lock ở shouldOverrideUrlLoading: popup ra khỏi
-    // domain đang khoá gần như chắc chắn là ads/redirect rác, kể cả khi
-    // domain đó không có trong danh sách ads cố định.
-    if (!_isAllowedHost(uri.host)) return false;
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      if (createWindowAction.hasGesture == true) {
+        await _launchExternalScheme(uri);
+      }
+      return false;
+    }
     await controller.loadUrl(urlRequest: URLRequest(url: uri));
     return true;
   }
@@ -266,10 +313,26 @@ class LinkDetailController extends GetxController {
     canGoForward.value = results[1];
   }
 
-  Future<void> webReload() async => await webViewController?.reload();
+  Future<void> webReload() async {
+    hasLoadError.value = false;
+    isWebLoading.value = true;
+    webLoadProgress.value = 0;
+    final controller = webViewController;
+    if (controller == null) {
+      webViewGeneration.value++;
+      return;
+    }
+    await controller.reload();
+  }
+
   Future<void> webGoHome() async {
     if (url.isNotEmpty) {
-      await webViewController?.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+      hasLoadError.value = false;
+      isWebLoading.value = true;
+      webLoadProgress.value = 0;
+      await webViewController?.loadUrl(
+        urlRequest: URLRequest(url: WebUri(url)),
+      );
     }
   }
 
@@ -282,19 +345,116 @@ class LinkDetailController extends GetxController {
     canGoForward.value = false;
     currentUrl.value = '';
     isWebLoading.value = false;
+    webLoadProgress.value = 0;
+    hasWebContent.value = false;
     hasLoadError.value = false;
-    _lockedHost = null;
     webViewController = null;
   }
 
   void copyUrl() {
     if (url.isEmpty) return;
     Clipboard.setData(ClipboardData(text: url));
-    AppToast.showToast('link_copied'.tr, Icons.copy_rounded, color: Colors.green);
+    AppToast.showToast(
+      'link_copied'.tr,
+      Icons.copy_rounded,
+      color: AppColors.success,
+    );
   }
 
-  void openInApp() {
-    if (url.isNotEmpty) Utils.lanchUrl(url);
+  Future<void> openInApp() async {
+    if (url.isEmpty || _isLaunchingFallback) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      _showOpenError();
+      return;
+    }
+
+    _isLaunchingFallback = true;
+    try {
+      // Android dùng Custom Tabs: vẫn ở trong trải nghiệm ứng dụng nhưng sử
+      // dụng engine/cookie của trình duyệt, phù hợp với site chặn WebView.
+      var opened = false;
+      try {
+        opened = await launchUrl(
+          uri,
+          mode: LaunchMode.inAppBrowserView,
+          browserConfiguration: const BrowserConfiguration(showTitle: true),
+        );
+      } catch (error) {
+        debugPrint('Open Custom Tab error: $error');
+      }
+      if (!opened) {
+        try {
+          opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } catch (error) {
+          debugPrint('Open external browser error: $error');
+        }
+      }
+      if (!opened) _showOpenError();
+    } finally {
+      _isLaunchingFallback = false;
+    }
+  }
+
+  Future<void> _launchExternalScheme(WebUri webUri) async {
+    final raw = webUri.toString();
+    final uri = Uri.tryParse(raw);
+    if (uri == null || _isUnsafeExternalScheme(uri.scheme)) return;
+
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (opened || uri.scheme.toLowerCase() != 'intent') return;
+    } catch (error) {
+      debugPrint('Open external scheme error: $error');
+    }
+
+    // intent:// thường kèm URL web dự phòng. Nếu thiết bị không có ứng dụng
+    // đích, tải fallback ngay trong WebView thay vì bỏ thao tác của người dùng.
+    final match = RegExp(r'S\.browser_fallback_url=([^;]+)').firstMatch(raw);
+    if (match == null) return;
+    final fallback = Uri.tryParse(Uri.decodeComponent(match.group(1)!));
+    if (fallback == null ||
+        (fallback.scheme != 'http' && fallback.scheme != 'https')) {
+      return;
+    }
+    await webViewController?.loadUrl(
+      urlRequest: URLRequest(url: WebUri(fallback.toString())),
+    );
+  }
+
+  static bool _isUnsafeExternalScheme(String scheme) {
+    return const {
+      '',
+      'file',
+      'content',
+      'javascript',
+      'data',
+      'about',
+      'blob',
+    }.contains(scheme.toLowerCase());
+  }
+
+  static String _normalizeWebUrl(String? rawUrl) {
+    var value = rawUrl?.trim() ?? '';
+    if (value.isEmpty) return '';
+    if (!value.contains('://')) value = 'https://$value';
+
+    final uri = Uri.tryParse(value);
+    if (uri == null ||
+        !uri.hasAuthority ||
+        uri.host.isEmpty ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
+      return '';
+    }
+    return uri.toString();
+  }
+
+  void _showOpenError() {
+    AppToast.showToast(
+      'Unable to open URL'.tr,
+      Icons.error_outline_rounded,
+      color: AppColors.danger,
+    );
   }
 
   void openInMaps() {
@@ -304,6 +464,10 @@ class LinkDetailController extends GetxController {
   }
 
   void goToEdit() {
+    if (readOnly) {
+      _showReadOnlyMessage();
+      return;
+    }
     Get.back();
     Get.toNamed(AddLinkPage.routeName, arguments: link)?.then((success) {
       if (success == true) {
@@ -312,7 +476,21 @@ class LinkDetailController extends GetxController {
     });
   }
 
-  void deleteLink() => Get.find<LinkCollectionController>().onDeleteLink(link.id);
+  void deleteLink() {
+    if (readOnly) {
+      _showReadOnlyMessage();
+      return;
+    }
+    Get.find<LinkCollectionController>().onDeleteLink(link.id);
+  }
+
+  void _showReadOnlyMessage() {
+    AppToast.showToast(
+      'shared_link_read_only'.tr,
+      Icons.visibility_rounded,
+      color: AppColors.infoMuted,
+    );
+  }
 
   // --- JAVASCRIPT BLOCKERS ---
 

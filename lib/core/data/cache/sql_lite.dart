@@ -22,7 +22,12 @@ class DbHelper {
 
   static Future<Database> _initDb() async {
     final path = join(await getDatabasesPath(), 'app_database.db');
-    return openDatabase(path, version: _version, onCreate: _onCreate, onUpgrade: _onUpgrade);
+    return openDatabase(
+      path,
+      version: _version,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
   }
 
   static Future<void> _onCreate(Database db, int version) async {
@@ -34,7 +39,11 @@ class DbHelper {
   }
 
   /// Placeholder migration — thêm case khi tăng _version
-  static Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+  static Future<void> _onUpgrade(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
     final batch = db.batch();
     if (oldVersion < 3) {
       batch.execute('DROP TABLE IF EXISTS friends');
@@ -51,9 +60,13 @@ class DbHelper {
   static void registerModel(DbModel model) {
     if (_tableSchemas.containsKey(model.tableName)) return;
 
-    final columnsSql = model.columns.entries.map((e) => '${e.key} ${e.value}').join(', ');
+    final columnsSql = model.columns.entries
+        .map((e) => '${e.key} ${e.value}')
+        .join(', ');
 
-    final fkSql = model.foreignKeys.isNotEmpty ? ', ${model.foreignKeys.join(', ')}' : '';
+    final fkSql = model.foreignKeys.isNotEmpty
+        ? ', ${model.foreignKeys.join(', ')}'
+        : '';
 
     _tableSchemas[model.tableName] =
         '''
@@ -84,7 +97,11 @@ class DbHelper {
   /// Insert hoặc replace nếu trùng primary key
   static Future<void> upsert(DbModel model) async {
     final db = await database;
-    await db.insert(model.tableName, model.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      model.tableName,
+      model.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   /// Batch upsert — hiệu quả hơn khi insert nhiều record
@@ -93,13 +110,21 @@ class DbHelper {
     final db = await database;
     final batch = db.batch();
     for (final model in models) {
-      batch.insert(model.tableName, model.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
+      batch.insert(
+        model.tableName,
+        model.toJson(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     }
     await batch.commit(noResult: true);
   }
 
   /// Cập nhật các field theo id
-  static Future<void> update(String tableName, String id, Map<String, dynamic> data) async {
+  static Future<void> update(
+    String tableName,
+    String id,
+    Map<String, dynamic> data,
+  ) async {
     final db = await database;
     await db.update(tableName, data, where: 'id = ?', whereArgs: [id]);
   }
@@ -116,7 +141,12 @@ class DbHelper {
   }) async {
     final db = await database;
 
-    final orderBy = await _resolveOrderBy(db, tableName, orderByColumn, descending);
+    final orderBy = await _resolveOrderBy(
+      db,
+      tableName,
+      orderByColumn,
+      descending,
+    );
 
     return db.query(
       tableName,
@@ -129,7 +159,11 @@ class DbHelper {
   }
 
   /// Đếm số record — dùng cho phân trang
-  static Future<int> count(String tableName, {String? where, List<dynamic>? whereArgs}) async {
+  static Future<int> count(
+    String tableName, {
+    String? where,
+    List<dynamic>? whereArgs,
+  }) async {
     final db = await database;
     final result = await db.rawQuery(
       'SELECT COUNT(*) as cnt FROM $tableName'
@@ -140,15 +174,35 @@ class DbHelper {
   }
 
   /// Lấy 1 record theo id, trả null nếu không tìm thấy
-  static Future<Map<String, dynamic>?> getById(String tableName, String id) async {
+  static Future<Map<String, dynamic>?> getById(
+    String tableName,
+    String id,
+  ) async {
     final db = await database;
-    final res = await db.query(tableName, where: 'id = ?', whereArgs: [id], limit: 1);
+    final res = await db.query(
+      tableName,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
     return res.firstOrNull;
   }
 
   static Future<void> delete(String tableName, String id) async {
     final db = await database;
     await db.delete(tableName, where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// Xoá nhiều bản ghi trong một transaction/batch thay vì mở N thao tác DB.
+  static Future<void> deleteAll(String tableName, Iterable<String> ids) async {
+    final uniqueIds = ids.where((id) => id.isNotEmpty).toSet();
+    if (uniqueIds.isEmpty) return;
+    final db = await database;
+    final batch = db.batch();
+    for (final id in uniqueIds) {
+      batch.delete(tableName, where: 'id = ?', whereArgs: [id]);
+    }
+    await batch.commit(noResult: true);
   }
 
   static Future<void> clearTable(String tableName) async {
@@ -169,7 +223,8 @@ class DbHelper {
     final direction = descending ? 'DESC' : 'ASC';
 
     // Lấy từ cache nếu đã có
-    final columns = _columnCache[tableName] ?? await _fetchColumns(db, tableName);
+    final columns =
+        _columnCache[tableName] ?? await _fetchColumns(db, tableName);
 
     if (preferredColumn != null && columns.contains(preferredColumn)) {
       return '$preferredColumn $direction';
@@ -179,7 +234,10 @@ class DbHelper {
     return null;
   }
 
-  static Future<List<String>> _fetchColumns(Database db, String tableName) async {
+  static Future<List<String>> _fetchColumns(
+    Database db,
+    String tableName,
+  ) async {
     final pragma = await db.rawQuery('PRAGMA table_info($tableName)');
     final columns = pragma.map((e) => e['name'] as String).toList();
     _columnCache[tableName] = columns; // lưu cache

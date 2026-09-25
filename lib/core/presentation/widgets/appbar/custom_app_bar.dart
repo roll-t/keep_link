@@ -36,12 +36,19 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           ? GestureDetector(
               behavior: HitTestBehavior.translucent,
               onTap: onBack ?? () => Get.back(),
-              child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.t200),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: AppColors.t200,
+              ),
             )
           : null,
       automaticallyImplyLeading: false,
       title:
-          titleWidget ?? TextWidget(text: title, textStyle: titleStyle ?? AppTextStyle.semiBold20),
+          titleWidget ??
+          TextWidget(
+            text: title,
+            textStyle: titleStyle ?? AppTextStyle.semiBold20,
+          ),
       actions: actions,
     );
   }

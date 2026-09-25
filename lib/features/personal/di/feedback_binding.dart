@@ -8,6 +8,8 @@ class FeedbackBinding extends Bindings {
 
   @override
   void dependencies() {
-    Get.lazyPut<FeedbackController>(() => FeedbackController(initialType: type));
+    Get.lazyPut<FeedbackController>(
+      () => FeedbackController(initialType: type),
+    );
   }
 }

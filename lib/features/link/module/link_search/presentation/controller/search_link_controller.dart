@@ -18,7 +18,11 @@ class SourceStat {
   final String host; // normalized key, e.g. "tiktok.com"
   final String label; // display name, e.g. "TikTok"
   final int count;
-  const SourceStat({required this.host, required this.label, required this.count});
+  const SourceStat({
+    required this.host,
+    required this.label,
+    required this.count,
+  });
 }
 
 class SearchLinkController extends GetxController {
@@ -31,8 +35,6 @@ class SearchLinkController extends GetxController {
   /// True only during the initial DB → cache load (first ever open).
   /// Subsequent opens are instant since the cache is already warm.
   final isLoading = false.obs;
-
-  late final bool isSecurityEnabled;
 
   // Category
   final categories = <CategoryModel>[].obs;
@@ -49,6 +51,13 @@ class SearchLinkController extends GetxController {
   final dateFrom = Rx<DateTime?>(null);
   final dateTo = Rx<DateTime?>(null);
 
+  int get activeFilterCount =>
+      (selectedSort.value == SortOption.newest ? 0 : 1) +
+      (selectedSource.value == null ? 0 : 1) +
+      (dateFrom.value == null && dateTo.value == null ? 0 : 1);
+
+  bool get hasActiveFilters => activeFilterCount > 0;
+
   final categoryScrollController = ScrollController();
 
   // Search history & suggestions
@@ -63,8 +72,6 @@ class SearchLinkController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    isSecurityEnabled = AppGetStorage.isCategorySecurity();
-
     // Load search history from storage
     searchHistory.assignAll(AppGetStorage.getSearchHistory());
 
@@ -100,7 +107,20 @@ class SearchLinkController extends GetxController {
 
     // Recompute category link-counts whenever the link cache changes
     // (covers add, update/move, delete).
-    ever(AppCache.links, (_) => _recomputeChildrenCounts());
+    ever(AppCache.links, (_) {
+      _recomputeChildrenCounts();
+      _computeTopSources();
+      _runSearch();
+    });
+
+    // Keep privacy/category filters correct if a category is edited while the
+    // search controller is still alive.
+    ever(AppCache.categories, (_) {
+      _computePrivateCategoryIds();
+      _populateCategoryList();
+      _computeTopSources();
+      _runSearch();
+    });
 
     _init();
   }
@@ -120,7 +140,10 @@ class SearchLinkController extends GetxController {
     // first screen load).  Only the very first open hits SQLite.
     isLoading.value = true;
     try {
-      await Future.wait([CategoryRepository.ensureLoaded(), LinkRepository.ensureLoaded()]);
+      await Future.wait([
+        CategoryRepository.ensureLoaded(),
+        LinkRepository.ensureLoaded(),
+      ]);
       _computePrivateCategoryIds();
       _populateCategoryList();
       _computeTopSources();
@@ -135,14 +158,16 @@ class SearchLinkController extends GetxController {
   // ── Compute helpers (in-memory, no I/O) ───────────────────────────────────
 
   void _computePrivateCategoryIds() {
-    _privateCategoryIds = isSecurityEnabled ? AppCache.privateCategoryIds : const {};
+    // Search is another aggregate view. Never surface private-category links
+    // here, even when this installation has not enabled PIN protection yet.
+    _privateCategoryIds = AppCache.privateCategoryIds;
     log('Private category IDs: ${_privateCategoryIds.length}');
   }
 
   void _populateCategoryList() {
-    final list = isSecurityEnabled
-        ? AppCache.categories.where((c) => c.visibility == VisibilityStatus.public).toList()
-        : List<CategoryModel>.from(AppCache.categories);
+    final list = AppCache.categories
+        .where((c) => c.visibility == VisibilityStatus.public)
+        .toList();
     categories.assignAll(list);
     _recomputeChildrenCounts();
   }
@@ -213,29 +238,46 @@ class SearchLinkController extends GetxController {
 
   bool _passDateFilter(LinkModel item) {
     final d = item.createdAt;
-    if (d == null) return true;
     final from = dateFrom.value;
     final to = dateTo.value;
+    if (from == null && to == null) return true;
+    // An item without a saved timestamp cannot satisfy an explicit range.
+    if (d == null) return false;
     if (from != null && d.isBefore(from)) return false;
     // include the entire "to" day
-    if (to != null && d.isAfter(DateTime(to.year, to.month, to.day, 23, 59, 59))) return false;
+    if (to != null &&
+        d.isAfter(DateTime(to.year, to.month, to.day, 23, 59, 59))) {
+      return false;
+    }
     return true;
   }
 
   bool _matchSearch(LinkModel item, String searchKey) {
-    final title = Utils.removeDiacritics(item.metaDataModel?.title ?? '').toLowerCase();
+    final title = Utils.removeDiacritics(
+      item.metaDataModel?.title ?? '',
+    ).toLowerCase();
     final note = Utils.removeDiacritics(item.name ?? '').toLowerCase();
     final url = (item.metaDataModel?.url ?? '').toLowerCase();
-    return title.contains(searchKey) || note.contains(searchKey) || url.contains(searchKey);
+    return title.contains(searchKey) ||
+        note.contains(searchKey) ||
+        url.contains(searchKey);
   }
 
   List<LinkModel> _applySorting(List<LinkModel> list) {
     final sorted = List<LinkModel>.from(list);
     switch (selectedSort.value) {
       case SortOption.newest:
-        sorted.sort((a, b) => (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
+        sorted.sort(
+          (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
+            a.createdAt ?? DateTime(0),
+          ),
+        );
       case SortOption.oldest:
-        sorted.sort((a, b) => (a.createdAt ?? DateTime(0)).compareTo(b.createdAt ?? DateTime(0)));
+        sorted.sort(
+          (a, b) => (a.createdAt ?? DateTime(0)).compareTo(
+            b.createdAt ?? DateTime(0),
+          ),
+        );
       case SortOption.nameAZ:
         sorted.sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
       case SortOption.nameZA:
@@ -252,6 +294,13 @@ class SearchLinkController extends GetxController {
   void selectDateRange(DateTime? from, DateTime? to) {
     dateFrom.value = from;
     dateTo.value = to;
+  }
+
+  void resetFilters() {
+    selectedSort.value = SortOption.newest;
+    selectedSource.value = null;
+    dateFrom.value = null;
+    dateTo.value = null;
   }
 
   void clearSearch() {
@@ -329,11 +378,18 @@ class SearchLinkController extends GetxController {
   static String _normalizeHost(String? url) {
     if (url == null || url.isEmpty) return '';
     try {
-      final h = Uri.parse(url).host.toLowerCase().replaceFirst('www.', '');
+      final normalizedUrl = url.contains('://') ? url : 'https://$url';
+      final h = Uri.parse(
+        normalizedUrl,
+      ).host.toLowerCase().replaceFirst('www.', '');
       if (h.contains('tiktok.com')) return 'tiktok.com';
-      if (h.contains('youtu.be') || h.contains('youtube.com')) return 'youtube.com';
+      if (h.contains('youtu.be') || h.contains('youtube.com')) {
+        return 'youtube.com';
+      }
       if (h.contains('instagram.com')) return 'instagram.com';
-      if (h.contains('facebook.com') || h.contains('fb.com') || h.contains('fb.watch')) {
+      if (h.contains('facebook.com') ||
+          h.contains('fb.com') ||
+          h.contains('fb.watch')) {
         return 'facebook.com';
       }
       if (h.contains('twitter.com') || h.contains('x.com')) return 'x.com';
@@ -364,11 +420,18 @@ class SearchLinkController extends GetxController {
       if (host.isEmpty) continue;
       counter[host] = (counter[host] ?? 0) + 1;
     }
-    final sorted = counter.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = counter.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     topSources.assignAll(
       sorted
           .take(5)
-          .map((e) => SourceStat(host: e.key, label: _labelForHost(e.key), count: e.value)),
+          .map(
+            (e) => SourceStat(
+              host: e.key,
+              label: _labelForHost(e.key),
+              count: e.value,
+            ),
+          ),
     );
   }
 }

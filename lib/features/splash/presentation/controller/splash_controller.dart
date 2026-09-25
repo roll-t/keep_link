@@ -22,6 +22,9 @@ class SplashController extends GetxController {
     super.onInit();
     isSecurityEnabled.value = AppGetStorage.isSecurityEnabled();
     isFingerprintEnabled.value = AppGetStorage.isFingerprintEnabled();
+    if (isSecurityEnabled.value && DeepLinkService.sharedText == null) {
+      needPinVerify.value = true;
+    }
   }
 
   @override
@@ -33,20 +36,22 @@ class SplashController extends GetxController {
   }
 
   Future<void> _handleNavigation() async {
-    await Future.delayed(const Duration(milliseconds: 300));
     // ---------- 1. Deep Link ----------
     final shared = DeepLinkService.sharedText;
     if (shared != null) {
-      Get.offAllNamed(AddLinkPage.routeName, arguments: SplashArg(deepLinkText: shared));
+      Get.offAllNamed(
+        AddLinkPage.routeName,
+        arguments: SplashArg(deepLinkText: shared),
+      );
       return;
     }
 
     // ---------- 2. Chưa bật security ----------
     if (!isSecurityEnabled.value) {
+      await Future.delayed(const Duration(milliseconds: 600));
       goToHome();
       return;
     }
-    needPinVerify.value = true;
   }
 
   void verifyFinger() async {

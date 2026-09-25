@@ -3,7 +3,9 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/assets/app_icons.dart';
 import 'package:keep_link/core/config/assets/app_vectors.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/config/theme/app_text_styles.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/presentation/widgets/background/app_animated_background.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/core/presentation/widgets/text_field/simple_input_textfield.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/widgets/link_item.dart';
@@ -15,30 +17,35 @@ class SearchLinkPage extends GetView<SearchLinkController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg700,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            _SearchBar(ctrl: controller),
-            const SizedBox(height: 12),
-            Expanded(
-              child: Obx(() {
-                if (controller.isFieldFocused.value) {
-                  return _SuggestionPanel(ctrl: controller);
-                }
-                return Column(
-                  children: [
-                    _CategorySection(ctrl: controller),
-                    const SizedBox(height: 12),
-                    Expanded(child: _ResultBody(ctrl: controller)),
-                  ],
-                );
-              }),
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          const Positioned.fill(child: AppAnimatedBackground(intensity: .58)),
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 10),
+                _SearchBar(ctrl: controller),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Obx(() {
+                    if (controller.isFieldFocused.value) {
+                      return _SuggestionPanel(ctrl: controller);
+                    }
+                    return Column(
+                      children: [
+                        _CategorySection(ctrl: controller),
+                        const SizedBox(height: 12),
+                        Expanded(child: _ResultBody(ctrl: controller)),
+                      ],
+                    );
+                  }),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -55,32 +62,49 @@ class _SearchBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          InkWell(onTap: () => Get.back(), child: const Icon(Icons.arrow_back_ios_new_rounded)),
-          SizedBox(width: 12),
+          Material(
+            color: AppColors.navigationSurface,
+            shape: CircleBorder(
+              side: BorderSide(color: AppColors.white.withOpacityCompat(.08)),
+            ),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => Get.back(),
+              child: const SizedBox.square(
+                dimension: 42,
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 18,
+                  color: AppColors.onSurface,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: SimpleInputTextField(
+              height: 42,
+              fontSize: 14,
               prefixIcon: Icon(
                 Icons.search_rounded,
-                size: 20,
-                color: AppColors.white.withOpacityCompat(0.3),
+                size: 16,
+                color: AppColors.primaryContainer.withOpacityCompat(.62),
               ),
               radius: 1000,
               hintText: 'Search links'.tr,
               controller: ctrl.searchTec,
               focusNode: ctrl.searchFocusNode,
-              backgroundColor: AppColors.d300,
-              enableColor: AppColors.white.withOpacityCompat(0.08),
-              focusedColor: AppColors.primary.withOpacityCompat(0.3),
+              backgroundColor: AppColors.navigationSurface,
+              enableColor: AppColors.white.withOpacityCompat(.1),
+              focusedColor: AppColors.primaryDim,
               textInputAction: TextInputAction.search,
-              // Bấm nút "Tìm kiếm" trên bàn phím mới thực sự "chốt" 1 lượt tìm
-              // kiếm và lưu vào lịch sử — trước đây chỉ có tap vào gợi ý mới
-              // được lưu, còn gõ tay xong bấm tìm thì không bao giờ vào
-              // "Recent searches" cả dù đây mới là cách dùng phổ biến nhất.
               onCompleted: (text) {
                 if (text.trim().isNotEmpty) ctrl.applyQuery(text.trim());
               },
               suffixIcon: Obx(() {
-                if (ctrl.searchText.value.isEmpty) return const SizedBox.shrink();
+                if (ctrl.searchText.value.isEmpty) {
+                  return const SizedBox.shrink();
+                }
                 return GestureDetector(
                   onTap: ctrl.clearSearch,
                   child: Icon(
@@ -92,30 +116,65 @@ class _SearchBar extends StatelessWidget {
               }),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: () => _showFilterSheet(context, ctrl),
             child: Obx(() {
-              final isActive =
-                  ctrl.selectedSource.value != null || ctrl.selectedSort.value != SortOption.newest;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: isActive ? AppColors.primary.withOpacityCompat(0.15) : AppColors.d300,
-                  borderRadius: BorderRadius.circular(100),
-                  border: Border.all(
-                    color: isActive
-                        ? AppColors.primary.withOpacityCompat(0.5)
-                        : AppColors.white.withOpacityCompat(0.08),
+              final isActive = ctrl.hasActiveFilters;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? AppColors.primary.withOpacityCompat(.18)
+                          : AppColors.navigationSurface,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: isActive
+                            ? AppColors.primaryDim
+                            : AppColors.white.withOpacityCompat(.1),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.tune_rounded,
+                      color: isActive
+                          ? AppColors.primaryDim
+                          : AppColors.primaryContainer.withOpacityCompat(.7),
+                      size: 20,
+                    ),
                   ),
-                ),
-                child: Icon(
-                  Icons.tune_rounded,
-                  color: isActive ? AppColors.primary : AppColors.white.withOpacityCompat(0.5),
-                  size: 20,
-                ),
+                  if (isActive)
+                    Positioned(
+                      right: -3,
+                      top: -4,
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppColors.background,
+                            width: 1.5,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: TextWidget(
+                          text: '${ctrl.activeFilterCount}',
+                          size: 9,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    ),
+                ],
               );
             }),
           ),
@@ -227,19 +286,29 @@ class _CategoryChip extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOutCubic,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: selected ? AppColors.primary : AppColors.bg500,
+        color: selected ? null : AppColors.navigationSurface,
+        gradient: selected
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppColors.primaryBright, AppColors.primary],
+              )
+            : null,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: selected ? AppColors.primary : AppColors.white.withOpacityCompat(0.12),
+          color: selected
+              ? AppColors.primaryDim
+              : AppColors.white.withOpacityCompat(.1),
         ),
       ),
       child: TextWidget(
         text: label,
-        color: selected ? AppColors.white : AppColors.white.withOpacityCompat(0.55),
-        size: 13,
-        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+        color: selected
+            ? AppColors.white
+            : AppColors.white.withOpacityCompat(0.55),
+        textStyle: AppTextStyle.regular12,
       ),
     );
   }
@@ -257,13 +326,19 @@ class _ResultBody extends StatelessWidget {
       // Loading
       if (ctrl.isLoading.value) {
         return const Center(
-          child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+          child: CircularProgressIndicator(
+            color: AppColors.primary,
+            strokeWidth: 2,
+          ),
         );
       }
 
       // No results while searching
       if (ctrl.searchResults.isEmpty && ctrl.searchText.value.isNotEmpty) {
-        return _EmptyState(icon: AppVectors.icSearchNotFound, message: 'No matching results found');
+        return _EmptyState(
+          icon: AppVectors.icSearchNotFound,
+          message: 'No matching results found',
+        );
       }
 
       // No links in database
@@ -286,7 +361,8 @@ class _ResultBody extends StatelessWidget {
           endIndent: 0,
           color: AppColors.white.withOpacityCompat(0.10),
         ),
-        itemBuilder: (_, i) => LinkListItem(index: i, item: ctrl.searchResults[i]),
+        itemBuilder: (_, i) =>
+            LinkListItem(index: i, item: ctrl.searchResults[i]),
       );
     });
   }
@@ -303,7 +379,10 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          icon.show(color: AppColors.white.withOpacityCompat(0.15), size: Get.width * .28),
+          icon.show(
+            color: AppColors.white.withOpacityCompat(0.15),
+            size: Get.width * .28,
+          ),
           const SizedBox(height: 16),
           TextWidget(
             text: message,
@@ -347,7 +426,11 @@ class _SuggestionPanel extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: ctrl.clearAllHistory,
-                  child: TextWidget(text: 'Clear all'.tr, size: 13, color: AppColors.primary),
+                  child: TextWidget(
+                    text: 'Clear all'.tr,
+                    size: 13,
+                    color: AppColors.primary,
+                  ),
                 ),
               ],
             ),
@@ -370,8 +453,11 @@ class _SuggestionPanel extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               ...ctrl.suggestions.map(
-                (item) =>
-                    _SuggestionTile(text: item, query: query, onTap: () => ctrl.applyQuery(item)),
+                (item) => _SuggestionTile(
+                  text: item,
+                  query: query,
+                  onTap: () => ctrl.applyQuery(item),
+                ),
               ),
             ],
           ],
@@ -385,7 +471,11 @@ class _HistoryTile extends StatelessWidget {
   final String query;
   final VoidCallback onTap;
   final VoidCallback onRemove;
-  const _HistoryTile({required this.query, required this.onTap, required this.onRemove});
+  const _HistoryTile({
+    required this.query,
+    required this.onTap,
+    required this.onRemove,
+  });
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -395,7 +485,11 @@ class _HistoryTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            Icon(Icons.history_rounded, size: 18, color: AppColors.white.withOpacityCompat(0.4)),
+            Icon(
+              Icons.history_rounded,
+              size: 18,
+              color: AppColors.white.withOpacityCompat(0.4),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: TextWidget(
@@ -428,7 +522,11 @@ class _SuggestionTile extends StatelessWidget {
   final String query;
   final VoidCallback onTap;
 
-  const _SuggestionTile({required this.text, required this.query, required this.onTap});
+  const _SuggestionTile({
+    required this.text,
+    required this.query,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -444,7 +542,11 @@ class _SuggestionTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            Icon(Icons.search_rounded, size: 18, color: AppColors.white.withOpacityCompat(0.4)),
+            Icon(
+              Icons.search_rounded,
+              size: 18,
+              color: AppColors.white.withOpacityCompat(0.4),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: idx >= 0
@@ -471,7 +573,11 @@ class _SuggestionTile extends StatelessWidget {
                         ],
                       ),
                     )
-                  : TextWidget(text: text, size: 14, color: AppColors.white.withOpacityCompat(0.8)),
+                  : TextWidget(
+                      text: text,
+                      size: 14,
+                      color: AppColors.white.withOpacityCompat(0.8),
+                    ),
             ),
             Icon(
               Icons.north_west_rounded,
@@ -488,20 +594,36 @@ class _SuggestionTile extends StatelessWidget {
 // ─── Source icon helper ──────────────────────────────────────────────────────
 
 Widget _sourceIcon(String host, {double size = 16}) {
-  if (host.contains('tiktok.com')) return AppIcons.icLogoTiktok.show(size: size);
-  if (host.contains('youtube.com')) return AppIcons.icLogoYoutube.show(size: size);
-  if (host.contains('instagram.com')) return AppIcons.icLogoInstagram.show(size: size);
-  if (host.contains('facebook.com')) return AppIcons.icLogoFacebook.show(size: size);
-  if (host.contains('x.com')) return AppIcons.icLogoTwitter.show(size: size);
-  if (host.contains('google.com')) return AppIcons.icLogoGoogle.show(size: size);
-  return Icon(Icons.language_rounded, size: size, color: AppColors.white.withOpacityCompat(0.6));
+  if (host.contains('tiktok.com')) {
+    return AppIcons.icLogoTiktok.show(size: size);
+  }
+  if (host.contains('youtube.com')) {
+    return AppIcons.icLogoYoutube.show(size: size);
+  }
+  if (host.contains('instagram.com')) {
+    return AppIcons.icLogoInstagram.show(size: size);
+  }
+  if (host.contains('facebook.com')) {
+    return AppIcons.icLogoFacebook.show(size: size);
+  }
+  if (host.contains('x.com')) {
+    return AppIcons.icLogoTwitter.show(size: size);
+  }
+  if (host.contains('google.com')) {
+    return AppIcons.icLogoGoogle.show(size: size);
+  }
+  return Icon(
+    Icons.language_rounded,
+    size: size,
+    color: AppColors.white.withOpacityCompat(0.6),
+  );
 }
 // ─── Filter bottom sheet ──────────────────────────────────────────────────────
 
 void _showFilterSheet(BuildContext context, SearchLinkController ctrl) {
   showModalBottomSheet(
     context: context,
-    backgroundColor: AppColors.bg500,
+    backgroundColor: AppColors.modalSurface,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -522,7 +644,7 @@ class _FilterSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -531,7 +653,7 @@ class _FilterSheet extends StatelessWidget {
             // Handle bar
             Center(
               child: Container(
-                width: 40,
+                width: 36,
                 height: 4,
                 decoration: BoxDecoration(
                   color: AppColors.white.withOpacityCompat(0.2),
@@ -539,7 +661,29 @@ class _FilterSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
+
+            Row(
+              children: [
+                const TextWidget(
+                  text: 'Filters',
+                  color: AppColors.white,
+                  size: 19,
+                  fontWeight: FontWeight.w700,
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: AppColors.white.withOpacityCompat(0.55),
+                    size: 21,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
 
             const TextWidget(
               text: 'Sort by',
@@ -547,7 +691,7 @@ class _FilterSheet extends StatelessWidget {
               size: 16,
               fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
             Obx(
               () => Column(
@@ -555,23 +699,23 @@ class _FilterSheet extends StatelessWidget {
                   final (value, label, icon) = opt;
                   final selected = ctrl.selectedSort.value == value;
                   return GestureDetector(
-                    onTap: () {
-                      ctrl.selectSort(value);
-                      Get.back();
-                    },
+                    onTap: () => ctrl.selectSort(value),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      margin: const EdgeInsets.only(bottom: 7),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 11,
+                      ),
                       decoration: BoxDecoration(
                         color: selected
                             ? AppColors.primary.withOpacityCompat(0.15)
                             : AppColors.white.withOpacityCompat(0.04),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: selected
                               ? AppColors.primary.withOpacityCompat(0.5)
-                              : Colors.transparent,
+                              : AppColors.transparent,
                         ),
                       ),
                       child: Row(
@@ -581,20 +725,26 @@ class _FilterSheet extends StatelessWidget {
                             color: selected
                                 ? AppColors.primary
                                 : AppColors.white.withOpacityCompat(0.5),
-                            size: 20,
+                            size: 18,
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 10),
                           TextWidget(
                             text: label,
                             color: selected
                                 ? AppColors.white
                                 : AppColors.white.withOpacityCompat(0.6),
-                            size: 15,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                            size: 14,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
                           ),
                           const Spacer(),
                           if (selected)
-                            Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+                            Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.primary,
+                              size: 17,
+                            ),
                         ],
                       ),
                     ),
@@ -627,13 +777,14 @@ class _FilterSheet extends StatelessWidget {
                     children: sources.map((s) {
                       final selected = ctrl.selectedSource.value == s.host;
                       return GestureDetector(
-                        onTap: () {
-                          ctrl.selectSource(selected ? null : s.host);
-                          Get.back();
-                        },
+                        onTap: () =>
+                            ctrl.selectSource(selected ? null : s.host),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: selected
                                 ? AppColors.primary.withOpacityCompat(0.15)
@@ -642,7 +793,7 @@ class _FilterSheet extends StatelessWidget {
                             border: Border.all(
                               color: selected
                                   ? AppColors.primary.withOpacityCompat(0.5)
-                                  : Colors.transparent,
+                                  : AppColors.transparent,
                             ),
                           ),
                           child: Row(
@@ -656,11 +807,16 @@ class _FilterSheet extends StatelessWidget {
                                     ? AppColors.white
                                     : AppColors.white.withOpacityCompat(0.75),
                                 size: 13,
-                                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                                fontWeight: selected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
                               ),
                               const SizedBox(width: 5),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1,
+                                ),
                                 decoration: BoxDecoration(
                                   color: selected
                                       ? AppColors.primary
@@ -684,31 +840,59 @@ class _FilterSheet extends StatelessWidget {
               );
             }),
 
-            // Reset button
             const SizedBox(height: 20),
-            GestureDetector(
-              onTap: () {
-                ctrl.selectSort(SortOption.newest);
-                ctrl.selectCategory(null);
-                ctrl.selectSource(null);
-                ctrl.selectDateRange(null, null);
-                Navigator.of(context).pop();
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.white.withOpacityCompat(0.06),
-                  borderRadius: BorderRadius.circular(12),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: ctrl.resetFilters,
+                    child: Container(
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.white.withOpacityCompat(0.06),
+                        borderRadius: BorderRadius.circular(13),
+                        border: Border.all(
+                          color: AppColors.white.withOpacityCompat(0.06),
+                        ),
+                      ),
+                      child: const TextWidget(
+                        text: 'Reset filters',
+                        color: AppColors.n80,
+                        size: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 ),
-                child: const TextWidget(
-                  text: 'Reset filters',
-                  textAlign: TextAlign.center,
-                  color: AppColors.n80,
-                  size: 14,
-                  fontWeight: FontWeight.w500,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(13),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacityCompat(0.24),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: const TextWidget(
+                        text: 'Apply filters',
+                        color: AppColors.white,
+                        size: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
@@ -761,7 +945,7 @@ class _DateRangeSection extends StatelessWidget {
       colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
         onPrimary: AppColors.white,
-        surface: AppColors.bg500,
+        surface: AppColors.modalSurface,
         onSurface: AppColors.white,
       ),
     ),
@@ -792,7 +976,10 @@ class _DateRangeSection extends StatelessWidget {
                 GestureDetector(
                   onTap: () => ctrl.selectDateRange(null, null),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacityCompat(0.15),
                       borderRadius: BorderRadius.circular(10),
@@ -820,7 +1007,11 @@ class _DateRangeSection extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _DateButton(label: 'To', value: _fmt(to), onTap: () => _pickTo(context)),
+                child: _DateButton(
+                  label: 'To',
+                  value: _fmt(to),
+                  onTap: () => _pickTo(context),
+                ),
               ),
             ],
           ),
@@ -834,7 +1025,11 @@ class _DateButton extends StatelessWidget {
   final String label;
   final String value;
   final VoidCallback onTap;
-  const _DateButton({required this.label, required this.value, required this.onTap});
+  const _DateButton({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -860,7 +1055,9 @@ class _DateButton extends StatelessWidget {
             Icon(
               Icons.calendar_today_rounded,
               size: 14,
-              color: isSet ? AppColors.primary : AppColors.white.withOpacityCompat(0.4),
+              color: isSet
+                  ? AppColors.primary
+                  : AppColors.white.withOpacityCompat(0.4),
             ),
             const SizedBox(width: 8),
             Column(
@@ -875,7 +1072,9 @@ class _DateButton extends StatelessWidget {
                 TextWidget(
                   text: value,
                   size: 13,
-                  color: isSet ? AppColors.white : AppColors.white.withOpacityCompat(0.55),
+                  color: isSet
+                      ? AppColors.white
+                      : AppColors.white.withOpacityCompat(0.55),
                   fontWeight: isSet ? FontWeight.w600 : FontWeight.w400,
                 ),
               ],
