@@ -288,7 +288,10 @@ class SearchLinkController extends GetxController {
 
   // ── Public actions ─────────────────────────────────────────────────────────
 
-  void selectCategory(String? id) => selectedCategoryId.value = id;
+  void selectCategory(String? id) {
+    if (selectedCategoryId.value == id) return;
+    selectedCategoryId.value = id;
+  }
   void selectSort(SortOption opt) => selectedSort.value = opt;
   void selectSource(String? host) => selectedSource.value = host;
   void selectDateRange(DateTime? from, DateTime? to) {

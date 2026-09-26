@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/assets/app_icons.dart';
 import 'package:keep_link/core/config/assets/app_vectors.dart';
@@ -62,33 +63,26 @@ class _SearchBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          Material(
-            color: AppColors.navigationSurface,
-            shape: CircleBorder(
-              side: BorderSide(color: AppColors.white.withOpacityCompat(.08)),
-            ),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: () => Get.back(),
-              child: const SizedBox.square(
-                dimension: 42,
-                child: Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  size: 18,
-                  color: AppColors.onSurface,
-                ),
-              ),
+          InkWell(
+            onTap: () => Get.back(),
+            child: const SizedBox.square(
+              dimension: 42,
+              child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.onSurface),
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: SimpleInputTextField(
-              height: 42,
+              height: 38,
               fontSize: 14,
-              prefixIcon: Icon(
-                Icons.search_rounded,
-                size: 16,
-                color: AppColors.primaryContainer.withOpacityCompat(.62),
+              prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+              prefixIcon: Padding(
+                padding: const EdgeInsets.only(left: 12, right: 4),
+                child: Icon(
+                  Icons.search_rounded,
+                  size: 16,
+                  color: AppColors.primaryContainer.withOpacityCompat(.62),
+                ),
               ),
               radius: 1000,
               hintText: 'Search links'.tr,
@@ -97,6 +91,7 @@ class _SearchBar extends StatelessWidget {
               backgroundColor: AppColors.navigationSurface,
               enableColor: AppColors.white.withOpacityCompat(.1),
               focusedColor: AppColors.primaryDim,
+              isShowBorder: false,
               textInputAction: TextInputAction.search,
               onCompleted: (text) {
                 if (text.trim().isNotEmpty) ctrl.applyQuery(text.trim());
@@ -126,19 +121,8 @@ class _SearchBar extends StatelessWidget {
                 children: [
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 220),
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? AppColors.primary.withOpacityCompat(.18)
-                          : AppColors.navigationSurface,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: isActive
-                            ? AppColors.primaryDim
-                            : AppColors.white.withOpacityCompat(.1),
-                      ),
-                    ),
+                    width: 30,
+                    height: 30,
                     child: Icon(
                       Icons.tune_rounded,
                       color: isActive
@@ -149,27 +133,20 @@ class _SearchBar extends StatelessWidget {
                   ),
                   if (isActive)
                     Positioned(
-                      right: -3,
-                      top: -4,
+                      right: -2,
+                      top: -3,
                       child: Container(
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         decoration: BoxDecoration(
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: AppColors.background,
-                            width: 1.5,
-                          ),
+                          border: Border.all(color: AppColors.background, width: 1.5),
                         ),
                         alignment: Alignment.center,
                         child: TextWidget(
                           text: '${ctrl.activeFilterCount}',
-                          size: 9,
-                          fontWeight: FontWeight.w700,
+                          textStyle: AppTextStyle.regular8,
                           color: AppColors.white,
                         ),
                       ),
@@ -196,6 +173,7 @@ class _CategorySection extends StatelessWidget {
       children: [
         Obx(() {
           final cats = ctrl.categories;
+          final selectedId = ctrl.selectedCategoryId.value;
           return SizedBox(
             width: double.infinity,
             child: SingleChildScrollView(
@@ -205,28 +183,21 @@ class _CategorySection extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  _ScrollItem(
-                    onSelected: () => ctrl.selectCategory(null),
-                    child: Obx(
-                      () => _CategoryChip(
-                        label: 'All'.tr,
-                        selected: ctrl.selectedCategoryId.value == null,
-                      ),
-                    ),
+                  _CategoryChip(
+                    label: 'All'.tr,
+                    selected: selectedId == null,
+                    onTap: () => ctrl.selectCategory(null),
                   ),
                   ...cats.map((cat) {
+                    final label = cat.chilrenCount != null
+                        ? '${cat.name ?? ''} (${cat.chilrenCount})'
+                        : (cat.name ?? '');
                     return Padding(
                       padding: const EdgeInsets.only(left: 8),
-                      child: _ScrollItem(
-                        onSelected: () => ctrl.selectCategory(cat.id),
-                        child: Obx(
-                          () => _CategoryChip(
-                            label: cat.chilrenCount != null
-                                ? '${cat.name ?? ''} (${cat.chilrenCount})'
-                                : (cat.name ?? ''),
-                            selected: ctrl.selectedCategoryId.value == cat.id,
-                          ),
-                        ),
+                      child: _CategoryChip(
+                        label: label,
+                        selected: selectedId == cat.id,
+                        onTap: () => ctrl.selectCategory(cat.id),
                       ),
                     );
                   }),
@@ -240,75 +211,148 @@ class _CategorySection extends StatelessWidget {
   }
 }
 
-/// Wrapper widget to handle "Scroll to center" logic
-class _ScrollItem extends StatelessWidget {
-  final Widget child;
-  final VoidCallback onSelected;
-
-  const _ScrollItem({required this.child, required this.onSelected});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        onSelected();
-        // Đợi 1 frame để layout chạy xong với trạng thái "selected" mới rồi
-        // mới đo vị trí để scroll tới. Gọi ensureVisible ngay lập tức (như
-        // trước) sẽ tính toán target dựa trên bề rộng chip LÚC CHƯA selected
-        // — nhưng chip selected lại đổi sang fontWeight đậm hơn nên rộng ra
-        // ngay sau đó, khiến vị trí "giữa khung" bị lệch so với target đã
-        // tính, tạo cảm giác vừa scroll vừa bị xê dịch/giật.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!context.mounted) return;
-          Scrollable.ensureVisible(
-            context,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            alignment: 0.5,
-          );
-        });
-      },
-      child: child,
-    );
-  }
-}
-
-class _CategoryChip extends StatelessWidget {
+class _CategoryChip extends StatefulWidget {
   final String label;
   final bool selected;
-  // Remove VoidCallback onTap as the wrapper already handles it
+  final VoidCallback onTap;
 
-  const _CategoryChip({required this.label, required this.selected});
+  const _CategoryChip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  State<_CategoryChip> createState() => _CategoryChipState();
+}
+
+class _CategoryChipState extends State<_CategoryChip> {
+  bool _isPressed = false;
+
+  void _onTapDown(TapDownDetails _) {
+    setState(() => _isPressed = true);
+  }
+
+  void _onTapUp(TapUpDetails _) {
+    setState(() => _isPressed = false);
+  }
+
+  void _onTapCancel() {
+    setState(() => _isPressed = false);
+  }
+
+  void _handleTap() {
+    HapticFeedback.selectionClick();
+    widget.onTap();
+
+    // Tự động cuộn nhẹ nhàng VÀO VÙNG NHÌN THẤY chỉ khi chip đang bị khuất/nằm sát mép màn hình.
+    // Nếu chip đã hoàn toàn nằm gọn trong màn hình, giữ nguyên vị trí để không bị xê dịch dưới tay.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _maybeScrollIntoView();
+    });
+  }
+
+  void _maybeScrollIntoView() {
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) return;
+
+    final scrollable = Scrollable.maybeOf(context);
+    if (scrollable == null) return;
+
+    final scrollRenderBox = scrollable.context.findRenderObject() as RenderBox?;
+    if (scrollRenderBox == null) return;
+
+    final itemOffset = renderBox.localToGlobal(Offset.zero, ancestor: scrollRenderBox);
+    final itemLeft = itemOffset.dx;
+    final itemRight = itemLeft + renderBox.size.width;
+    final viewportWidth = scrollRenderBox.size.width;
+
+    const margin = 16.0;
+    // Đã nằm an toàn trong khung nhìn -> không cần scroll, giữ trải nghiệm mượt mà tức thì
+    if (itemLeft >= margin && itemRight <= viewportWidth - margin) {
+      return;
+    }
+
+    Scrollable.ensureVisible(
+      context,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      alignment: itemLeft < margin ? 0.05 : 0.95,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    // REMOVE GestureDetector here
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOutCubic,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: selected ? null : AppColors.navigationSurface,
-        gradient: selected
-            ? const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.primaryBright, AppColors.primary],
-              )
-            : null,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: selected
-              ? AppColors.primaryDim
-              : AppColors.white.withOpacityCompat(.1),
+    final selected = widget.selected;
+
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      onTap: _handleTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.93 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOutCubic,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected ? AppColors.primaryDim : AppColors.white.withOpacityCompat(.10),
+              width: 1.0,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacityCompat(0.30),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(19),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Nền mặc định (unselected)
+                Container(color: AppColors.navigationSurface),
+                // Nền gradient chuyển đổi mượt bằng GPU opacity layer, không bị snap lerp
+                Positioned.fill(
+                  child: AnimatedOpacity(
+                    opacity: selected ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOutCubic,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [AppColors.primaryBright, AppColors.primary],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Text nhãn với animation màu sắc và độ dày chữ mượt mà
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  child: AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                      color: selected ? AppColors.white : AppColors.white.withOpacityCompat(0.60),
+                    ),
+                    child: Text(widget.label),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
-      child: TextWidget(
-        text: label,
-        color: selected
-            ? AppColors.white
-            : AppColors.white.withOpacityCompat(0.55),
-        textStyle: AppTextStyle.regular12,
       ),
     );
   }
@@ -323,46 +367,46 @@ class _ResultBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      Widget body;
       // Loading
       if (ctrl.isLoading.value) {
-        return const Center(
-          child: CircularProgressIndicator(
-            color: AppColors.primary,
-            strokeWidth: 2,
-          ),
+        body = const Center(
+          key: ValueKey('loading'),
+          child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
         );
-      }
-
-      // No results while searching
-      if (ctrl.searchResults.isEmpty && ctrl.searchText.value.isNotEmpty) {
-        return _EmptyState(
+      } else if (ctrl.searchResults.isEmpty && ctrl.searchText.value.isNotEmpty) {
+        body = const _EmptyState(
+          key: ValueKey('empty_search'),
           icon: AppVectors.icSearchNotFound,
           message: 'No matching results found',
         );
-      }
-
-      // No links in database
-      if (ctrl.searchResults.isEmpty) {
-        return _EmptyState(
+      } else if (ctrl.searchResults.isEmpty) {
+        body = const _EmptyState(
+          key: ValueKey('empty_db'),
           icon: AppVectors.icSearchFile,
           message: 'No links yet\nAdd your first link!',
         );
+      } else {
+        body = ListView.separated(
+          key: const ValueKey('results_list'),
+          padding: const EdgeInsets.only(top: 4, bottom: 24),
+          itemCount: ctrl.searchResults.length,
+          separatorBuilder: (_, __) => Divider(
+            height: .5,
+            thickness: 0.8,
+            indent: 0,
+            endIndent: 0,
+            color: AppColors.white.withOpacityCompat(0.10),
+          ),
+          itemBuilder: (_, i) => LinkListItem(index: i, item: ctrl.searchResults[i]),
+        );
       }
 
-      // Không còn padding ngang — item tự lo padding riêng bên trong
-      // (LinkListItem) để thumbnail/nội dung tràn sát mép màn hình, giống
-      return ListView.separated(
-        padding: const EdgeInsets.only(top: 4, bottom: 24),
-        itemCount: ctrl.searchResults.length,
-        separatorBuilder: (_, __) => Divider(
-          height: .5,
-          thickness: 0.8,
-          indent: 0,
-          endIndent: 0,
-          color: AppColors.white.withOpacityCompat(0.10),
-        ),
-        itemBuilder: (_, i) =>
-            LinkListItem(index: i, item: ctrl.searchResults[i]),
+      return AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        child: body,
       );
     });
   }
@@ -371,7 +415,7 @@ class _ResultBody extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   final dynamic icon;
   final String message;
-  const _EmptyState({required this.icon, required this.message});
+  const _EmptyState({super.key, required this.icon, required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -379,10 +423,7 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          icon.show(
-            color: AppColors.white.withOpacityCompat(0.15),
-            size: Get.width * .28,
-          ),
+          icon.show(color: AppColors.white.withOpacityCompat(0.15), size: Get.width * .28),
           const SizedBox(height: 16),
           TextWidget(
             text: message,
@@ -426,11 +467,7 @@ class _SuggestionPanel extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: ctrl.clearAllHistory,
-                  child: TextWidget(
-                    text: 'Clear all'.tr,
-                    size: 13,
-                    color: AppColors.primary,
-                  ),
+                  child: TextWidget(text: 'Clear all'.tr, size: 13, color: AppColors.primary),
                 ),
               ],
             ),
@@ -453,11 +490,8 @@ class _SuggestionPanel extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               ...ctrl.suggestions.map(
-                (item) => _SuggestionTile(
-                  text: item,
-                  query: query,
-                  onTap: () => ctrl.applyQuery(item),
-                ),
+                (item) =>
+                    _SuggestionTile(text: item, query: query, onTap: () => ctrl.applyQuery(item)),
               ),
             ],
           ],
@@ -471,11 +505,7 @@ class _HistoryTile extends StatelessWidget {
   final String query;
   final VoidCallback onTap;
   final VoidCallback onRemove;
-  const _HistoryTile({
-    required this.query,
-    required this.onTap,
-    required this.onRemove,
-  });
+  const _HistoryTile({required this.query, required this.onTap, required this.onRemove});
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -485,11 +515,7 @@ class _HistoryTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            Icon(
-              Icons.history_rounded,
-              size: 18,
-              color: AppColors.white.withOpacityCompat(0.4),
-            ),
+            Icon(Icons.history_rounded, size: 18, color: AppColors.white.withOpacityCompat(0.4)),
             const SizedBox(width: 12),
             Expanded(
               child: TextWidget(
@@ -522,11 +548,7 @@ class _SuggestionTile extends StatelessWidget {
   final String query;
   final VoidCallback onTap;
 
-  const _SuggestionTile({
-    required this.text,
-    required this.query,
-    required this.onTap,
-  });
+  const _SuggestionTile({required this.text, required this.query, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -542,11 +564,7 @@ class _SuggestionTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            Icon(
-              Icons.search_rounded,
-              size: 18,
-              color: AppColors.white.withOpacityCompat(0.4),
-            ),
+            Icon(Icons.search_rounded, size: 18, color: AppColors.white.withOpacityCompat(0.4)),
             const SizedBox(width: 12),
             Expanded(
               child: idx >= 0
@@ -573,11 +591,7 @@ class _SuggestionTile extends StatelessWidget {
                         ],
                       ),
                     )
-                  : TextWidget(
-                      text: text,
-                      size: 14,
-                      color: AppColors.white.withOpacityCompat(0.8),
-                    ),
+                  : TextWidget(text: text, size: 14, color: AppColors.white.withOpacityCompat(0.8)),
             ),
             Icon(
               Icons.north_west_rounded,
@@ -612,11 +626,7 @@ Widget _sourceIcon(String host, {double size = 16}) {
   if (host.contains('google.com')) {
     return AppIcons.icLogoGoogle.show(size: size);
   }
-  return Icon(
-    Icons.language_rounded,
-    size: size,
-    color: AppColors.white.withOpacityCompat(0.6),
-  );
+  return Icon(Icons.language_rounded, size: size, color: AppColors.white.withOpacityCompat(0.6));
 }
 // ─── Filter bottom sheet ──────────────────────────────────────────────────────
 
@@ -703,10 +713,7 @@ class _FilterSheet extends StatelessWidget {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       margin: const EdgeInsets.only(bottom: 7),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 11,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                       decoration: BoxDecoration(
                         color: selected
                             ? AppColors.primary.withOpacityCompat(0.15)
@@ -734,17 +741,11 @@ class _FilterSheet extends StatelessWidget {
                                 ? AppColors.white
                                 : AppColors.white.withOpacityCompat(0.6),
                             size: 14,
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
+                            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                           ),
                           const Spacer(),
                           if (selected)
-                            Icon(
-                              Icons.check_circle_rounded,
-                              color: AppColors.primary,
-                              size: 17,
-                            ),
+                            Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 17),
                         ],
                       ),
                     ),
@@ -777,14 +778,10 @@ class _FilterSheet extends StatelessWidget {
                     children: sources.map((s) {
                       final selected = ctrl.selectedSource.value == s.host;
                       return GestureDetector(
-                        onTap: () =>
-                            ctrl.selectSource(selected ? null : s.host),
+                        onTap: () => ctrl.selectSource(selected ? null : s.host),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: selected
                                 ? AppColors.primary.withOpacityCompat(0.15)
@@ -807,16 +804,11 @@ class _FilterSheet extends StatelessWidget {
                                     ? AppColors.white
                                     : AppColors.white.withOpacityCompat(0.75),
                                 size: 13,
-                                fontWeight: selected
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
+                                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                               ),
                               const SizedBox(width: 5),
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
-                                  vertical: 1,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                 decoration: BoxDecoration(
                                   color: selected
                                       ? AppColors.primary
@@ -852,9 +844,7 @@ class _FilterSheet extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppColors.white.withOpacityCompat(0.06),
                         borderRadius: BorderRadius.circular(13),
-                        border: Border.all(
-                          color: AppColors.white.withOpacityCompat(0.06),
-                        ),
+                        border: Border.all(color: AppColors.white.withOpacityCompat(0.06)),
                       ),
                       child: const TextWidget(
                         text: 'Reset filters',
@@ -976,10 +966,7 @@ class _DateRangeSection extends StatelessWidget {
                 GestureDetector(
                   onTap: () => ctrl.selectDateRange(null, null),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacityCompat(0.15),
                       borderRadius: BorderRadius.circular(10),
@@ -1007,11 +994,7 @@ class _DateRangeSection extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _DateButton(
-                  label: 'To',
-                  value: _fmt(to),
-                  onTap: () => _pickTo(context),
-                ),
+                child: _DateButton(label: 'To', value: _fmt(to), onTap: () => _pickTo(context)),
               ),
             ],
           ),
@@ -1025,11 +1008,7 @@ class _DateButton extends StatelessWidget {
   final String label;
   final String value;
   final VoidCallback onTap;
-  const _DateButton({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
+  const _DateButton({required this.label, required this.value, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1055,9 +1034,7 @@ class _DateButton extends StatelessWidget {
             Icon(
               Icons.calendar_today_rounded,
               size: 14,
-              color: isSet
-                  ? AppColors.primary
-                  : AppColors.white.withOpacityCompat(0.4),
+              color: isSet ? AppColors.primary : AppColors.white.withOpacityCompat(0.4),
             ),
             const SizedBox(width: 8),
             Column(
@@ -1072,9 +1049,7 @@ class _DateButton extends StatelessWidget {
                 TextWidget(
                   text: value,
                   size: 13,
-                  color: isSet
-                      ? AppColors.white
-                      : AppColors.white.withOpacityCompat(0.55),
+                  color: isSet ? AppColors.white : AppColors.white.withOpacityCompat(0.55),
                   fontWeight: isSet ? FontWeight.w600 : FontWeight.w400,
                 ),
               ],

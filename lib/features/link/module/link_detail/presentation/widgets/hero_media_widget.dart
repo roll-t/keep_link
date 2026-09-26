@@ -487,8 +487,9 @@ class _WebViewErrorOverlay extends GetView<LinkDetailController> {
               ),
               const SizedBox(width: 12),
               PrimaryButton(
-                text: "Open in App".tr,
-                onPressed: controller.openInApp,
+                text: controller.linkPlatform
+                    .getOpenLabel(isIncognito: controller.isIncognito.value),
+                onPressed: controller.openDestination,
               ),
             ],
           ),
@@ -580,10 +581,12 @@ class _WebViewNavigationBar extends GetView<LinkDetailController> {
           const SizedBox(width: 4),
 
           _NavButton(
-            icon: Icons.open_in_browser_rounded,
+            icon: controller.linkPlatform
+                .getActionIcon(isIncognito: controller.isIncognito.value),
             enable: true,
-            onTap: controller.openInApp,
-            tooltip: 'Open in App'.tr,
+            onTap: controller.openDestination,
+            tooltip: controller.linkPlatform
+                .getOpenLabel(isIncognito: controller.isIncognito.value),
           ),
 
           // ── Nút Back ──

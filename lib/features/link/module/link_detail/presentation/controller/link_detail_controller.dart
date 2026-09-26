@@ -3,9 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/data/cache/app_cache.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
+import 'package:keep_link/core/data/repositories/link_repository.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/utils.dart';
+import 'package:keep_link/features/category/application/model/category_model.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
+import 'package:keep_link/features/link/application/model/link_platform.dart';
 import 'package:keep_link/features/link/application/model/link_type.dart';
 import 'package:keep_link/features/link/module/link_add/presentation/page/add_link_page.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
@@ -41,6 +46,15 @@ class LinkDetailController extends GetxController {
 
   late final String url = _normalizeWebUrl(link.metaDataModel?.url);
   late final LinkType linkType = LinkTypeDetector.detect(url);
+  late final LinkPlatform linkPlatform = LinkPlatformDetector.detect(url);
+
+  /// Chế độ mở web: Công khai (false) hoặc Ẩn danh (true)
+  final isIncognito = AppGetStorage.isIncognitoMode().obs;
+
+  void toggleIncognito(bool value) {
+    isIncognito.value = value;
+    AppGetStorage.setIncognitoMode(value);
+  }
 
   bool get isVideo => linkType == LinkType.video;
   String get imageUrl => link.metaDataModel?.imageUrl ?? '';
@@ -49,6 +63,64 @@ class LinkDetailController extends GetxController {
   bool get isTikTok => url.contains("tiktok.com");
   String get address => link.metaDataModel?.address ?? '';
   bool get hasLocation => address.isNotEmpty;
+
+  // ── Category management ──────────────────────────────────────────────────
+  late final currentCategoryId = Rx<String?>(link.categoryId);
+
+  CategoryModel? get currentCategory {
+    final cid = currentCategoryId.value;
+    if (cid == null || cid.isEmpty || cid == 'all') return null;
+    return AppCache.categories.firstWhereOrNull((c) => c.id == cid);
+  }
+
+  void showReadOnlyMessage() => _showReadOnlyMessage();
+
+  Future<void> changeCategory(String? newCategoryId) async {
+    if (readOnly) {
+      _showReadOnlyMessage();
+      return;
+    }
+    final normalizedId =
+        (newCategoryId == null || newCategoryId.isEmpty || newCategoryId == 'all')
+            ? null
+            : newCategoryId;
+
+    if (currentCategoryId.value == normalizedId) return;
+
+    final updatedLink = LinkModel(
+      id: link.id,
+      name: link.name,
+      image: link.image,
+      metaDataModel: link.metaDataModel,
+      categoryId: normalizedId,
+      createdAt: link.createdAt,
+      updatedAt: DateTime.now(),
+    );
+
+    await LinkRepository.update(updatedLink);
+    currentCategoryId.value = normalizedId;
+
+    if (Get.isRegistered<LinkCollectionController>()) {
+      Get.find<LinkCollectionController>().onRefreshData();
+    }
+
+    if (normalizedId != null) {
+      final cat =
+          AppCache.categories.firstWhereOrNull((c) => c.id == normalizedId);
+      final catName = cat?.name ?? 'Category'.tr;
+      AppToast.showToast(
+        'category_changed'.trParams({'name': catName}),
+        Icons.check_circle_rounded,
+        color: AppColors.success,
+      );
+    } else {
+      AppToast.showToast(
+        'category_removed'.tr,
+        Icons.check_circle_rounded,
+        color: AppColors.success,
+      );
+    }
+  }
 
   // ── Ad / tracker blocking ────────────────────────────────────────────────
 
@@ -100,10 +172,12 @@ class LinkDetailController extends GetxController {
     thirdPartyCookiesEnabled: true,
 
     // ── Cache ────────────────────────────────────────────────────────────
-    cacheEnabled: true,
+    cacheEnabled: !isIncognito.value,
+    clearCache: isIncognito.value,
+    incognito: isIncognito.value,
     // LOAD_DEFAULT vẫn tận dụng HTTP cache nhưng revalidate khi cần. Chế độ
     // cache-first trước đây giữ lại redirect/trang lỗi cũ quá lâu.
-    cacheMode: CacheMode.LOAD_DEFAULT,
+    cacheMode: isIncognito.value ? CacheMode.LOAD_NO_CACHE : CacheMode.LOAD_DEFAULT,
 
     // ── Rendering (Android) ──────────────────────────────────────────────
     // Dùng HybridComposition để giảm lỗi/log BLASTBufferQueue trên một số máy.
@@ -361,7 +435,9 @@ class LinkDetailController extends GetxController {
     );
   }
 
-  Future<void> openInApp() async {
+  Future<void> openInApp() async => openDestination();
+
+  Future<void> openDestination() async {
     if (url.isEmpty || _isLaunchingFallback) return;
     final uri = Uri.tryParse(url);
     if (uri == null) {
@@ -371,25 +447,76 @@ class LinkDetailController extends GetxController {
 
     _isLaunchingFallback = true;
     try {
-      // Android dùng Custom Tabs: vẫn ở trong trải nghiệm ứng dụng nhưng sử
-      // dụng engine/cookie của trình duyệt, phù hợp với site chặn WebView.
       var opened = false;
-      try {
-        opened = await launchUrl(
-          uri,
-          mode: LaunchMode.inAppBrowserView,
-          browserConfiguration: const BrowserConfiguration(showTitle: true),
-        );
-      } catch (error) {
-        debugPrint('Open Custom Tab error: $error');
+      if (linkPlatform.isApp) {
+        // Đối với ứng dụng (YouTube, TikTok, Facebook, Instagram,...):
+        // Thử mở bằng App ngoài native đã cài trên máy trước.
+        try {
+          opened = await launchUrl(
+            uri,
+            mode: LaunchMode.externalNonBrowserApplication,
+          );
+        } catch (error) {
+          debugPrint('Open non-browser app error: $error');
+        }
+
+        if (!opened) {
+          try {
+            opened = await launchUrl(
+              uri,
+              mode: LaunchMode.externalApplication,
+            );
+          } catch (error) {
+            debugPrint('Open external app error: $error');
+          }
+        }
+      } else {
+        // Đối với website thông thường:
+        if (isIncognito.value) {
+          // Chế độ ẩn danh (Incognito): Không lưu lịch sử, không lưu cookie/session
+          try {
+            final browser = InAppBrowser();
+            await browser.openUrlRequest(
+              urlRequest: URLRequest(url: WebUri(url)),
+              settings: InAppBrowserClassSettings(
+                browserSettings: InAppBrowserSettings(
+                  presentationStyle: ModalPresentationStyle.FULL_SCREEN,
+                ),
+                webViewSettings: InAppWebViewSettings(
+                  incognito: true,
+                  cacheEnabled: false,
+                  clearCache: true,
+                  useHybridComposition: true,
+                ),
+              ),
+            );
+            opened = true;
+          } catch (error) {
+            debugPrint('Open Incognito InAppBrowser error: $error');
+          }
+        } else {
+          // Chế độ công khai / bình thường: mở Custom Tabs / InAppBrowserView
+          try {
+            opened = await launchUrl(
+              uri,
+              mode: LaunchMode.inAppBrowserView,
+              browserConfiguration: const BrowserConfiguration(showTitle: true),
+            );
+          } catch (error) {
+            debugPrint('Open Custom Tab error: $error');
+          }
+        }
       }
+
+      // Fallback cuối cùng nếu chưa mở được:
       if (!opened) {
         try {
           opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
         } catch (error) {
-          debugPrint('Open external browser error: $error');
+          debugPrint('Open fallback external browser error: $error');
         }
       }
+
       if (!opened) _showOpenError();
     } finally {
       _isLaunchingFallback = false;

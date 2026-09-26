@@ -2,7 +2,8 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:layout_width="80dp"
   android:layout_height="80dp"
-  android:background="@drawable/bubble_bg"
+  android:background="@drawable/bubble_remove_bg"
+  android:elevation="4dp"
   android:padding="8dp"
 >
 

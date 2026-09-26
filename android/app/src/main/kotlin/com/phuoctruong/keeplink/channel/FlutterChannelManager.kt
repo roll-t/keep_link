@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import androidx.core.net.toUri
+import com.phamtruong.keeplink.accessibility.LinkCaptureAccessibilityService
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
@@ -31,12 +32,32 @@ object FlutterChannelManager {
         MethodChannel(messenger, CHANNEL_BUBBLE).setMethodCallHandler { call, result ->
             when (call.method) {
                 "startBubble" -> {
-                    startBubbleService(context)
-                    result.success(true)
+                    val canStart = Settings.canDrawOverlays(context) &&
+                        LinkCaptureAccessibilityService.isServiceEnabled(context)
+                    if (canStart) startBubbleService(context)
+                    result.success(canStart)
                 }
 
                 "stopBubble" -> {
                     stopBubbleService(context)
+                    result.success(true)
+                }
+
+                "getBubbleStatus" -> result.success(
+                    mapOf(
+                        "overlayGranted" to Settings.canDrawOverlays(context),
+                        "accessibilityGranted" to
+                            LinkCaptureAccessibilityService.isServiceEnabled(context),
+                        "running" to BubbleService.isRunning,
+                    )
+                )
+
+                "requestAccessibilityPermission" -> {
+                    context.startActivity(
+                        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    )
                     result.success(true)
                 }
 

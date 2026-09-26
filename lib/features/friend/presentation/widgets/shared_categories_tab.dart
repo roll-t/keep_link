@@ -3,23 +3,19 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/assets/app_vectors.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/presentation/widgets/shimmer/app_shimmer.dart';
 import 'package:keep_link/core/presentation/widgets/text/list_title_widget.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
 import 'package:keep_link/features/friend/application/model/shared_individual_link_model.dart';
 import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
 import 'package:keep_link/features/friend/presentation/page/shared_categories_page.dart';
-import 'package:keep_link/core/presentation/widgets/shimmer/app_shimmer.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/controller/link_detail_controller.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/page/link_detail.dart';
 
 /// Tab 1: Shared Categories + Individual Links View
 class SharedCategoriesTab extends StatelessWidget {
-  const SharedCategoriesTab({
-    super.key,
-    required this.controller,
-    required this.onRefresh,
-  });
+  const SharedCategoriesTab({super.key, required this.controller, required this.onRefresh});
 
   final SharedCategoryController controller;
   final RefreshCallback onRefresh;
@@ -31,23 +27,20 @@ class SharedCategoriesTab extends StatelessWidget {
       backgroundColor: AppColors.d500,
       onRefresh: onRefresh,
       child: Obx(() {
-        final items =
-            <Object>[
-              ...controller.sharedCategories,
-              ...controller.sharedIndividualLinks,
-            ]..sort((a, b) {
-              final ta =
-                  (a is SharedCategoryModel
-                      ? a.sharedAt
-                      : (a as SharedIndividualLinkModel).sharedAt) ??
-                  DateTime.fromMillisecondsSinceEpoch(0);
-              final tb =
-                  (b is SharedCategoryModel
-                      ? b.sharedAt
-                      : (b as SharedIndividualLinkModel).sharedAt) ??
-                  DateTime.fromMillisecondsSinceEpoch(0);
-              return tb.compareTo(ta);
-            });
+        final items = <Object>[...controller.sharedCategories, ...controller.sharedIndividualLinks]
+          ..sort((a, b) {
+            final ta =
+                (a is SharedCategoryModel
+                    ? a.sharedAt
+                    : (a as SharedIndividualLinkModel).sharedAt) ??
+                DateTime.fromMillisecondsSinceEpoch(0);
+            final tb =
+                (b is SharedCategoryModel
+                    ? b.sharedAt
+                    : (b as SharedIndividualLinkModel).sharedAt) ??
+                DateTime.fromMillisecondsSinceEpoch(0);
+            return tb.compareTo(ta);
+          });
 
         if (controller.isLoading.value && items.isEmpty) {
           return const SharedLoadingView();
@@ -94,11 +87,7 @@ class SharedCategoriesTab extends StatelessWidget {
                     return SharedCategoryCard(
                       category: item,
                       isUnviewed: isUnviewed,
-                      onTap: () => openSharedCategoryLinksSheet(
-                        context,
-                        controller,
-                        item,
-                      ),
+                      onTap: () => openSharedCategoryLinksSheet(context, controller, item),
                     );
                   });
                 }
@@ -114,10 +103,7 @@ class SharedCategoriesTab extends StatelessWidget {
                       controller.markLinkViewed(linkItem);
                       Get.toNamed(
                         LinkDetailPage.routeName,
-                        arguments: LinkDetailArguments(
-                          link: linkItem.link,
-                          readOnly: true,
-                        ),
+                        arguments: LinkDetailArguments(link: linkItem.link, readOnly: true),
                       );
                     },
                   );
@@ -206,10 +192,7 @@ class SharedCategoryCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    AppVectors.icShareLink.show(
-                      size: 13,
-                      color: AppColors.primary,
-                    ),
+                    AppVectors.icShareLink.show(size: 13, color: AppColors.primary),
                     const SizedBox(width: 4),
                     TextWidget(
                       text: '${category.linkCount}',
@@ -221,11 +204,7 @@ class SharedCategoryCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: AppColors.n500,
-              ),
+              const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.n500),
             ],
           ),
         ),
@@ -297,11 +276,7 @@ class SharedLinkCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Row(
                       children: [
-                        const Icon(
-                          Icons.person_rounded,
-                          size: 13,
-                          color: AppColors.n70,
-                        ),
+                        const Icon(Icons.person_rounded, size: 13, color: AppColors.n70),
                         const SizedBox(width: 4),
                         Expanded(
                           child: TextWidget(
@@ -323,17 +298,10 @@ class SharedLinkCard extends StatelessWidget {
                   color: AppColors.primary.withOpacityCompat(0.15),
                   shape: BoxShape.circle,
                 ),
-                child: AppVectors.icShareLink.show(
-                  size: 14,
-                  color: AppColors.primary,
-                ),
+                child: AppVectors.icShareLink.show(size: 14, color: AppColors.primary),
               ),
               const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: AppColors.n500,
-              ),
+              const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.n500),
             ],
           ),
         ),
@@ -367,10 +335,7 @@ class SharedLoadingView extends StatelessWidget {
               Container(
                 width: 46,
                 height: 46,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.white,
-                ),
+                decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.white),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -410,11 +375,7 @@ class SharedErrorView extends StatelessWidget {
   final String message;
   final Future<void> Function() onRetry;
 
-  const SharedErrorView({
-    super.key,
-    required this.message,
-    required this.onRetry,
-  });
+  const SharedErrorView({super.key, required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -436,11 +397,7 @@ class SharedErrorView extends StatelessWidget {
                       color: AppColors.danger.withOpacityCompat(.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.cloud_off_rounded,
-                      color: AppColors.danger,
-                      size: 32,
-                    ),
+                    child: const Icon(Icons.cloud_off_rounded, color: AppColors.danger, size: 32),
                   ),
                   const SizedBox(height: 16),
                   TextWidget(
@@ -480,19 +437,9 @@ class EmptySharedView extends StatelessWidget {
             Container(
               width: 80,
               height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.d500,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.white.withOpacityCompat(0.08),
-                ),
-              ),
+              decoration: BoxDecoration(color: AppColors.d500, shape: BoxShape.circle),
               child: const Center(
-                child: Icon(
-                  Icons.folder_shared_rounded,
-                  size: 38,
-                  color: AppColors.primary,
-                ),
+                child: Icon(Icons.folder_shared_rounded, size: 38, color: AppColors.primary),
               ),
             ),
             const SizedBox(height: 16),

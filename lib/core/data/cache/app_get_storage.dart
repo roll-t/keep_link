@@ -22,6 +22,7 @@ class AppGetStorage {
   static const String _isNotificationEnabled = 'isNotificationEnabled';
   static const String _activeSessionIdKey = 'active_session_id';
   static const String _activeSessionUserIdKey = 'active_session_user_id';
+  static const String _floatingLinkBubbleKey = 'floating_link_bubble_enabled';
 
   // Security Keys
   static const String _pinKey = 'app_pin';
@@ -43,6 +44,21 @@ class AppGetStorage {
       _box.write(_isNotificationEnabled, value);
   static bool isNotificationEnabled() =>
       _box.read(_isNotificationEnabled) ?? true;
+
+  static void setFloatingLinkBubbleEnabled(bool value) =>
+      _box.write(_floatingLinkBubbleKey, value);
+
+  static bool isFloatingLinkBubbleEnabled() =>
+      _box.read<bool>(_floatingLinkBubbleKey) ?? false;
+
+  // ========== Incognito Web Browsing ========== //
+  static const String _incognitoModeKey = 'incognito_mode_enabled';
+
+  static void setIncognitoMode(bool value) =>
+      _box.write(_incognitoModeKey, value);
+
+  static bool isIncognitoMode() =>
+      _box.read<bool>(_incognitoModeKey) ?? false;
 
   // ========== Token ========== //
   static void saveToken(String token) => _box.write(_tokenKey, token);

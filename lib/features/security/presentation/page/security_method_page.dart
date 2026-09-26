@@ -291,6 +291,7 @@ class _SmallSwitch extends StatelessWidget {
         activeThumbColor: AppColors.primaryContainer,
         inactiveThumbColor: AppColors.n400,
         inactiveTrackColor: AppColors.white.withOpacityCompat(0.12),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         onChanged: (val) {
           HapticFeedback.selectionClick();

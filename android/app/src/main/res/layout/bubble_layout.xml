@@ -1,8 +1,29 @@
-<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
-  android:id="@+id/bubble_icon"
-  android:layout_width="20dp"
-  android:layout_height="20dp"
-    android:importantForAccessibility="no"
-    android:src="@drawable/ic_bubble"
-  android:background="@drawable/bubble_bg"
-  android:padding="3dp" />
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="3dp">
+
+    <ImageView
+        android:id="@+id/bubble_save_action"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="5dp"
+        android:background="@drawable/bubble_action_bg"
+        android:contentDescription="Lưu link hiện tại"
+        android:padding="9dp"
+        android:src="@drawable/ic_add_link"
+        android:visibility="invisible" />
+
+    <ImageView
+        android:id="@+id/bubble_icon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@drawable/bubble_bg"
+        android:contentDescription="Mở chức năng Linkeep"
+        android:elevation="6dp"
+        android:padding="8dp"
+        android:src="@drawable/ic_bubble" />
+</LinearLayout>

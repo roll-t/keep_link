@@ -30,6 +30,7 @@ class AppVectors {
   static const icShareLink = _SvgIcon("${_root}ic_share_link$_ext");
   static const icSharedCategory = _SvgIcon("${_root}ic_shared_category$_ext");
   static const icCategory = _SvgIcon("${_root}ic_category$_ext");
+  static const icAnonymous = _SvgIcon("${_root}ic_anonymous$_ext");
 }
 
 class _SvgIcon {

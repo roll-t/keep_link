@@ -10,6 +10,7 @@ import com.phamtruong.keeplink.R
 class RemoveZoneManager(private val context: Context, private val windowManager: WindowManager) {
     private var removeView: View? = null
     private var removeParams: WindowManager.LayoutParams? = null
+    private var isShowing = false
     // Tạo view lazy khi gọi lần đầu
     fun setup() {
         if (removeView != null) return
@@ -21,7 +22,9 @@ class RemoveZoneManager(private val context: Context, private val windowManager:
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 else
                     WindowManager.LayoutParams.TYPE_PHONE,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 android.graphics.PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
@@ -29,7 +32,12 @@ class RemoveZoneManager(private val context: Context, private val windowManager:
             }
 
             removeView = LayoutInflater.from(context).inflate(R.layout.bubble_remove_layout, null)
-            removeView?.visibility = View.GONE
+            removeView?.apply {
+                visibility = View.VISIBLE
+                alpha = 0f
+                scaleX = 0.82f
+                scaleY = 0.82f
+            }
             windowManager.addView(removeView, removeParams)
         } catch (e: Exception) {
             e.printStackTrace() // nếu service bị kill, app vẫn không crash
@@ -37,18 +45,42 @@ class RemoveZoneManager(private val context: Context, private val windowManager:
     }
 
     fun show() {
-        removeView?.takeIf { it.isAttachedToWindow }?.visibility = View.VISIBLE
+        removeView?.takeIf { it.isAttachedToWindow }?.apply {
+            isShowing = true
+            animate().cancel()
+            visibility = View.VISIBLE
+            alpha = 0f
+            scaleX = 0.82f
+            scaleY = 0.82f
+            animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(170)
+                .start()
+        }
     }
 
     fun hide() {
-        removeView?.takeIf { it.isAttachedToWindow }?.visibility = View.GONE
+        isShowing = false
+        removeView?.takeIf { it.isAttachedToWindow }?.apply {
+            animate().cancel()
+            animate()
+                .alpha(0f)
+                .scaleX(0.82f)
+                .scaleY(0.82f)
+                .setDuration(140)
+                .start()
+        }
     }
 
     fun scaleIfNeeded(y: Float) {
-        removeView?.takeIf { it.isAttachedToWindow }?.let { view ->
+        removeView?.takeIf { isShowing && it.isAttachedToWindow }?.let { view ->
             val screenHeight = context.resources.displayMetrics.heightPixels
-            val scale = if (y > screenHeight * 0.75) 1.2f else 1f
+            val inRemoveZone = y > screenHeight * 0.75
+            val scale = if (inRemoveZone) 1.16f else 1f
             view.animate()
+                .alpha(1f)
                 .scaleX(scale)
                 .scaleY(scale)
                 .setDuration(150)

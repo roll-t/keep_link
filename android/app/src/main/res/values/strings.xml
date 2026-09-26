@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="app_name">Linkeep</string>
-  <string name="service_description">Accessibility service for Linkeep</string>
+  <string name="service_description">Cho phép bóng Linkeep đọc địa chỉ trang đang mở để lưu link khi bạn yêu cầu.</string>
+  <string name="bubble_notification_title">Bóng lưu nhanh đang bật</string>
+  <string name="bubble_notification_text">Chạm bóng Linkeep để lưu trang hiện tại</string>
 </resources>

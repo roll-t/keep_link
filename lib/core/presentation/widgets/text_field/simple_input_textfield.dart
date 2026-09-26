@@ -18,6 +18,7 @@ class SimpleInputTextField extends StatefulWidget {
   final Widget? suffixIcon;
   final BoxConstraints? suffixIconConstraints;
   final Widget? prefixIcon;
+  final BoxConstraints? prefixIconConstraints;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onCompleted;
   final Color? textColor;
@@ -58,6 +59,7 @@ class SimpleInputTextField extends StatefulWidget {
     this.suffixIcon,
     this.suffixIconConstraints,
     this.prefixIcon,
+    this.prefixIconConstraints,
     this.obscureText = false,
     this.backgroundColor = AppColors.navigationSurface,
     this.focusedWidth = 1,
@@ -201,6 +203,7 @@ class _SimpleInputTextFieldState extends State<SimpleInputTextField> {
                 suffixIcon: widget.suffixIcon,
                 suffixIconConstraints: widget.suffixIconConstraints,
                 prefixIcon: widget.prefixIcon,
+                prefixIconConstraints: widget.prefixIconConstraints,
                 hintText: widget.hintText,
                 hintStyle:
                     widget.hintStyle ??

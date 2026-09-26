@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/assets/app_vectors.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
@@ -108,7 +107,6 @@ class ListLinkCollection extends GetView<LinkCollectionController> {
           GridView.builder(
             controller: controller.scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            scrollCacheExtent: const ScrollCacheExtent.pixels(600),
             padding: const EdgeInsets.only(bottom: 112, left: 8, right: 8).copyWith(top: topInset),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,

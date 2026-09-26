@@ -43,6 +43,13 @@ class PersonalController extends GetxController {
   final savedAccounts = <Map<String, dynamic>>[].obs;
   StreamSubscription<User?>? _authSub;
 
+  final isIncognitoWeb = AppGetStorage.isIncognitoMode().obs;
+
+  void toggleIncognitoWeb(bool value) {
+    isIncognitoWeb.value = value;
+    AppGetStorage.setIncognitoMode(value);
+  }
+
   void loadSavedAccounts() {
     savedAccounts.assignAll(AppGetStorage.getSavedAccounts());
   }

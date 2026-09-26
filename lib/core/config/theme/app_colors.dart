@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 export 'app_gradients.dart';
 
 /// Single source of truth for every color used by the app.

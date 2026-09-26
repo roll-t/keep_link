@@ -62,6 +62,9 @@ class AppTheme {
       elevation: 0,
       centerTitle: true,
     ),
+    switchTheme: const SwitchThemeData(
+      trackOutlineColor: WidgetStatePropertyAll(Colors.transparent),
+    ),
   );
 
   // ========================================
@@ -106,6 +109,10 @@ class AppTheme {
       ),
       labelStyle: TextStyle(color: AppColors.onSurfaceVariant),
       hintStyle: TextStyle(color: AppColors.onSurfaceVariant),
+    ),
+    // Switch styling - remove default M3 border outline
+    switchTheme: const SwitchThemeData(
+      trackOutlineColor: WidgetStatePropertyAll(Colors.transparent),
     ),
   );
 

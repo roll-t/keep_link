@@ -245,12 +245,7 @@ class _CategoryDialogState extends State<CategoryDialog> {
               semanticLabel: 'Public'.tr,
               icon: SizedBox.square(
                 dimension: 16,
-                child: Center(
-                  child: Transform.translate(
-                    offset: Offset(0, 1.5),
-                    child: Icon(Icons.public_rounded, size: 13),
-                  ),
-                ),
+                child: Center(child: Icon(Icons.public_rounded, size: 13)),
               ),
             ),
             AppSegmentTabItem(
@@ -258,12 +253,7 @@ class _CategoryDialogState extends State<CategoryDialog> {
               semanticLabel: 'Private'.tr,
               icon: SizedBox.square(
                 dimension: 16,
-                child: Center(
-                  child: Transform.translate(
-                    offset: Offset(0, 1.5),
-                    child: Icon(Icons.lock_rounded, size: 13),
-                  ),
-                ),
+                child: Center(child: Icon(Icons.lock_rounded, size: 13)),
               ),
             ),
           ],

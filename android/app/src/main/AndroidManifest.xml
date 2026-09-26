@@ -4,8 +4,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" /> -->
+    <!-- <uses-permission android:name="android.permission.FOREGROUND_SERVICE" /> -->
+    <!-- <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" /> -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- image_picker dùng Android Photo Picker từ API 13+ — không cần READ_MEDIA_IMAGES -->
@@ -79,6 +80,39 @@
                 <data android:mimeType="text/uri-list" />
             </intent-filter>
         </activity>
+
+        <!--
+        <activity
+            android:name=".ClipboardCaptureActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/ClipboardCaptureTheme" />
+
+        <service
+            android:name="io.flutter.plugins.bubble.BubbleService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-enabled floating quick-save bubble" />
+        </service>
+
+        <service
+            android:name=".accessibility.LinkCaptureAccessibilityService"
+            android:exported="true"
+            android:label="Linkeep - Lưu link nhanh"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_config" />
+        </service>
+        -->
 
         <meta-data
             android:name="flutterEmbedding"
