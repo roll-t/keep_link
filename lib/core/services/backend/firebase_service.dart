@@ -22,6 +22,17 @@ class FirebaseService {
   static const String _sharedCategoryAccessKey = 'sharedCategoryAccess';
   static const String _sharedLinksWithKey = 'sharedLinksWith';
   static const String _sharedLinkAccessKey = 'sharedLinkAccess';
+  static const String _shareTimesKey = 'shareTimes';
+  static final Map<String, int> _sessionShareTimes = {};
+
+  static int? getSessionShareTime(String friendUid, String id) {
+    return _sessionShareTimes['$friendUid/$id'];
+  }
+
+  static void recordSessionShareTime(String friendUid, String id) {
+    _sessionShareTimes['$friendUid/$id'] = DateTime.now().millisecondsSinceEpoch;
+  }
+
   static const Duration _ownerProfileCacheTtl = Duration(minutes: 5);
   static final Map<String, _OwnerProfileCacheEntry> _ownerProfileCache = {};
   static final Map<String, Future<({String? displayName, String? photoUrl})?>>
@@ -707,10 +718,15 @@ class FirebaseService {
     }
 
     try {
+      _sessionShareTimes['$friendUid/$categoryId'] = DateTime.now().millisecondsSinceEpoch;
       await _db
           .ref('users/${owner.uid}/$_sharedWithKey/$friendUid')
           .update({categoryId: true})
           .timeout(_requestTimeout);
+      _db
+          .ref('users/${owner.uid}/$_shareTimesKey/$friendUid')
+          .update({categoryId: ServerValue.timestamp})
+          .catchError((_) {});
       try {
         final trimmedMessage = message?.trim() ?? '';
         final accessValue = trimmedMessage.isEmpty
@@ -723,8 +739,14 @@ class FirebaseService {
       } catch (e) {
         // Same rollback as shareLink(): don't leave the owner's own node
         // claiming a share that the friend never actually received.
+        _sessionShareTimes.remove('$friendUid/$categoryId');
         await _db
             .ref('users/${owner.uid}/$_sharedWithKey/$friendUid/$categoryId')
+            .remove()
+            .timeout(_requestTimeout)
+            .catchError((_) {});
+        await _db
+            .ref('users/${owner.uid}/$_shareTimesKey/$friendUid/$categoryId')
             .remove()
             .timeout(_requestTimeout)
             .catchError((_) {});
@@ -752,10 +774,15 @@ class FirebaseService {
     }
 
     try {
+      _sessionShareTimes.remove('$friendUid/$categoryId');
       await _db
           .ref('users/${owner.uid}/$_sharedWithKey/$friendUid/$categoryId')
           .remove()
           .timeout(_requestTimeout);
+      _db
+          .ref('users/${owner.uid}/$_shareTimesKey/$friendUid/$categoryId')
+          .remove()
+          .catchError((_) {});
       await _db
           .ref(
             'users/$friendUid/$_sharedCategoryAccessKey/${owner.uid}/$categoryId',
@@ -887,10 +914,15 @@ class FirebaseService {
     }
 
     try {
+      _sessionShareTimes['$friendUid/$linkId'] = DateTime.now().millisecondsSinceEpoch;
       await _db
           .ref('users/${owner.uid}/$_sharedLinksWithKey/$friendUid')
           .update({linkId: true})
           .timeout(_requestTimeout);
+      _db
+          .ref('users/${owner.uid}/$_shareTimesKey/$friendUid')
+          .update({linkId: ServerValue.timestamp})
+          .catchError((_) {});
       try {
         final trimmedMessage = message?.trim() ?? '';
         final accessValue = trimmedMessage.isEmpty
@@ -906,8 +938,14 @@ class FirebaseService {
         // friend who never actually got access (e.g. RTDB rules rejecting
         // the cross-user write), which desyncs the share sheet's UI from
         // reality until the link is deleted.
+        _sessionShareTimes.remove('$friendUid/$linkId');
         await _db
             .ref('users/${owner.uid}/$_sharedLinksWithKey/$friendUid/$linkId')
+            .remove()
+            .timeout(_requestTimeout)
+            .catchError((_) {});
+        await _db
+            .ref('users/${owner.uid}/$_shareTimesKey/$friendUid/$linkId')
             .remove()
             .timeout(_requestTimeout)
             .catchError((_) {});
@@ -935,10 +973,15 @@ class FirebaseService {
     }
 
     try {
+      _sessionShareTimes.remove('$friendUid/$linkId');
       await _db
           .ref('users/${owner.uid}/$_sharedLinksWithKey/$friendUid/$linkId')
           .remove()
           .timeout(_requestTimeout);
+      _db
+          .ref('users/${owner.uid}/$_shareTimesKey/$friendUid/$linkId')
+          .remove()
+          .catchError((_) {});
       await _db
           .ref('users/$friendUid/$_sharedLinkAccessKey/${owner.uid}/$linkId')
           .remove()
@@ -993,12 +1036,38 @@ class FirebaseService {
 
       final raw = Map<String, dynamic>.from(snapshot.value as Map);
       return raw.entries
-          .where((entry) => entry.value == true)
+          .where((entry) => entry.value == true || entry.value is num)
           .map((entry) => entry.key)
           .toList();
     } catch (e) {
       log('Get link ids shared with friend error: $e');
       return const [];
+    }
+  }
+
+  /// Returns timestamps when items (links/categories) were shared with [friendUid].
+  static Future<Map<String, int>> getShareTimesWithFriend(String friendUid) async {
+    final owner = _auth.currentUser;
+    if (owner == null || friendUid.isEmpty) return const {};
+
+    try {
+      final snapshot = await _db
+          .ref('users/${owner.uid}/$_shareTimesKey/$friendUid')
+          .get()
+          .timeout(_requestTimeout);
+      if (!snapshot.exists || snapshot.value is! Map) return const {};
+
+      final raw = Map<String, dynamic>.from(snapshot.value as Map);
+      final result = <String, int>{};
+      for (final entry in raw.entries) {
+        if (entry.value is num) {
+          result[entry.key] = (entry.value as num).toInt();
+        }
+      }
+      return result;
+    } catch (e) {
+      log('Get share times error: $e');
+      return const {};
     }
   }
 
@@ -1440,6 +1509,34 @@ class FirebaseService {
     });
   }
 
+  /// Realtime stream watching incoming links shared by [friendUid] to current user.
+  static Stream<DatabaseEvent> watchIncomingLinksFromFriend(String friendUid) {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || friendUid.isEmpty) return const Stream.empty();
+    return _db.ref('users/$uid/$_sharedLinkAccessKey/$friendUid').onValue;
+  }
+
+  /// Realtime stream watching incoming categories shared by [friendUid] to current user.
+  static Stream<DatabaseEvent> watchIncomingCategoriesFromFriend(String friendUid) {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || friendUid.isEmpty) return const Stream.empty();
+    return _db.ref('users/$uid/$_sharedCategoryAccessKey/$friendUid').onValue;
+  }
+
+  /// Realtime stream watching outgoing links shared with [friendUid].
+  static Stream<DatabaseEvent> watchOutgoingLinksToFriend(String friendUid) {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || friendUid.isEmpty) return const Stream.empty();
+    return _db.ref('users/$uid/$_sharedLinksWithKey/$friendUid').onValue;
+  }
+
+  /// Realtime stream watching outgoing categories shared with [friendUid].
+  static Stream<DatabaseEvent> watchOutgoingCategoriesToFriend(String friendUid) {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || friendUid.isEmpty) return const Stream.empty();
+    return _db.ref('users/$uid/$_sharedWithKey/$friendUid').onValue;
+  }
+
   /// Watch all links belonging to [ownerUid] and count per [sharedCatIds].
   /// Emits a map of catId → link count whenever any link changes for that owner.
   static Stream<Map<String, int>> watchOwnerLinksCount({
@@ -1524,6 +1621,36 @@ class FirebaseService {
             return bTime.compareTo(aTime);
           }));
         });
+  }
+
+  /// Get the first available link thumbnail image from a shared category.
+  static Future<String?> getCategoryFirstLinkImage({
+    required String ownerUid,
+    required String categoryId,
+  }) async {
+    try {
+      final snapshot = await _db
+          .ref('users/$ownerUid/links')
+          .orderByChild('categoryId')
+          .equalTo(categoryId)
+          .limitToFirst(5)
+          .get()
+          .timeout(_requestTimeout);
+      if (!snapshot.exists || snapshot.value is! Map) return null;
+      final raw = Map<String, dynamic>.from(snapshot.value as Map);
+      for (final entry in raw.values) {
+        if (entry is Map) {
+          final meta = entry['metaDataModel'];
+          if (meta is Map) {
+            final img = meta['imageUrl']?.toString().trim();
+            if (img != null && img.isNotEmpty) return img;
+          }
+        }
+      }
+    } catch (e) {
+      log('Get category first link image error: $e');
+    }
+    return null;
   }
 }
 

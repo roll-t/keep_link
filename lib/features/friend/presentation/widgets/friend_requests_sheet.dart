@@ -56,32 +56,41 @@ class RequestsTabContent extends StatelessWidget {
     return Obx(() {
       final requests = controller.incomingRequests;
       if (requests.isEmpty) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.mark_email_read_outlined,
-                  size: 48,
-                  color: AppColors.n500,
+        return LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.mark_email_read_outlined,
+                        size: 48,
+                        color: AppColors.n500,
+                      ),
+                      const SizedBox(height: 12),
+                      TextWidget(
+                        text: 'No pending requests'.tr,
+                        color: AppColors.n70,
+                        size: 14,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
-                TextWidget(
-                  text: 'No pending requests'.tr,
-                  color: AppColors.n70,
-                  size: 14,
-                  textAlign: TextAlign.center,
-                ),
-              ],
+              ),
             ),
           ),
         );
       }
 
       return ListView.separated(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
         itemCount: requests.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (_, index) {

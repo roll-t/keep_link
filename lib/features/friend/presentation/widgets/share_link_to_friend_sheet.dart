@@ -16,14 +16,18 @@ import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/features/category/application/model/category_model.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
+import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
 import 'package:keep_link/features/friend/presentation/page/shared_categories_page.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/widgets/link_item.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/controller/link_detail_controller.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/page/link_detail.dart';
 
-void openShareLinkToFriendSheet(BuildContext context, FriendModel friend) {
-  showModalBottomSheet<void>(
+Future<bool?> openShareLinkToFriendSheet(
+  BuildContext context,
+  FriendModel friend,
+) {
+  return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: AppColors.surface,
@@ -49,8 +53,16 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
   String _query = '';
   bool _isLoading = true;
   String? _sharingId;
+  bool _hasChanged = false;
+  bool _isClosing = false;
   final Set<String> _sharedLinkIds = <String>{};
   final Set<String> _sharedCategoryIds = <String>{};
+
+  void _closeSheet([bool? result]) {
+    if (_isClosing || !mounted) return;
+    _isClosing = true;
+    Navigator.of(context).pop(result ?? _hasChanged);
+  }
 
   @override
   void initState() {
@@ -66,10 +78,15 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
 
   Future<void> _load() async {
     try {
-      await Future.wait([LinkRepository.ensureLoaded(), CategoryRepository.ensureLoaded()]);
+      await Future.wait([
+        LinkRepository.ensureLoaded(),
+        CategoryRepository.ensureLoaded(),
+      ]);
       final results = await Future.wait([
         FirebaseService.getLinkIdsSharedWithFriend(widget.friend.friendUserId),
-        FirebaseService.getCategoryIdsSharedWithFriend(widget.friend.friendUserId),
+        FirebaseService.getCategoryIdsSharedWithFriend(
+          widget.friend.friendUserId,
+        ),
       ]);
       _sharedLinkIds
         ..clear()
@@ -88,13 +105,26 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
     final wasShared = _sharedLinkIds.contains(link.id);
     try {
       if (wasShared) {
-        await FirebaseService.unshareLink(friendUid: widget.friend.friendUserId, linkId: link.id);
+        await FirebaseService.unshareLink(
+          friendUid: widget.friend.friendUserId,
+          linkId: link.id,
+        );
         _sharedLinkIds.remove(link.id);
+        _hasChanged = true;
         AppToast.warning('unshare_link_success'.tr);
       } else {
-        await FirebaseService.shareLink(friendUid: widget.friend.friendUserId, linkId: link.id);
+        await FirebaseService.shareLink(
+          friendUid: widget.friend.friendUserId,
+          linkId: link.id,
+        );
         _sharedLinkIds.add(link.id);
+        _hasChanged = true;
         AppToast.success('share_link_success'.tr);
+        _closeSheet(true);
+        return;
+      }
+      if (Get.isRegistered<SharedCategoryController>()) {
+        Get.find<SharedCategoryController>().notifyOutgoingSharesChanged();
       }
       if (mounted) setState(() {});
     } catch (_) {
@@ -117,6 +147,7 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
         );
         _sharedCategoryIds.remove(catId);
         AppCache.removeSharedFriend(catId, widget.friend.friendUserId);
+        _hasChanged = true;
         AppToast.warning('${'category_unshared'.tr}: ${category.name ?? ''}');
       } else {
         await FirebaseService.shareCategory(
@@ -125,7 +156,13 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
         );
         _sharedCategoryIds.add(catId);
         AppCache.addSharedFriend(catId, widget.friend);
+        _hasChanged = true;
         AppToast.success('${'category_shared'.tr}: ${category.name ?? ''}');
+        _closeSheet(true);
+        return;
+      }
+      if (Get.isRegistered<SharedCategoryController>()) {
+        Get.find<SharedCategoryController>().notifyOutgoingSharesChanged();
       }
       if (mounted) setState(() {});
     } catch (_) {
@@ -139,21 +176,31 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final allLinks = AppCache.links;
-    final allCategories = AppCache.categories.where((c) => c.id != null && c.id != 'all').toList();
+    final allCategories = AppCache.categories
+        .where((c) => c.id != null && c.id != 'all')
+        .toList();
     final q = _query.trim().toLowerCase();
 
     final filteredLinks = q.isEmpty
         ? allLinks
         : allLinks.where((l) {
-            final title = (l.name ?? l.metaDataModel?.title ?? '').toLowerCase();
+            final title = (l.name ?? l.metaDataModel?.title ?? '')
+                .toLowerCase();
             final url = (l.metaDataModel?.url ?? '').toLowerCase();
             return title.contains(q) || url.contains(q);
           }).toList();
 
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+    return PopScope(
+      canPop: _isClosing,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_isClosing) {
+          _closeSheet(_hasChanged);
+        }
+      },
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
       child: SafeArea(
         top: false,
         child: SizedBox(
@@ -191,7 +238,9 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             TextWidget(
-                              text: _selectedTab == 0 ? 'share_link'.tr : 'share_category'.tr,
+                              text: _selectedTab == 0
+                                  ? 'share_link'.tr
+                                  : 'share_category'.tr,
                               color: AppColors.white,
                               size: 16,
                               fontWeight: FontWeight.w700,
@@ -199,7 +248,8 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
                             ),
                             const SizedBox(height: 2),
                             TextWidget(
-                              text: '${'share_send_to'.tr} ${widget.friend.displayName}',
+                              text:
+                                  '${'share_send_to'.tr} ${widget.friend.displayName}',
                               color: AppColors.n70,
                               size: 12,
                               maxLines: 1,
@@ -228,7 +278,9 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
                         label: 'Links'.tr,
                         icon: AppVectors.icShareLink.show(
                           size: 15,
-                          color: _selectedTab == 0 ? AppColors.white : AppColors.n70,
+                          color: _selectedTab == 0
+                              ? AppColors.white
+                              : AppColors.n70,
                         ),
                         count: allLinks.length,
                       ),
@@ -236,7 +288,9 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
                         label: 'Categories'.tr,
                         icon: AppVectors.icCategory.show(
                           size: 15,
-                          color: _selectedTab == 1 ? AppColors.white : AppColors.n70,
+                          color: _selectedTab == 1
+                              ? AppColors.white
+                              : AppColors.n70,
                         ),
                         count: allCategories.length,
                       ),
@@ -259,8 +313,13 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
                 Expanded(
                   child: _isLoading
                       ? (_selectedTab == 0
-                            ? const LinkListShimmer(thumbnailWidth: 120, hasTrailingButton: true)
-                            : const CategoryListShimmer(hasTrailingButton: true))
+                            ? const LinkListShimmer(
+                                thumbnailWidth: 120,
+                                hasTrailingButton: true,
+                              )
+                            : const CategoryListShimmer(
+                                hasTrailingButton: true,
+                              ))
                       : _selectedTab == 0
                       ? _buildLinksList(filteredLinks, q)
                       : _buildCategoriesList(allCategories),
@@ -270,8 +329,9 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildLinksList(List<LinkModel> filtered, String q) {
     if (filtered.isEmpty) {
@@ -281,10 +341,16 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.link_off_rounded, size: 44, color: AppColors.n500),
+              const Icon(
+                Icons.link_off_rounded,
+                size: 44,
+                color: AppColors.n500,
+              ),
               const SizedBox(height: 10),
               TextWidget(
-                text: q.isEmpty ? 'No links available to share'.tr : 'No matching links'.tr,
+                text: q.isEmpty
+                    ? 'No links available to share'.tr
+                    : 'No matching links'.tr,
                 color: AppColors.n70,
                 textStyle: AppTextStyle.regular14,
                 textAlign: TextAlign.center,
@@ -314,15 +380,24 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
           item: link,
           thumbnailWidth: 120,
           onTap: () {
-            Get.toNamed(LinkDetailPage.routeName, arguments: LinkDetailArguments(link: link));
+            Get.toNamed(
+              LinkDetailPage.routeName,
+              arguments: LinkDetailArguments(link: link),
+            );
           },
           trailing: isSending
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
                 )
-              : ShareStatusButton(isShared: isAlreadyShared, onTap: () => _toggleLinkShare(link)),
+              : ShareStatusButton(
+                  isShared: isAlreadyShared,
+                  onTap: () => _toggleLinkShare(link),
+                ),
         );
       },
     );
@@ -336,7 +411,11 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.folder_off_rounded, size: 44, color: AppColors.n500),
+              const Icon(
+                Icons.folder_off_rounded,
+                size: 44,
+                color: AppColors.n500,
+              ),
               const SizedBox(height: 10),
               TextWidget(
                 text: 'No categories available to share'.tr,
@@ -382,7 +461,10 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   alignment: Alignment.center,
-                  child: AppVectors.icCategory.show(size: 22, color: AppColors.primary),
+                  child: AppVectors.icCategory.show(
+                    size: 22,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -412,7 +494,10 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
                   const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
                   )
                 else
                   ShareStatusButton(
@@ -429,7 +514,11 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
 }
 
 class ShareStatusButton extends StatelessWidget {
-  const ShareStatusButton({super.key, required this.isShared, required this.onTap});
+  const ShareStatusButton({
+    super.key,
+    required this.isShared,
+    required this.onTap,
+  });
 
   final bool isShared;
   final VoidCallback onTap;

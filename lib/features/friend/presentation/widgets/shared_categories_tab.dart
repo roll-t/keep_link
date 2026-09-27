@@ -65,63 +65,48 @@ class SharedCategoriesTab extends StatelessWidget {
           );
         }
 
-        return Stack(
-          children: [
-            ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 32),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => Divider(
-                height: 1,
-                thickness: 1,
-                indent: 80,
-                color: AppColors.white.withOpacityCompat(.06),
-              ),
-              itemBuilder: (ctx, index) {
-                final item = items[index];
+        return ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 32),
+          itemCount: items.length,
+          separatorBuilder: (_, __) => Divider(
+            height: 1,
+            thickness: 1,
+            indent: 80,
+            color: AppColors.white.withOpacityCompat(.06),
+          ),
+          itemBuilder: (ctx, index) {
+            final item = items[index];
 
-                if (item is SharedCategoryModel) {
-                  final key = '${item.ownerUid}/${item.categoryId}';
-                  return Obx(() {
-                    final isUnviewed = controller.unviewedKeys.contains(key);
-                    return SharedCategoryCard(
-                      category: item,
-                      isUnviewed: isUnviewed,
-                      onTap: () => openSharedCategoryLinksSheet(context, controller, item),
-                    );
-                  });
-                }
+            if (item is SharedCategoryModel) {
+              final key = '${item.ownerUid}/${item.categoryId}';
+              return Obx(() {
+                final isUnviewed = controller.unviewedKeys.contains(key);
+                return SharedCategoryCard(
+                  category: item,
+                  isUnviewed: isUnviewed,
+                  onTap: () => openSharedCategoryLinksSheet(context, controller, item),
+                );
+              });
+            }
 
-                final linkItem = item as SharedIndividualLinkModel;
-                final key = '${linkItem.ownerUid}/${linkItem.linkId}';
-                return Obx(() {
-                  final isUnviewed = controller.unviewedKeys.contains(key);
-                  return SharedLinkCard(
-                    item: linkItem,
-                    isUnviewed: isUnviewed,
-                    onTap: () {
-                      controller.markLinkViewed(linkItem);
-                      Get.toNamed(
-                        LinkDetailPage.routeName,
-                        arguments: LinkDetailArguments(link: linkItem.link, readOnly: true),
-                      );
-                    },
+            final linkItem = item as SharedIndividualLinkModel;
+            final key = '${linkItem.ownerUid}/${linkItem.linkId}';
+            return Obx(() {
+              final isUnviewed = controller.unviewedKeys.contains(key);
+              return SharedLinkCard(
+                item: linkItem,
+                isUnviewed: isUnviewed,
+                onTap: () {
+                  controller.markLinkViewed(linkItem);
+                  Get.toNamed(
+                    LinkDetailPage.routeName,
+                    arguments: LinkDetailArguments(link: linkItem.link, readOnly: true),
                   );
-                });
-              },
-            ),
-            if (controller.isRefreshing.value)
-              const Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: LinearProgressIndicator(
-                  minHeight: 2,
-                  color: AppColors.primary,
-                  backgroundColor: AppColors.transparent,
-                ),
-              ),
-          ],
+                },
+              );
+            });
+          },
         );
       }),
     );

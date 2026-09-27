@@ -18,12 +18,14 @@ class FriendsManageTab extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onRefresh,
-    required this.onOpenRequests,
+    this.onOpenRequests,
+    this.showRequestsTile = false,
   });
 
   final FriendController controller;
   final RefreshCallback onRefresh;
-  final VoidCallback onOpenRequests;
+  final VoidCallback? onOpenRequests;
+  final bool showRequestsTile;
 
   @override
   Widget build(BuildContext context) {
@@ -36,29 +38,31 @@ class FriendsManageTab extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           // ── Quick Action Card (Friend Requests) ─────────────────────────
-          Obx(() {
-            final reqCount = controller.incomingRequests.length;
-            return ZaloTile(
-              icon: Icons.group_add_rounded,
-              iconColor: AppColors.white,
-              iconBgColor: AppColors.brand,
-              title: 'Friend Requests'.tr,
-              subtitle: reqCount > 0
-                  ? '$reqCount ${'requests_pending'.tr}'
-                  : null,
-              badgeCount: reqCount,
-              onTap: onOpenRequests,
-            );
-          }),
-          Divider(
-            height: 1,
-            thickness: 1,
-            indent: 74,
-            color: AppColors.white.withOpacityCompat(.06),
-          ),
+          if (showRequestsTile && onOpenRequests != null) ...[
+            Obx(() {
+              final reqCount = controller.incomingRequests.length;
+              return ZaloTile(
+                icon: Icons.group_add_rounded,
+                iconColor: AppColors.white,
+                iconBgColor: AppColors.brand,
+                title: 'Friend Requests'.tr,
+                subtitle: reqCount > 0
+                    ? '$reqCount ${'requests_pending'.tr}'
+                    : null,
+                badgeCount: reqCount,
+                onTap: onOpenRequests!,
+              );
+            }),
+            Divider(
+              height: 1,
+              thickness: 1,
+              indent: 74,
+              color: AppColors.white.withOpacityCompat(.06),
+            ),
+          ],
           // ── Section Title: Friends List ──────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+            padding: EdgeInsets.fromLTRB(16, showRequestsTile ? 20 : 16, 16, 8),
             child: Obx(
               () => TextWidget(
                 text:

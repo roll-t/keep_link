@@ -47,6 +47,7 @@ class FriendController extends GetxController {
   Future<void>? _fetchFuture;
   Future<void>? _syncFuture;
   bool _fetchQueued = false;
+  static String? activeConversationFriendId;
   bool _forceRemoteOnNextFetch = false;
   String? _activeUserId;
   bool _isFriendPageActive = false;
@@ -249,11 +250,15 @@ class FriendController extends GetxController {
           if (_isFriendPageActive) {
             _refreshSharedDataIfVisible();
           } else {
-            _unseenCategoryKeys.addAll(newKeys);
-            LocalNotificationService.showSharedCategoryNotification(
-              title: 'Linkeep',
-              body: 'shared_new_category_received'.tr,
-            );
+            final fromActiveFriend = activeConversationFriendId != null &&
+                newKeys.every((k) => k.startsWith('$activeConversationFriendId/'));
+            if (!fromActiveFriend) {
+              _unseenCategoryKeys.addAll(newKeys);
+              LocalNotificationService.showSharedCategoryNotification(
+                title: 'Linkeep',
+                body: 'shared_new_category_received'.tr,
+              );
+            }
           }
         }
         _unseenCategoryKeys.removeAll(removedKeys);
@@ -331,11 +336,15 @@ class FriendController extends GetxController {
           if (_isFriendPageActive) {
             _refreshSharedDataIfVisible();
           } else {
-            _unseenLinkKeys.addAll(newKeys.map((key) => 'link:$key'));
-            LocalNotificationService.showSharedCategoryNotification(
-              title: 'Linkeep',
-              body: 'shared_individual_link_received'.tr,
-            );
+            final fromActiveFriend = activeConversationFriendId != null &&
+                newKeys.every((k) => k.startsWith('$activeConversationFriendId/'));
+            if (!fromActiveFriend) {
+              _unseenLinkKeys.addAll(newKeys.map((key) => 'link:$key'));
+              LocalNotificationService.showSharedCategoryNotification(
+                title: 'Linkeep',
+                body: 'shared_individual_link_received'.tr,
+              );
+            }
           }
         }
         _unseenLinkKeys.removeAll(removedKeys.map((key) => 'link:$key'));

@@ -42,6 +42,9 @@ class SharedCategoryController extends GetxController {
   final RxnString errorMessage = RxnString();
   final RxString searchQuery = ''.obs;
   final RxInt selectedTab = 0.obs; // 0: Categories, 1: Individual Links
+  final RxInt outgoingRevision = 0.obs;
+
+  void notifyOutgoingSharesChanged() => outgoingRevision.value++;
 
   List<SharedCategoryModel> get visibleCategories {
     final query = searchQuery.value.trim().toLowerCase();
