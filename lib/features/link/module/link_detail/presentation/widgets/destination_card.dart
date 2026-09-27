@@ -18,7 +18,9 @@ class DestinationCard extends GetView<LinkDetailController> {
   Widget _buildLeadingIcon(BuildContext context) {
     final platform = controller.linkPlatform;
     final favicon =
-        controller.link.metaDataModel?.favicon ?? controller.link.metaDataModel?.appleIcon ?? '';
+        controller.link.metaDataModel?.favicon ??
+        controller.link.metaDataModel?.appleIcon ??
+        '';
 
     // 1. Nếu là app có logo asset (YouTube, TikTok, Facebook, Instagram, X, Google...)
     if (platform.iconBuilder != null) {
@@ -26,10 +28,13 @@ class DestinationCard extends GetView<LinkDetailController> {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: (platform.brandColor ?? AppColors.accentViolet).withOpacityCompat(0.18),
+          color: (platform.brandColor ?? AppColors.accentViolet)
+              .withOpacityCompat(0.18),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: (platform.brandColor ?? AppColors.white).withOpacityCompat(0.12),
+            color: (platform.brandColor ?? AppColors.white).withOpacityCompat(
+              0.12,
+            ),
             width: 1,
           ),
         ),
@@ -46,7 +51,10 @@ class DestinationCard extends GetView<LinkDetailController> {
         decoration: BoxDecoration(
           color: AppColors.white.withOpacityCompat(0.06),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.white.withOpacityCompat(0.08), width: 1),
+          border: Border.all(
+            color: AppColors.white.withOpacityCompat(0.08),
+            width: 1,
+          ),
         ),
         alignment: Alignment.center,
         child: ClipRRect(
@@ -76,9 +84,8 @@ class DestinationCard extends GetView<LinkDetailController> {
             : AppColors.primary.withOpacityCompat(0.15),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: (platform.isApp ? AppColors.accentViolet : AppColors.primary).withOpacityCompat(
-            0.2,
-          ),
+          color: (platform.isApp ? AppColors.accentViolet : AppColors.primary)
+              .withOpacityCompat(0.2),
           width: 1,
         ),
       ),
@@ -116,8 +123,7 @@ class DestinationCard extends GetView<LinkDetailController> {
               children: [
                 TextWidget(
                   text: "Original Destination".tr,
-                  textStyle: AppTextStyle.bold12,
-                  color: AppColors.grey,
+                  textStyle: AppTextStyle.semiBold14,
                 ),
 
                 // Link website: chỉ chừa lại switch ẩn danh và public
@@ -132,7 +138,9 @@ class DestinationCard extends GetView<LinkDetailController> {
                         height: 24,
                         padding: 2,
                         borderRadius: 20,
-                        backgroundColor: AppColors.background.withValues(alpha: .52),
+                        backgroundColor: AppColors.background.withValues(
+                          alpha: .52,
+                        ),
                         borderColor: AppColors.white.withValues(alpha: .07),
                         selectedColor: AppColors.primary,
                         selectedGradient: const LinearGradient(
@@ -154,7 +162,9 @@ class DestinationCard extends GetView<LinkDetailController> {
                                 child: Icon(
                                   Icons.public_rounded,
                                   size: 13,
-                                  color: !isIncognito ? AppColors.white : AppColors.n70,
+                                  color: !isIncognito
+                                      ? AppColors.white
+                                      : AppColors.n70,
                                 ),
                               ),
                             ),
@@ -167,7 +177,9 @@ class DestinationCard extends GetView<LinkDetailController> {
                               child: Center(
                                 child: AppVectors.icAnonymous.show(
                                   size: 13,
-                                  color: isIncognito ? AppColors.white : AppColors.n70,
+                                  color: isIncognito
+                                      ? AppColors.white
+                                      : AppColors.n70,
                                 ),
                               ),
                             ),
@@ -179,41 +191,56 @@ class DestinationCard extends GetView<LinkDetailController> {
               ],
             ),
             const SizedBox(height: 12),
-            _LinkDestinationRow(controller: controller, leadingIcon: _buildLeadingIcon(context)),
-          ],
-          if (controller.hasLocation) ...[
-            const SizedBox(height: 12),
-            const Divider(color: AppColors.divider, height: 1),
-            const SizedBox(height: 12),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: controller.openInMaps,
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.successDark,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.map_rounded, color: AppColors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextWidget(
-                      text: controller.address,
-                      textStyle: AppTextStyle.regular14,
-                      color: AppColors.successBright,
-                      maxLines: 2,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.open_in_new, color: AppColors.successBright, size: 18),
-                ],
-              ),
+            _LinkDestinationRow(
+              controller: controller,
+              leadingIcon: _buildLeadingIcon(context),
             ),
           ],
+          Obx(() {
+            if (!controller.hasLocation) return const SizedBox.shrink();
+            return Column(
+              children: [
+                const SizedBox(height: 12),
+                const Divider(color: AppColors.divider, height: 1),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: controller.openInMaps,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.successDark,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.map_rounded,
+                          color: AppColors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextWidget(
+                          text: controller.address,
+                          textStyle: AppTextStyle.regular14,
+                          color: AppColors.successBright,
+                          maxLines: 2,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.open_in_new,
+                        color: AppColors.successBright,
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }),
         ],
       ),
     );
@@ -224,7 +251,10 @@ class _LinkDestinationRow extends StatefulWidget {
   final LinkDetailController controller;
   final Widget leadingIcon;
 
-  const _LinkDestinationRow({required this.controller, required this.leadingIcon});
+  const _LinkDestinationRow({
+    required this.controller,
+    required this.leadingIcon,
+  });
 
   @override
   State<_LinkDestinationRow> createState() => _LinkDestinationRowState();
@@ -376,7 +406,11 @@ class _LinkDestinationRowState extends State<_LinkDestinationRow> {
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(Icons.open_in_new_rounded, color: AppColors.white70, size: 18),
+          const Icon(
+            Icons.open_in_new_rounded,
+            color: AppColors.white70,
+            size: 18,
+          ),
         ],
       ),
     );

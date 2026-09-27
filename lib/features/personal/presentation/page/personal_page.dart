@@ -307,7 +307,7 @@ class PersonalPage extends GetView<PersonalController> {
                   if (photoUrl != null && photoUrl.isNotEmpty) {
                     _viewAvatarFullScreen(context, photoUrl);
                   } else {
-                    AppToast.showToast('No avatar available'.tr, Icons.info_outline_rounded);
+                    AppToast.info('No avatar available'.tr);
                   }
                 },
               ),

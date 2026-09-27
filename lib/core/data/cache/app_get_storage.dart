@@ -436,6 +436,7 @@ class AppGetStorage {
 
   // ========== Seen Shared Category Keys ========== //
   static const String _seenSharedKeysPrefix = 'seen_shared_keys_';
+  static const String _notifiedSharedKeysPrefix = 'notified_shared_keys_';
 
   /// Lấy danh sách key đã xem của user (dạng "ownerUid/catId")
   static Set<String> getSeenSharedKeys(String uid) {
@@ -452,6 +453,19 @@ class AppGetStorage {
   /// Xoá seen keys khi user đăng xuất
   static void clearSeenSharedKeys(String uid) {
     _box.remove('$_seenSharedKeysPrefix$uid');
+    _box.remove('$_notifiedSharedKeysPrefix$uid');
+  }
+
+  /// Các mục chia sẻ đã từng kích hoạt thông báo trên thiết bị này.
+  /// Tách khỏi "đã xem" để việc gửi notification không làm mất chấm đỏ.
+  static Set<String> getNotifiedSharedKeys(String uid) {
+    final raw = _box.read<List>('$_notifiedSharedKeysPrefix$uid');
+    if (raw == null) return {};
+    return raw.cast<String>().toSet();
+  }
+
+  static void setNotifiedSharedKeys(String uid, Set<String> keys) {
+    _box.write('$_notifiedSharedKeysPrefix$uid', keys.toList());
   }
 
   // ========== Viewed Shared Category Items (per-item red dot) ========== //

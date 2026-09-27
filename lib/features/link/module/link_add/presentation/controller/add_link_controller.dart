@@ -3,14 +3,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/constants/app_enum.dart';
 import 'package:keep_link/core/data/models/item_model.dart';
 import 'package:keep_link/core/data/repositories/link_repository.dart';
 import 'package:keep_link/core/services/platform/deep_link_service.dart';
 import 'package:keep_link/core/state/controllers/deep_link_controller.dart';
-import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:keep_link/core/state/mixins/argument_handle_mixin_controller.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/presentation/controller/custom_popup_controller.dart';
@@ -132,6 +130,15 @@ class AddLinkController extends GetxController
       });
     }
 
+    if (!isEditModel.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final uncategorized = popup.items.firstWhereOrNull(
+          (item) => item.id == "all",
+        );
+        if (uncategorized != null) popup.selectedItem.value = uncategorized;
+      });
+    }
+
     // OPEN FROM SHARE
     final sharedLink = _deepLink.deepLink;
     if (sharedLink != null && sharedLink.isNotEmpty) {
@@ -145,15 +152,6 @@ class AddLinkController extends GetxController
   // VALIDATION
   // ===============================================================
   bool validateInput() {
-    if (popup.selectedItem.value?.id == "all" ||
-        popup.selectedItem.value?.id == "") {
-      DialogUtils.showAlert(
-        alertType: AlertType.error,
-        title: "Cảnh báo",
-        content: "Hãy chọn danh mục",
-      );
-      return false;
-    }
     final link = linkController.text.trim();
     final title = titleController.text.trim();
 
@@ -175,7 +173,8 @@ class AddLinkController extends GetxController
   }
 
   String? _selectedCategoryId() {
-    return popup.selectedItem.value?.id?.trim();
+    final id = popup.selectedItem.value?.id?.trim();
+    return id == null || id.isEmpty || id == "all" ? null : id;
   }
 
   bool _setError(RxString target, String msg) {
@@ -219,10 +218,10 @@ class AddLinkController extends GetxController
       await LinkRepository.insert(link);
       Utils.dimissKeyboard();
       _clearAndClose(result: true);
-      Fluttertoast.showToast(msg: "Added successfully".tr);
+      AppToast.success("Added successfully".tr);
     } catch (e, s) {
       log("Error add link => $e\n$s");
-      Fluttertoast.showToast(msg: "Failed to add, please try again".tr);
+      AppToast.error("Failed to add, please try again".tr);
     } finally {
       isSaving.value = false;
     }
@@ -239,17 +238,17 @@ class AddLinkController extends GetxController
         metaDataModel: _deepLink.metaData.value ?? argsData?.metaDataModel,
         createdAt: argsData?.createdAt,
         updatedAt: now,
-        categoryId: popup.selectedItem.value?.id?.trim(),
+        categoryId: _selectedCategoryId(),
       );
 
       await LinkRepository.update(link);
       Utils.dimissKeyboard();
       _clearAndClose(result: true);
 
-      Fluttertoast.showToast(msg: "Updated successfully".tr);
+      AppToast.success("Updated successfully".tr);
     } catch (e, s) {
       log("Error updating link => $e\n$s");
-      Fluttertoast.showToast(msg: "Failed to update, please try again".tr);
+      AppToast.error("Failed to update, please try again".tr);
     } finally {
       isSaving.value = false;
     }
@@ -287,9 +286,9 @@ class AddLinkController extends GetxController
       }
 
       onChangeLink(extractedUrl);
-      Fluttertoast.showToast(msg: "Link pasted".tr);
+      AppToast.info("Link pasted".tr);
     } else {
-      Fluttertoast.showToast(msg: "Clipboard is empty".tr);
+      AppToast.warning("Clipboard is empty".tr);
     }
   }
 

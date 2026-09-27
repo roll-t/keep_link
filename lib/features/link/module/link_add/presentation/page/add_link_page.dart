@@ -25,10 +25,6 @@ class AddLinkPage extends StatelessWidget {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        // Đưa cả nút back hệ thống đi qua onCancel() thay vì pop mặc định —
-        // onCancel() xử lý riêng trường hợp mở thẳng từ share (thoát hẳn app
-        // qua SystemNavigator.pop trên Android thay vì pop về màn trống phía
-        // sau, vì lúc đó không có route nào để quay lại).
         if (didPop) return;
         addController.onCancel();
       },
@@ -38,7 +34,7 @@ class AddLinkPage extends StatelessWidget {
           child: Column(
             children: [
               _buildHeader(addController, categoryController),
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
               const DeepLinkPreview(),
               const SizedBox(height: 12),
               _buildForm(addController),
@@ -65,7 +61,10 @@ class AddLinkPage extends StatelessWidget {
         Row(
           spacing: 12,
           children: [
-            CustomPopupWidget(controller: categoryController.popupController, hasAll: false),
+            CustomPopupWidget(
+              controller: categoryController.popupController,
+              allLabel: "Uncategorized".tr,
+            ),
             AppVectors.icAdd.show(
               size: 28,
               backgroundColor: AppColors.navigationSurface,

@@ -199,11 +199,7 @@ class _AddFriendByGmailSheetState extends State<AddFriendByGmailSheet> {
   Future<void> _submit() async {
     final email = _emailCtrl.text.trim();
     if (email.isEmpty) {
-      AppToast.showToast(
-        'Please enter an email'.tr,
-        Icons.warning_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('Please enter an email'.tr);
       return;
     }
     setState(() => _submitting = true);
@@ -348,21 +344,13 @@ class _AddFriendByLinkSheetState extends State<AddFriendByLinkSheet> {
   Future<void> _submit() async {
     final raw = _linkCtrl.text.trim();
     if (raw.isEmpty) {
-      AppToast.showToast(
-        'Please enter a friend link'.tr,
-        Icons.warning_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('Please enter a friend link'.tr);
       return;
     }
 
     final payload = FriendConnectionService.parseLink(raw);
     if (payload == null) {
-      AppToast.showToast(
-        'friend_invalid_link'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('friend_invalid_link'.tr);
       return;
     }
 

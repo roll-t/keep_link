@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
+import 'package:keep_link/core/presentation/widgets/shimmer/app_shimmer.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/core/state/controllers/deep_link_controller.dart';
 
@@ -33,25 +34,51 @@ class DeepLinkPreview extends StatelessWidget {
   Widget _buildLoading() {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(12),
+      height: 90,
       decoration: BoxDecoration(
-        color: AppColors.d300,
+        color: AppColors.navigationSurface,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Row(
-        children: [
-          SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          SizedBox(width: 12),
-          TextWidget(
-            text: "Đang tải bản xem trước...",
-            color: AppColors.t100,
-            size: 14,
-          ),
-        ],
+      clipBehavior: Clip.antiAlias,
+      child: AppShimmer(
+        child: Row(
+          children: [
+            Container(
+              width: 110,
+              decoration: const BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.horizontal(left: Radius.circular(8)),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _skeletonLine(width: double.infinity, height: 14),
+                    const SizedBox(height: 10),
+                    _skeletonLine(width: 170, height: 10),
+                    const SizedBox(height: 7),
+                    _skeletonLine(width: 110, height: 10),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _skeletonLine({required double width, required double height}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(4),
       ),
     );
   }
@@ -65,9 +92,8 @@ class DeepLinkPreview extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 8),
       height: 90,
       decoration: BoxDecoration(
-        color: AppColors.d300,
+        color: AppColors.navigationSurface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.d200),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,

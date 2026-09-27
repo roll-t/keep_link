@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/data/repositories/link_repository.dart';
+import 'package:keep_link/core/services/backend/link_metadata_service.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/application/model/category_model.dart';
@@ -42,6 +42,8 @@ class LinkDetailController extends GetxController {
   // SSL handshake fail... Không có cờ này thì người dùng chỉ thấy màn hình
   // đen im lìm không rõ đang tải hay đã hỏng, không biết phải làm gì tiếp.
   final hasLoadError = false.obs;
+  late final RxString _resolvedAddress =
+      (link.metaDataModel?.address ?? '').obs;
   InAppWebViewController? webViewController;
 
   late final String url = _normalizeWebUrl(link.metaDataModel?.url);
@@ -61,8 +63,42 @@ class LinkDetailController extends GetxController {
   String get title => link.metaDataModel?.title ?? link.name ?? '';
   String get description => link.metaDataModel?.description ?? '';
   bool get isTikTok => url.contains("tiktok.com");
-  String get address => link.metaDataModel?.address ?? '';
+  String get address => _resolvedAddress.value;
   bool get hasLocation => address.isNotEmpty;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _backfillTikTokAddress();
+  }
+
+  Future<void> _backfillTikTokAddress() async {
+    if (!isTikTok || hasLocation || url.isEmpty) return;
+    try {
+      final metadata = await LinkMetadataService.fetch(url);
+      final fetchedAddress = metadata.address.trim();
+      if (fetchedAddress.isEmpty) return;
+
+      _resolvedAddress.value = fetchedAddress;
+      final currentMetadata = link.metaDataModel;
+      if (currentMetadata == null || readOnly) return;
+      currentMetadata.address = fetchedAddress;
+
+      await LinkRepository.update(
+        LinkModel(
+          id: link.id,
+          name: link.name,
+          image: link.image,
+          metaDataModel: currentMetadata,
+          categoryId: link.categoryId,
+          createdAt: link.createdAt,
+          updatedAt: link.updatedAt,
+        ),
+      );
+    } catch (_) {
+      // Address enrichment is optional; keep the saved link usable offline.
+    }
+  }
 
   // ── Category management ──────────────────────────────────────────────────
   late final currentCategoryId = Rx<String?>(link.categoryId);
@@ -81,9 +117,11 @@ class LinkDetailController extends GetxController {
       return;
     }
     final normalizedId =
-        (newCategoryId == null || newCategoryId.isEmpty || newCategoryId == 'all')
-            ? null
-            : newCategoryId;
+        (newCategoryId == null ||
+            newCategoryId.isEmpty ||
+            newCategoryId == 'all')
+        ? null
+        : newCategoryId;
 
     if (currentCategoryId.value == normalizedId) return;
 
@@ -105,20 +143,13 @@ class LinkDetailController extends GetxController {
     }
 
     if (normalizedId != null) {
-      final cat =
-          AppCache.categories.firstWhereOrNull((c) => c.id == normalizedId);
+      final cat = AppCache.categories.firstWhereOrNull(
+        (c) => c.id == normalizedId,
+      );
       final catName = cat?.name ?? 'Category'.tr;
-      AppToast.showToast(
-        'category_changed'.trParams({'name': catName}),
-        Icons.check_circle_rounded,
-        color: AppColors.success,
-      );
+      AppToast.success('category_changed'.trParams({'name': catName}));
     } else {
-      AppToast.showToast(
-        'category_removed'.tr,
-        Icons.check_circle_rounded,
-        color: AppColors.success,
-      );
+      AppToast.success('category_removed'.tr);
     }
   }
 
@@ -177,7 +208,9 @@ class LinkDetailController extends GetxController {
     incognito: isIncognito.value,
     // LOAD_DEFAULT vẫn tận dụng HTTP cache nhưng revalidate khi cần. Chế độ
     // cache-first trước đây giữ lại redirect/trang lỗi cũ quá lâu.
-    cacheMode: isIncognito.value ? CacheMode.LOAD_NO_CACHE : CacheMode.LOAD_DEFAULT,
+    cacheMode: isIncognito.value
+        ? CacheMode.LOAD_NO_CACHE
+        : CacheMode.LOAD_DEFAULT,
 
     // ── Rendering (Android) ──────────────────────────────────────────────
     // Dùng HybridComposition để giảm lỗi/log BLASTBufferQueue trên một số máy.
@@ -428,11 +461,7 @@ class LinkDetailController extends GetxController {
   void copyUrl() {
     if (url.isEmpty) return;
     Clipboard.setData(ClipboardData(text: url));
-    AppToast.showToast(
-      'link_copied'.tr,
-      Icons.copy_rounded,
-      color: AppColors.success,
-    );
+    AppToast.success('link_copied'.tr);
   }
 
   Future<void> openInApp() async => openDestination();
@@ -462,10 +491,7 @@ class LinkDetailController extends GetxController {
 
         if (!opened) {
           try {
-            opened = await launchUrl(
-              uri,
-              mode: LaunchMode.externalApplication,
-            );
+            opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
           } catch (error) {
             debugPrint('Open external app error: $error');
           }
@@ -577,11 +603,7 @@ class LinkDetailController extends GetxController {
   }
 
   void _showOpenError() {
-    AppToast.showToast(
-      'Unable to open URL'.tr,
-      Icons.error_outline_rounded,
-      color: AppColors.danger,
-    );
+    AppToast.error('Unable to open URL'.tr);
   }
 
   void openInMaps() {
@@ -612,11 +634,7 @@ class LinkDetailController extends GetxController {
   }
 
   void _showReadOnlyMessage() {
-    AppToast.showToast(
-      'shared_link_read_only'.tr,
-      Icons.visibility_rounded,
-      color: AppColors.infoMuted,
-    );
+    AppToast.info('shared_link_read_only'.tr);
   }
 
   // --- JAVASCRIPT BLOCKERS ---

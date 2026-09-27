@@ -8,11 +8,16 @@ class LocalNotificationService {
 
   static final _plugin = FlutterLocalNotificationsPlugin();
 
-  static const _friendChannelId = 'keep_link_friends';
+  // Android notification-channel sound is immutable after the channel is
+  // created. Version the IDs so existing installs receive the custom sound
+  // instead of retaining the old default-sound channel configuration.
+  static const _friendChannelId = 'keep_link_friends_sfx_v1';
   static const _friendChannelName = 'Friends';
 
-  static const _sharedChannelId = 'keep_link_shared';
+  static const _sharedChannelId = 'keep_link_shared_sfx_v1';
   static const _sharedChannelName = 'Shared Categories';
+  static const _androidSoundName = 'sfx_notification';
+  static const _iosSoundFile = 'sfx_notification.wav';
 
   static bool _initialized = false;
 
@@ -50,6 +55,7 @@ class LocalNotificationService {
           _friendChannelName,
           importance: Importance.high,
           enableVibration: true,
+          sound: RawResourceAndroidNotificationSound(_androidSoundName),
         ),
       );
 
@@ -59,6 +65,7 @@ class LocalNotificationService {
           _sharedChannelName,
           importance: Importance.high,
           enableVibration: true,
+          sound: RawResourceAndroidNotificationSound(_androidSoundName),
         ),
       );
 
@@ -118,12 +125,14 @@ class LocalNotificationService {
       importance: Importance.high,
       priority: Priority.high,
       icon: '@mipmap/ic_launcher',
+      sound: const RawResourceAndroidNotificationSound(_androidSoundName),
     );
 
     const darwinDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      sound: _iosSoundFile,
     );
 
     final details = NotificationDetails(

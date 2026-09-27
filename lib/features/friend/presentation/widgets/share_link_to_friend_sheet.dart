@@ -90,27 +90,15 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
       if (wasShared) {
         await FirebaseService.unshareLink(friendUid: widget.friend.friendUserId, linkId: link.id);
         _sharedLinkIds.remove(link.id);
-        AppToast.showToast(
-          'unshare_link_success'.tr,
-          Icons.link_off_rounded,
-          color: AppColors.warning,
-        );
+        AppToast.warning('unshare_link_success'.tr);
       } else {
         await FirebaseService.shareLink(friendUid: widget.friend.friendUserId, linkId: link.id);
         _sharedLinkIds.add(link.id);
-        AppToast.showToast(
-          'share_link_success'.tr,
-          Icons.check_circle_rounded,
-          color: AppColors.success,
-        );
+        AppToast.success('share_link_success'.tr);
       }
       if (mounted) setState(() {});
     } catch (_) {
-      AppToast.showToast(
-        'share_link_failed'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('share_link_failed'.tr);
     } finally {
       if (mounted) setState(() => _sharingId = null);
     }
@@ -129,11 +117,7 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
         );
         _sharedCategoryIds.remove(catId);
         AppCache.removeSharedFriend(catId, widget.friend.friendUserId);
-        AppToast.showToast(
-          '${'category_unshared'.tr}: ${category.name ?? ''}',
-          Icons.link_off_rounded,
-          color: AppColors.warning,
-        );
+        AppToast.warning('${'category_unshared'.tr}: ${category.name ?? ''}');
       } else {
         await FirebaseService.shareCategory(
           friendUid: widget.friend.friendUserId,
@@ -141,19 +125,11 @@ class _ShareLinkToFriendSheetState extends State<ShareLinkToFriendSheet> {
         );
         _sharedCategoryIds.add(catId);
         AppCache.addSharedFriend(catId, widget.friend);
-        AppToast.showToast(
-          '${'category_shared'.tr}: ${category.name ?? ''}',
-          Icons.check_circle_rounded,
-          color: AppColors.success,
-        );
+        AppToast.success('${'category_shared'.tr}: ${category.name ?? ''}');
       }
       if (mounted) setState(() {});
     } catch (_) {
-      AppToast.showToast(
-        'share_update_failed'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('share_update_failed'.tr);
     } finally {
       if (mounted) setState(() => _sharingId = null);
     }

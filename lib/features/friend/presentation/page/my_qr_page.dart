@@ -64,11 +64,7 @@ class _MyQrPageState extends State<MyQrPage> {
     try {
       final bytes = await _captureCardBytes();
       if (bytes == null) {
-        AppToast.showToast(
-          'personal_qr_save_failed'.tr,
-          Icons.error_outline_rounded,
-          color: AppColors.error,
-        );
+        AppToast.error('personal_qr_save_failed'.tr);
         return;
       }
 
@@ -81,24 +77,12 @@ class _MyQrPageState extends State<MyQrPage> {
       final isSuccess =
           (result['isSuccess'] == true) || (result['filePath'] != null);
       if (isSuccess) {
-        AppToast.showToast(
-          'personal_qr_saved'.tr,
-          Icons.download_done_rounded,
-          color: AppColors.success,
-        );
+        AppToast.success('personal_qr_saved'.tr);
       } else {
-        AppToast.showToast(
-          'personal_qr_save_failed'.tr,
-          Icons.error_outline_rounded,
-          color: AppColors.error,
-        );
+        AppToast.error('personal_qr_save_failed'.tr);
       }
     } catch (_) {
-      AppToast.showToast(
-        'personal_qr_save_failed'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('personal_qr_save_failed'.tr);
     } finally {
       if (mounted) setState(() => _isExporting = false);
     }
@@ -111,11 +95,7 @@ class _MyQrPageState extends State<MyQrPage> {
     try {
       final bytes = await _captureCardBytes();
       if (bytes == null) {
-        AppToast.showToast(
-          'personal_qr_save_failed'.tr,
-          Icons.error_outline_rounded,
-          color: AppColors.error,
-        );
+        AppToast.error('personal_qr_save_failed'.tr);
         return;
       }
 
@@ -127,11 +107,7 @@ class _MyQrPageState extends State<MyQrPage> {
         XFile(file.path),
       ], text: 'KeepLink Friend QR'.tr);
     } catch (_) {
-      AppToast.showToast(
-        'personal_qr_save_failed'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('personal_qr_save_failed'.tr);
     } finally {
       if (mounted) setState(() => _isExporting = false);
     }
@@ -139,11 +115,7 @@ class _MyQrPageState extends State<MyQrPage> {
 
   void _copyLink(String friendLink) {
     Clipboard.setData(ClipboardData(text: friendLink));
-    AppToast.showToast(
-      'personal_link_copied'.tr,
-      Icons.check_circle_rounded,
-      color: AppColors.success,
-    );
+    AppToast.success('personal_link_copied'.tr);
   }
 
   @override

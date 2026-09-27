@@ -4,7 +4,6 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/constants/app_enum.dart';
-import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/data/repositories/category_repository.dart';
@@ -30,8 +29,7 @@ class LinkCollectionController extends GetxController {
   final RxBool isSelectionMode = false.obs;
   final RxSet<String> selectedIds = <String>{}.obs;
 
-  bool get isAllSelected =>
-      listLink.isNotEmpty && selectedIds.length == listLink.length;
+  bool get isAllSelected => listLink.isNotEmpty && selectedIds.length == listLink.length;
 
   void enterSelectionMode(String firstId) {
     isSelectionMode.value = true;
@@ -71,27 +69,16 @@ class LinkCollectionController extends GetxController {
         Get.back();
         isDeleting.value = true;
         try {
-          // Revoke every receiver's access first. If Firebase is unavailable,
-          // keep the owner's links intact instead of deleting locally while a
-          // stale share is still visible on another account.
           await FirebaseService.revokeAllLinksShares(idsToDelete);
           await LinkRepository.deleteAll(idsToDelete);
           final idSet = idsToDelete.toSet();
           listLink.removeWhere((item) => idSet.contains(item.id));
           _filteredLinks?.removeWhere((item) => idSet.contains(item.id));
           exitSelectionMode();
-
-          AppToast.showToast(
-            'Đã xóa ${idsToDelete.length} link',
-            Icons.delete_outline_rounded,
-          );
+          AppToast.showToast('Đã xóa ${idsToDelete.length} link', Icons.delete_outline_rounded);
         } catch (error) {
           log('Delete selected links error: $error');
-          AppToast.showToast(
-            'An error occurred, please try again'.tr,
-            Icons.error_outline_rounded,
-            color: AppColors.danger,
-          );
+          AppToast.error('An error occurred, please try again'.tr);
         } finally {
           isDeleting.value = false;
         }
@@ -107,12 +94,6 @@ class LinkCollectionController extends GetxController {
   bool _canLoadMore = true;
   Future<void>? _refreshFuture;
   bool _refreshQueued = false;
-
-  // Toàn bộ danh sách đã áp filter category/privacy hiện tại — tính 1 lần
-  // mỗi khi filter đổi (refreshData), các lần loadMore() sau chỉ cắt lát ra
-  // từ đây. Trước đây mỗi lần kéo thêm 1 trang là quét lại TOÀN BỘ
-  // AppCache.links từ đầu (LinkRepository.getFilteredPage) — cuộn hết 1 danh
-  // sách N link tốn O(N²) thay vì O(N).
   List<LinkModel>? _filteredLinks;
 
   List<LinkModel> _getLinksForSelectedCategory(String? categoryId) {
@@ -142,8 +123,7 @@ class LinkCollectionController extends GetxController {
 
   void _scrollListener() {
     if (!scrollController.hasClients) return;
-    if (scrollController.position.pixels >=
-        scrollController.position.maxScrollExtent - 200) {
+    if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
       if (!isLoading.value && !isLoadMore.value && _canLoadMore) {
         loadMore();
       }
@@ -183,10 +163,7 @@ class LinkCollectionController extends GetxController {
     }
 
     try {
-      await Future.wait([
-        LinkRepository.ensureLoaded(),
-        CategoryRepository.ensureLoaded(),
-      ]);
+      await Future.wait([LinkRepository.ensureLoaded(), CategoryRepository.ensureLoaded()]);
 
       final categoryPopup = Get.find<CustomPopupController>();
       final selectedCategoryId = categoryPopup.selectedItem.value?.id;
@@ -200,11 +177,7 @@ class LinkCollectionController extends GetxController {
       listLink.assignAll(filtered.take(_pageSize));
 
       if (showToast) {
-        AppToast.showToast(
-          "Refreshed".tr,
-          Icons.check_circle_rounded,
-          color: AppColors.success,
-        );
+        AppToast.success("Refreshed".tr);
       }
     } catch (error) {
       log('Refresh links error: $error');
@@ -218,9 +191,7 @@ class LinkCollectionController extends GetxController {
   Future<void> fetchAllLinks({bool isInitial = false}) async {
     if (isInitial) return refreshData();
     if (!_canLoadMore) return;
-    final CustomPopupController categoryPopup = DependencyUtils.put(
-      () => CustomPopupController(),
-    );
+    final CustomPopupController categoryPopup = DependencyUtils.put(() => CustomPopupController());
     try {
       if (isInitial) {
         isLoading.value = true;
@@ -229,10 +200,7 @@ class LinkCollectionController extends GetxController {
       }
 
       // Ensure both caches are populated (DB query only on very first call).
-      await Future.wait([
-        LinkRepository.ensureLoaded(),
-        CategoryRepository.ensureLoaded(),
-      ]);
+      await Future.wait([LinkRepository.ensureLoaded(), CategoryRepository.ensureLoaded()]);
 
       // Filter cache from AppCache — pure in-memory, no I/O. Computed once
       // per filter (reset in refreshData()); loadMore() just slices pages
@@ -256,9 +224,7 @@ class LinkCollectionController extends GetxController {
         if (page.length < _pageSize) _canLoadMore = false;
       }
 
-      log(
-        'Page $_currentPage loaded (cache). Total displayed: ${listLink.length}',
-      );
+      log('Page $_currentPage loaded (cache). Total displayed: ${listLink.length}');
     } catch (e) {
       log('Error fetching links: $e');
     } finally {
@@ -291,11 +257,7 @@ class LinkCollectionController extends GetxController {
             AppToast.showToast("Deleted".tr, Icons.delete_outline_rounded);
           } catch (error) {
             log('Delete link error: $error');
-            AppToast.showToast(
-              'An error occurred, please try again'.tr,
-              Icons.error_outline_rounded,
-              color: AppColors.danger,
-            );
+            AppToast.error('An error occurred, please try again'.tr);
           }
         },
         onCancel: () => Get.back(),

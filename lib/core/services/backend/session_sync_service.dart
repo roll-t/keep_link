@@ -335,14 +335,12 @@ class SessionSyncService {
         remoteData?['categories'] as Map? ?? {},
       );
 
-      // ── Guest-default category guard ──────────────────────────────────────
-      // The default "Danh Mục" category is auto-created for guests.
-      // • New account (no remote categories) → push it as-is (first-time switch).
-      // • Returning/different account (has remote categories) → exclude it from
-      //   the push, remap its links to uncategorized, and delete it locally.
+      // ── Legacy guest-default category cleanup ─────────────────────────────
+      // Older app versions auto-created a "Danh mục" category for guests.
+      // Never push that synthetic category into an account. Preserve its links
+      // by remapping them to uncategorized, then remove the legacy category.
       final guestDefaultCatId = AppGetStorage.guestDefaultCategoryId;
-      final excludeGuestDefault =
-          guestDefaultCatId != null && remoteCategories.isNotEmpty;
+      final excludeGuestDefault = guestDefaultCatId != null;
 
       if (excludeGuestDefault) {
         categoryUpserts.remove(guestDefaultCatId);
@@ -359,7 +357,11 @@ class SessionSyncService {
       for (final link in AppCache.links) {
         if (!linkUpserts.containsKey(link.id) &&
             !remoteLinks.containsKey(link.id)) {
-          linkUpserts[link.id] = link.toJson();
+          final data = link.toJson();
+          if (excludeGuestDefault && data['categoryId'] == guestDefaultCatId) {
+            data['categoryId'] = null;
+          }
+          linkUpserts[link.id] = data;
         }
       }
       for (final cat in AppCache.categories) {

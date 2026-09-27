@@ -5,9 +5,8 @@ import 'dart:math' show Random;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/data/cache/sql_lite.dart';
@@ -199,13 +198,7 @@ class SingleDeviceSessionService {
       // open the guest state. At runtime rebuild the home route immediately.
       if (Get.key.currentContext != null) {
         Get.offAllNamed(LinkCollectionPage.routeName);
-        Fluttertoast.showToast(
-          msg: 'account_signed_in_on_another_device'.tr,
-          toastLength: Toast.LENGTH_LONG,
-          gravity: ToastGravity.BOTTOM,
-          backgroundColor: AppColors.danger,
-          textColor: AppColors.white,
-        );
+        AppToast.error('account_signed_in_on_another_device'.tr);
       }
     } finally {
       _forcingSignOut = false;

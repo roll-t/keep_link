@@ -19,20 +19,28 @@ class LinkDetailPage extends StatelessWidget {
   const LinkDetailPage({super.key, this.link, this.readOnly = false});
 
   LinkDetailController get _controller {
+    // Route binding is the owner of this controller. `Get.arguments` is route
+    // scoped and can be null on later rebuilds (for example after hot reload
+    // or after an overlay route has been shown), while the initialized
+    // controller remains valid. Always reuse it before consulting arguments.
+    if (Get.isRegistered<LinkDetailController>()) {
+      return Get.find<LinkDetailController>();
+    }
+
+    // Keep direct `LinkDetailPage(link: ...)` construction working outside
+    // the named route, but fail clearly if neither source supplies a link.
     final raw = Get.arguments;
     final args = link != null
         ? LinkDetailArguments(link: link!, readOnly: readOnly)
         : raw is LinkDetailArguments
         ? raw
-        : LinkDetailArguments(link: raw as LinkModel);
-    if (Get.isRegistered<LinkDetailController>()) {
-      final existing = Get.find<LinkDetailController>();
-      if (existing.link.id == args.link.id && existing.readOnly == args.readOnly) {
-        return existing;
-      }
-      Get.delete<LinkDetailController>();
-    }
-    return Get.put(LinkDetailController(link: args.link, readOnly: args.readOnly));
+        : raw is LinkModel
+        ? LinkDetailArguments(link: raw)
+        : throw StateError('LinkDetailPage requires a LinkModel argument.');
+
+    return Get.put(
+      LinkDetailController(link: args.link, readOnly: args.readOnly),
+    );
   }
 
   @override
@@ -41,7 +49,8 @@ class LinkDetailPage extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Obx(() {
-        final isFullscreenPlayer = controller.isPlayingVideo.value && controller.isExpanded.value;
+        final isFullscreenPlayer =
+            controller.isPlayingVideo.value && controller.isExpanded.value;
 
         return Scaffold(
           backgroundColor: AppColors.surfaceDeep,
@@ -53,14 +62,21 @@ class LinkDetailPage extends StatelessWidget {
           // bar nữa — phải tự bọc SafeArea(top: true) ở đây, nếu không thanh
           // điều hướng webview sẽ bị đồng hồ/icon status bar đè lên.
           body: isFullscreenPlayer
-              ? const SafeArea(top: true, bottom: false, child: HeroMediaWidget())
+              ? const SafeArea(
+                  top: true,
+                  bottom: false,
+                  child: HeroMediaWidget(),
+                )
               : _buildDetailBody(context, controller),
         );
       }),
     );
   }
 
-  Widget _buildDetailBody(BuildContext context, LinkDetailController controller) {
+  Widget _buildDetailBody(
+    BuildContext context,
+    LinkDetailController controller,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -101,7 +117,10 @@ class LinkDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoryCard(BuildContext context, LinkDetailController controller) {
+  Widget _buildCategoryCard(
+    BuildContext context,
+    LinkDetailController controller,
+  ) {
     return Obx(() {
       final category = controller.currentCategory;
       final hasCategory = category != null;
@@ -135,15 +154,20 @@ class LinkDetailPage extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.folder_outlined, color: AppColors.white, size: 20),
+                        const Icon(
+                          Icons.folder_outlined,
+                          color: AppColors.white,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: TextWidget(
-                            text: hasCategory ? (category.name ?? "Folder".tr) : "Folder".tr,
-                            textStyle: AppTextStyle.semiBold16,
+                            text: hasCategory
+                                ? (category.name ?? "Folder".tr)
+                                : "Folder".tr,
+                            textStyle: AppTextStyle.semiBold14,
                             color: AppColors.white,
                             maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -171,7 +195,9 @@ class LinkDetailPage extends StatelessWidget {
                 ),
                 alignment: Alignment.center,
                 child: Icon(
-                  hasCategory ? Icons.drive_file_move_outlined : Icons.create_new_folder_outlined,
+                  hasCategory
+                      ? Icons.drive_file_move_outlined
+                      : Icons.create_new_folder_outlined,
                   color: AppColors.primary,
                   size: 20,
                 ),
@@ -183,12 +209,19 @@ class LinkDetailPage extends StatelessWidget {
     });
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context, LinkDetailController controller) {
+  PreferredSizeWidget _buildAppBar(
+    BuildContext context,
+    LinkDetailController controller,
+  ) {
     return AppBar(
       backgroundColor: AppColors.transparent,
       elevation: 0,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.white, size: 20),
+        icon: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          color: AppColors.white,
+          size: 20,
+        ),
         onPressed: () => Get.back(),
       ),
       centerTitle: true,
@@ -207,8 +240,14 @@ class LinkDetailPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(color: AppColors.bg500, shape: BoxShape.circle),
-                  child: AppVectors.icSharedCategory.show(size: 18, color: AppColors.primary),
+                  decoration: const BoxDecoration(
+                    color: AppColors.bg500,
+                    shape: BoxShape.circle,
+                  ),
+                  child: AppVectors.icSharedCategory.show(
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),

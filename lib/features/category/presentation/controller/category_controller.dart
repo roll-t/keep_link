@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/config/constants/app_enum.dart';
@@ -57,10 +57,6 @@ class CategoryController extends GetxController {
     await CategoryRepository.ensureLoaded();
     List<CategoryModel> loadedList = CategoryRepository.getAll().toList();
 
-    if (loadedList.isEmpty) {
-      final defaultCategory = await _createDefaultCategory();
-      loadedList.add(defaultCategory);
-    }
     _sortCategories(loadedList);
     categories.assignAll(loadedList);
 
@@ -74,21 +70,6 @@ class CategoryController extends GetxController {
         AppCache.sharedWithCache.isEmpty) {
       _loadSharedWithCache(loadedList);
     }
-  }
-
-  Future<CategoryModel> _createDefaultCategory() async {
-    final now = DateTime.now();
-    final id = now.microsecondsSinceEpoch.toString();
-    final defaultCategory = CategoryModel(
-      id: id,
-      name: "Category".tr,
-      createdAt: now,
-    );
-    await CategoryRepository.insert(defaultCategory);
-    // Mark this category as guest-only so it is excluded from being pushed
-    // to a signed-in account that already has its own data.
-    AppGetStorage.setGuestDefaultCategoryId(id);
-    return defaultCategory;
   }
 
   /// -----------------------------
@@ -166,7 +147,7 @@ class CategoryController extends GetxController {
     isCategorySaving.value = true;
     try {
       await CategoryRepository.update(categoryUpdate);
-      Fluttertoast.showToast(msg: "Update successful".tr);
+      AppToast.success("Update successful".tr);
 
       categories[index] = categoryUpdate;
       _sortCategories(categories);
@@ -193,7 +174,7 @@ class CategoryController extends GetxController {
       (link) => link.categoryId == selected.id,
     );
     if (hasLinks) {
-      Fluttertoast.showToast(msg: "Category contains links\nCannot delete!".tr);
+      AppToast.warning("Category contains links\nCannot delete!".tr);
       return;
     }
 
@@ -298,9 +279,7 @@ class CategoryController extends GetxController {
 
   bool _validateCategory({bool checkLimit = true, String? editingId}) {
     if (checkLimit && AppCache.categories.length >= _maxCategories) {
-      Fluttertoast.showToast(
-        msg: "max_categories_limit".trArgs(["$_maxCategories"]),
-      );
+      AppToast.warning("max_categories_limit".trArgs(["$_maxCategories"]));
       return false;
     }
 
@@ -342,7 +321,7 @@ class CategoryController extends GetxController {
   void _handleError(String msg, Object e, StackTrace s) {
     debugPrint('$msg: $e');
     debugPrintStack(stackTrace: s);
-    Fluttertoast.showToast(msg: "An error occurred, please try again".tr);
+    AppToast.error("An error occurred, please try again".tr);
   }
 
   Future<void> _reloadLinks() async {
@@ -427,8 +406,8 @@ class CategoryController extends GetxController {
       categories.refresh();
       _updatePopupItems(selectId: updated.id);
       await _reloadLinks();
-      Fluttertoast.showToast(
-        msg: newVisibility == VisibilityStatus.private
+      AppToast.success(
+        newVisibility == VisibilityStatus.private
             ? 'Đã đặt riêng tư'
             : 'Đã đặt công khai',
       );
@@ -510,7 +489,7 @@ class CategoryController extends GetxController {
     required VoidCallback onSuccess,
   }) async {
     if (FirebaseService.currentUser == null) {
-      Fluttertoast.showToast(msg: 'share_sign_in_required'.tr);
+      AppToast.warning('share_sign_in_required'.tr);
       return;
     }
 
@@ -524,14 +503,14 @@ class CategoryController extends GetxController {
           categoryId: categoryId,
         );
         AppCache.removeSharedFriend(categoryId, friendUid);
-        Fluttertoast.showToast(msg: 'category_unshared'.tr);
+        AppToast.warning('category_unshared'.tr);
       } else {
         await FirebaseService.shareCategory(
           friendUid: friendUid,
           categoryId: categoryId,
         );
         AppCache.addSharedFriend(categoryId, friend);
-        Fluttertoast.showToast(msg: 'category_shared'.tr);
+        AppToast.success('category_shared'.tr);
       }
       onSuccess();
     } catch (e) {

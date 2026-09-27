@@ -5,7 +5,6 @@ import 'package:keep_link/core/config/theme/app_text_styles.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/link/application/incoming_link_save_service.dart';
-import 'package:keep_link/features/link/application/model/link_model.dart';
 
 enum QuickShareState { saving, saved, duplicate, error }
 
@@ -20,14 +19,21 @@ class QuickSharePage extends StatefulWidget {
 
 class _QuickSharePageState extends State<QuickSharePage> {
   QuickShareState _state = QuickShareState.saving;
-  LinkModel? _savedLink;
   String? _error;
-  late final String? _incomingUrl = IncomingLinkSaveService.extractUrl(widget.sharedText);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _save());
+  }
+
+  Future<void> _handleClose() async {
+    if (!mounted) return;
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      await SystemNavigator.pop();
+    }
   }
 
   Future<void> _save() async {
@@ -42,13 +48,12 @@ class _QuickSharePageState extends State<QuickSharePage> {
       final result = await IncomingLinkSaveService.save(widget.sharedText);
       if (!mounted) return;
       setState(() {
-        _savedLink = result.link;
         _state = result.status == IncomingLinkSaveStatus.duplicate
             ? QuickShareState.duplicate
             : QuickShareState.saved;
       });
       await Future<void>.delayed(const Duration(milliseconds: 900));
-      if (mounted) await SystemNavigator.pop();
+      await _handleClose();
     } on IncomingLinkException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -71,64 +76,45 @@ class _QuickSharePageState extends State<QuickSharePage> {
     return Scaffold(
       backgroundColor: AppColors.transparent,
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 36),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 326),
-              child: TweenAnimationBuilder<double>(
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutCubic,
-                tween: Tween(begin: 0, end: 1),
-                builder: (context, value, child) => Opacity(
-                  opacity: value,
-                  child: Transform.scale(scale: .94 + (.06 * value), child: child),
-                ),
-                child: Material(
-                  color: AppColors.surface,
-                  elevation: 16,
-                  shadowColor: AppColors.black,
-                  borderRadius: BorderRadius.circular(16),
-                  clipBehavior: Clip.antiAlias,
-                  child: AnimatedSize(
-                    duration: const Duration(milliseconds: 240),
+        child: Stack(
+          children: [
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _handleClose,
+              child: const SizedBox.expand(),
+            ),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 36),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 326),
+                  child: TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 280),
                     curve: Curves.easeOutCubic,
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          top: 10,
-                          left: 12,
-                          child: Image.asset(
-                            'assets/icons/ic_logo_linkeep_full.png',
-                            width: 54,
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.high,
-                          ),
-                        ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
+                    tween: Tween(begin: 0, end: 1),
+                    builder: (context, value, child) => Opacity(
+                      opacity: value,
+                      child: Transform.scale(scale: .94 + (.06 * value), child: child),
+                    ),
+                    child: Material(
+                      color: AppColors.surface,
+                      elevation: 16,
+                      shadowColor: AppColors.black,
+                      borderRadius: BorderRadius.circular(8),
+                      clipBehavior: Clip.antiAlias,
+                      child: AnimatedSize(
+                        duration: const Duration(milliseconds: 240),
+                        curve: Curves.easeOutCubic,
+                        child: Stack(
                           children: [
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(20, 20, 20, isError ? 16 : 22),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const SizedBox(height: 10),
-                                  Row(
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(20, 20, 20, isError ? 16 : 22),
+                                  child: Column(
                                     mainAxisSize: MainAxisSize.min,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
-                                      Flexible(
-                                        child: TextWidget(
-                                          text: _title,
-                                          textStyle: AppTextStyle.bold16,
-                                          color: AppColors.white,
-                                          textAlign: TextAlign.center,
-                                          maxLines: 2,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
                                       AnimatedSwitcher(
                                         duration: const Duration(milliseconds: 200),
                                         transitionBuilder: (child, animation) => ScaleTransition(
@@ -137,81 +123,103 @@ class _QuickSharePageState extends State<QuickSharePage> {
                                         ),
                                         child: _buildStatusIcon(),
                                       ),
+                                      const SizedBox(height: 10),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          Image.asset(
+                                            'assets/icons/ic_logo_linkeep.png',
+                                            width: 18,
+                                            fit: BoxFit.contain,
+                                            filterQuality: FilterQuality.high,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Flexible(
+                                            child: TextWidget(
+                                              text: _title,
+                                              textStyle: AppTextStyle.bold16,
+                                              color: AppColors.white,
+                                              textAlign: TextAlign.center,
+                                              maxLines: 2,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      TextWidget(
+                                        text: _subtitle,
+                                        textAlign: TextAlign.center,
+                                        textStyle: AppTextStyle.regular10,
+                                        color: AppColors.n70,
+                                        maxLines: 2,
+                                      ),
                                     ],
                                   ),
-                                  const SizedBox(height: 4),
-                                  TextWidget(
-                                    text: _subtitle,
-                                    textAlign: TextAlign.center,
-                                    textStyle: AppTextStyle.regular10,
-                                    color: AppColors.n70,
-                                    maxLines: 2,
-                                  ),
-                                  const SizedBox(height: 14),
-                                  _buildLinkPreview(),
-                                ],
-                              ),
-                            ),
-                            if (isError) ...[
-                              Divider(
-                                height: 1,
-                                thickness: 0.8,
-                                color: AppColors.white.withOpacityCompat(0.08),
-                              ),
-                              SizedBox(
-                                height: 48,
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: InkWell(
-                                        onTap: SystemNavigator.pop,
-                                        borderRadius: const BorderRadius.only(
-                                          bottomLeft: Radius.circular(16),
-                                        ),
-                                        child: Center(
-                                          child: TextWidget(
-                                            text: 'Đóng',
-                                            size: 15,
-                                            fontWeight: FontWeight.w500,
-                                            color: AppColors.white.withOpacityCompat(0.75),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    VerticalDivider(
-                                      width: 1,
-                                      thickness: 0.8,
-                                      color: AppColors.white.withOpacityCompat(0.08),
-                                    ),
-                                    Expanded(
-                                      child: InkWell(
-                                        onTap: _save,
-                                        borderRadius: const BorderRadius.only(
-                                          bottomRight: Radius.circular(16),
-                                        ),
-                                        child: const Center(
-                                          child: TextWidget(
-                                            text: 'Thử lại',
-                                            size: 15,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.primaryDim,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
                                 ),
-                              ),
-                            ],
+                                if (isError) ...[
+                                  Divider(
+                                    height: 1,
+                                    thickness: 0.8,
+                                    color: AppColors.white.withOpacityCompat(0.08),
+                                  ),
+                                  SizedBox(
+                                    height: 48,
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: _handleClose,
+                                            borderRadius: const BorderRadius.only(
+                                              bottomLeft: Radius.circular(8),
+                                            ),
+                                            child: Center(
+                                              child: TextWidget(
+                                                text: 'Đóng',
+                                                size: 15,
+                                                fontWeight: FontWeight.w500,
+                                                color: AppColors.white.withOpacityCompat(0.75),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        VerticalDivider(
+                                          width: 1,
+                                          thickness: 0.8,
+                                          color: AppColors.white.withOpacityCompat(0.08),
+                                        ),
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: _save,
+                                            borderRadius: const BorderRadius.only(
+                                              bottomRight: Radius.circular(8),
+                                            ),
+                                            child: const Center(
+                                              child: TextWidget(
+                                                text: 'Thử lại',
+                                                size: 15,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primaryDim,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -251,57 +259,8 @@ class _QuickSharePageState extends State<QuickSharePage> {
       key: key,
       width: 22,
       height: 22,
-      decoration: BoxDecoration(color: color.withOpacityCompat(0.18), shape: BoxShape.circle),
-      child: Center(child: Icon(icon, color: color, size: 14)),
-    );
-  }
-
-  Widget _buildLinkPreview() {
-    final url = _savedLink?.metaDataModel?.url ?? _incomingUrl ?? widget.sharedText;
-    final host = Uri.tryParse(url)?.host.replaceFirst(RegExp(r'^www\.'), '') ?? '';
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.inputSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.white.withOpacityCompat(0.08)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: .14),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.link_rounded, color: AppColors.primaryDim, size: 16),
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextWidget(
-                  text: host.isEmpty ? 'Link được chia sẻ' : host,
-                  textStyle: AppTextStyle.semiBold12,
-                  color: AppColors.onSurface,
-                  maxLines: 1,
-                ),
-                const SizedBox(height: 1),
-                TextWidget(
-                  text: url,
-                  textStyle: AppTextStyle.regular10,
-                  color: AppColors.onSurfaceVariant,
-                  maxLines: 1,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      child: Center(child: Icon(icon, color: AppColors.white, size: 14)),
     );
   }
 

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/constants/app_enum.dart';
-import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/data/repositories/friend_repository.dart';
@@ -218,11 +217,26 @@ class FriendController extends GetxController {
         if (_isSharedInitialLoad) {
           _isSharedInitialLoad = false;
           _knownSharedKeys = Set.from(keys);
-          // So sánh với keys đã xem lần trước (lưu local)
           final seenKeys = AppGetStorage.getSeenSharedKeys(uid);
+          final notifiedKeys = AppGetStorage.getNotifiedSharedKeys(uid);
           _unseenCategoryKeys = _isFriendPageActive
               ? <String>{}
               : keys.difference(seenKeys);
+          final missedKeys = keys.difference({...seenKeys, ...notifiedKeys});
+          if (!_isFriendPageActive && missedKeys.isNotEmpty) {
+            LocalNotificationService.showSharedCategoryNotification(
+              title: 'Linkeep',
+              body: missedKeys.length == 1
+                  ? 'shared_new_category_received'.tr
+                  : 'shared_new_items_received'.trParams({
+                      'count': '${missedKeys.length}',
+                    }),
+            );
+          }
+          AppGetStorage.setNotifiedSharedKeys(uid, {
+            ...notifiedKeys.where((key) => key.startsWith('link:')),
+            ...keys,
+          });
           if (_isFriendPageActive) _saveSeenKeys(uid);
           _updatePendingSharedCount();
           if (_isFriendPageActive) _reconcileLinkWatchers(keys);
@@ -243,6 +257,13 @@ class FriendController extends GetxController {
           }
         }
         _unseenCategoryKeys.removeAll(removedKeys);
+        final notifiedKeys = AppGetStorage.getNotifiedSharedKeys(uid);
+        AppGetStorage.setNotifiedSharedKeys(uid, {
+          ...notifiedKeys.where(
+            (key) => key.startsWith('link:') || !removedKeys.contains(key),
+          ),
+          ...newKeys,
+        });
         _updatePendingSharedCount();
         if (newKeys.isNotEmpty || removedKeys.isNotEmpty) {
           SharedCategoryController.invalidateCache();
@@ -276,9 +297,28 @@ class FriendController extends GetxController {
           _isSharedLinkInitialLoad = false;
           _knownSharedLinkKeys = Set.from(keys);
           final seenKeys = AppGetStorage.getSeenSharedKeys(uid);
+          final notifiedKeys = AppGetStorage.getNotifiedSharedKeys(uid);
           _unseenLinkKeys = _isFriendPageActive
               ? <String>{}
               : prefixedKeys.difference(seenKeys);
+          final missedKeys = prefixedKeys.difference({
+            ...seenKeys,
+            ...notifiedKeys,
+          });
+          if (!_isFriendPageActive && missedKeys.isNotEmpty) {
+            LocalNotificationService.showSharedCategoryNotification(
+              title: 'Linkeep',
+              body: missedKeys.length == 1
+                  ? 'shared_individual_link_received'.tr
+                  : 'shared_new_items_received'.trParams({
+                      'count': '${missedKeys.length}',
+                    }),
+            );
+          }
+          AppGetStorage.setNotifiedSharedKeys(uid, {
+            ...notifiedKeys.where((key) => !key.startsWith('link:')),
+            ...prefixedKeys,
+          });
           if (_isFriendPageActive) _saveSeenKeys(uid);
           _updatePendingSharedCount();
           return;
@@ -294,11 +334,17 @@ class FriendController extends GetxController {
             _unseenLinkKeys.addAll(newKeys.map((key) => 'link:$key'));
             LocalNotificationService.showSharedCategoryNotification(
               title: 'Linkeep',
-              body: 'shared_new_link_received'.tr,
+              body: 'shared_individual_link_received'.tr,
             );
           }
         }
         _unseenLinkKeys.removeAll(removedKeys.map((key) => 'link:$key'));
+        final notifiedKeys = AppGetStorage.getNotifiedSharedKeys(uid);
+        final removedPrefixedKeys = removedKeys.map((key) => 'link:$key');
+        AppGetStorage.setNotifiedSharedKeys(uid, {
+          ...notifiedKeys.where((key) => !removedPrefixedKeys.contains(key)),
+          ...newKeys.map((key) => 'link:$key'),
+        });
         if (removedKeys.isNotEmpty) {
           SharedCategoryController.invalidateCache();
           if (_isFriendPageActive) _refreshSharedDataIfVisible();
@@ -530,37 +576,21 @@ class FriendController extends GetxController {
   Future<bool> addFriendFromLink(String rawInput) async {
     final currentUser = FirebaseService.currentUser;
     if (currentUser == null) {
-      AppToast.showToast(
-        'friend_sign_in_required'.tr,
-        Icons.login_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_sign_in_required'.tr);
       return false;
     }
     if (hasReachedLimit) {
-      AppToast.showToast(
-        'friend_limit_reached'.trParams({'0': '$maxFriends'}),
-        Icons.people_outline_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_limit_reached'.trParams({'0': '$maxFriends'}));
       return false;
     }
 
     final payload = FriendConnectionService.parseLink(rawInput);
     if (payload == null) {
-      AppToast.showToast(
-        'friend_invalid_link'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('friend_invalid_link'.tr);
       return false;
     }
     if (payload.userId == currentUser.uid) {
-      AppToast.showToast(
-        'friend_cannot_add_self'.tr,
-        Icons.info_outline_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_cannot_add_self'.tr);
       return false;
     }
 
@@ -568,11 +598,7 @@ class FriendController extends GetxController {
       (friend) => friend.friendUserId == payload.userId,
     );
     if (existing != null) {
-      AppToast.showToast(
-        'friend_already_exists'.tr,
-        Icons.info_outline_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_already_exists'.tr);
       return false;
     }
 
@@ -590,37 +616,21 @@ class FriendController extends GetxController {
     if (email.isEmpty ||
         !GetUtils.isEmail(email) ||
         !email.endsWith('@gmail.com')) {
-      AppToast.showToast(
-        'friend_invalid_email'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('friend_invalid_email'.tr);
       return false;
     }
 
     final currentUser = FirebaseService.currentUser;
     if (currentUser == null) {
-      AppToast.showToast(
-        'friend_sign_in_required'.tr,
-        Icons.login_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_sign_in_required'.tr);
       return false;
     }
     if (hasReachedLimit) {
-      AppToast.showToast(
-        'friend_limit_reached'.trParams({'0': '$maxFriends'}),
-        Icons.people_outline_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_limit_reached'.trParams({'0': '$maxFriends'}));
       return false;
     }
     if ((currentUser.email ?? '').trim().toLowerCase() == email) {
-      AppToast.showToast(
-        'friend_cannot_add_self'.tr,
-        Icons.info_outline_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_cannot_add_self'.tr);
       return false;
     }
 
@@ -628,21 +638,13 @@ class FriendController extends GetxController {
       (friend) => (friend.email ?? '').trim().toLowerCase() == email,
     );
     if (existingByEmail != null) {
-      AppToast.showToast(
-        'friend_already_exists'.tr,
-        Icons.info_outline_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_already_exists'.tr);
       return false;
     }
 
     final profile = await FirebaseService.findUserProfileByEmail(email);
     if (profile == null) {
-      AppToast.showToast(
-        'friend_email_not_found'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('friend_email_not_found'.tr);
       return false;
     }
 
@@ -652,19 +654,11 @@ class FriendController extends GetxController {
     final profilePhoto = profile['photoUrl'];
 
     if (userId.isEmpty) {
-      AppToast.showToast(
-        'friend_email_not_found'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('friend_email_not_found'.tr);
       return false;
     }
     if (userId == currentUser.uid) {
-      AppToast.showToast(
-        'friend_cannot_add_self'.tr,
-        Icons.info_outline_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_cannot_add_self'.tr);
       return false;
     }
 
@@ -692,11 +686,7 @@ class FriendController extends GetxController {
   Future<bool> addFriendFromClipboard() async {
     final text = await readClipboardLink();
     if (text == null) {
-      AppToast.showToast(
-        'friend_clipboard_empty'.tr,
-        Icons.warning_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_clipboard_empty'.tr);
       return false;
     }
     return addFriendFromLink(text);
@@ -705,11 +695,7 @@ class FriendController extends GetxController {
   Future<bool> acceptFriendRequest(FriendRequestModel request) async {
     if (!processingRequestUserIds.add(request.fromUserId)) return false;
     if (hasReachedLimit) {
-      AppToast.showToast(
-        'friend_limit_reached'.trParams({'0': '$maxFriends'}),
-        Icons.people_outline_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_limit_reached'.trParams({'0': '$maxFriends'}));
       processingRequestUserIds.remove(request.fromUserId);
       return false;
     }
@@ -717,18 +703,10 @@ class FriendController extends GetxController {
     try {
       await FirebaseService.acceptFriendRequest(request);
       await _syncRemoteFriendState(includeOutgoingRequests: false);
-      AppToast.showToast(
-        'friend_request_accepted'.tr,
-        Icons.check_circle_rounded,
-        color: AppColors.success,
-      );
+      AppToast.success('friend_request_accepted'.tr);
       return true;
     } catch (_) {
-      AppToast.showToast(
-        'friend_request_action_failed'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('friend_request_action_failed'.tr);
       return false;
     } finally {
       processingRequestUserIds.remove(request.fromUserId);
@@ -742,17 +720,9 @@ class FriendController extends GetxController {
       incomingRequests.removeWhere(
         (item) => item.fromUserId == request.fromUserId,
       );
-      AppToast.showToast(
-        'friend_request_declined'.tr,
-        Icons.info_outline_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_request_declined'.tr);
     } catch (_) {
-      AppToast.showToast(
-        'friend_request_action_failed'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('friend_request_action_failed'.tr);
     } finally {
       processingRequestUserIds.remove(request.fromUserId);
     }
@@ -779,18 +749,10 @@ class FriendController extends GetxController {
               force: true,
             );
           }
-          AppToast.showToast(
-            'friend_deleted_success'.tr,
-            Icons.check_circle_rounded,
-            color: AppColors.success,
-          );
+          AppToast.success('friend_deleted_success'.tr);
         } catch (error) {
           debugPrint('Delete friend error: $error');
-          AppToast.showToast(
-            'friend_request_action_failed'.tr,
-            Icons.error_outline_rounded,
-            color: AppColors.error,
-          );
+          AppToast.error('friend_request_action_failed'.tr);
         } finally {
           _deletingFriendUserIds.remove(friend.friendUserId);
         }
@@ -824,11 +786,7 @@ class FriendController extends GetxController {
       (friend) => friend.friendUserId == userId,
     );
     if (existing != null) {
-      AppToast.showToast(
-        'friend_already_exists'.tr,
-        Icons.info_outline_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_already_exists'.tr);
       return false;
     }
 
@@ -840,11 +798,7 @@ class FriendController extends GetxController {
     }
 
     if (pendingRequestUserIds.contains(userId)) {
-      AppToast.showToast(
-        'friend_request_already_sent'.tr,
-        Icons.info_outline_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_request_already_sent'.tr);
       return false;
     }
 
@@ -858,18 +812,10 @@ class FriendController extends GetxController {
         sourceLink: sourceLink,
       );
       pendingRequestUserIds.add(userId);
-      AppToast.showToast(
-        'friend_request_sent'.tr,
-        Icons.check_circle_rounded,
-        color: AppColors.success,
-      );
+      AppToast.success('friend_request_sent'.tr);
       return true;
     } catch (_) {
-      AppToast.showToast(
-        'friend_request_action_failed'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('friend_request_action_failed'.tr);
       return false;
     } finally {
       _sendingRequestUserIds.remove(userId);

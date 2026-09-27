@@ -69,11 +69,7 @@ class _QrScannerPageState extends State<QrScannerPage>
       if (payload == null) {
         if (raw != _lastInvalidRaw) {
           _lastInvalidRaw = raw;
-          AppToast.showToast(
-            'friend_invalid_link'.tr,
-            Icons.error_outline_rounded,
-            color: AppColors.error,
-          );
+          AppToast.error('friend_invalid_link'.tr);
         }
         return;
       }
@@ -117,26 +113,14 @@ class _QrScannerPageState extends State<QrScannerPage>
         _lastInvalidRaw = null;
         await _handleBarcode(barcodeCapture);
       } else {
-        AppToast.showToast(
-          'No QR code found'.tr,
-          Icons.error_outline_rounded,
-          color: AppColors.error,
-        );
+        AppToast.error('No QR code found'.tr);
       }
     } on PlatformException catch (e) {
       if (e.code != 'already_active') {
-        AppToast.showToast(
-          e.message ?? 'Something went wrong'.tr,
-          Icons.error_outline_rounded,
-          color: AppColors.error,
-        );
+        AppToast.error(e.message ?? 'Something went wrong'.tr);
       }
     } catch (_) {
-      AppToast.showToast(
-        'Something went wrong'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('Something went wrong'.tr);
     } finally {
       _isPicking = false;
     }
@@ -612,11 +596,7 @@ class MyPersonalQrSheet extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: friendLink));
-                    AppToast.showToast(
-                      'personal_link_copied'.tr,
-                      Icons.check_circle_rounded,
-                      color: AppColors.success,
-                    );
+                    AppToast.success('personal_link_copied'.tr);
                   },
                   icon: const Icon(Icons.copy_rounded, size: 18),
                   label: TextWidget(

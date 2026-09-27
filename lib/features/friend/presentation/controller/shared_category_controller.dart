@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
@@ -208,7 +208,7 @@ class SharedCategoryController extends GetxController {
     } catch (e) {
       debugPrint('Load shared data error: $e');
       errorMessage.value = 'shared_load_error'.tr;
-      if (hasContent) Fluttertoast.showToast(msg: 'shared_load_error'.tr);
+      if (hasContent) AppToast.error('shared_load_error'.tr);
     } finally {
       isLoading.value = false;
       isRefreshing.value = false;
@@ -280,7 +280,7 @@ class SharedCategoryController extends GetxController {
           onError: (Object e) {
             debugPrint('Watch shared category links error: $e');
             isLoadingLinks.value = false;
-            Fluttertoast.showToast(msg: 'shared_load_error'.tr);
+            AppToast.error('shared_load_error'.tr);
           },
         );
   }

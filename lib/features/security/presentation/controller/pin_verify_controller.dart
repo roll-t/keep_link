@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
 
 class PinVerifyController extends GetxController {
@@ -208,5 +208,5 @@ class PinVerifyController extends GetxController {
     confirmPinController.clear();
   }
 
-  void _toast(String message) => Fluttertoast.showToast(msg: message);
+  void _toast(String message) => AppToast.showToast(message);
 }

@@ -7,6 +7,7 @@ import 'package:keep_link/core/config/assets/app_vectors.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/services/platform/biometric_service.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/security/presentation/controller/pin_verify_controller.dart';
 import 'package:keep_link/features/security/presentation/widget/pin_verify_form.dart';
@@ -73,7 +74,7 @@ class _AppLockPageState extends State<AppLockPage>
     setState(() => _biometricInFlight = true);
     try {
       if (!await BiometricService.canCheck()) {
-        if (mounted) Utils.showToast('Biometrics is currently unavailable'.tr);
+        if (mounted) AppToast.warning('Biometrics is currently unavailable'.tr);
         return;
       }
       final ok = await BiometricService.authenticate();

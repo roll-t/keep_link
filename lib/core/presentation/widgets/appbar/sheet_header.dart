@@ -64,7 +64,6 @@ class SheetHeader extends StatelessWidget {
             ),
           ),
           if (leading != null) Positioned(left: 12, child: leading!),
-          if (trailing != null) Positioned(right: 12, child: trailing!),
         ],
       ),
     );

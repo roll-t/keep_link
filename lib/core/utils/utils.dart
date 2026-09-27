@@ -2,10 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/config/assets/app_icons.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/services/platform/biometric_service.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -30,10 +29,7 @@ class Utils {
     };
   }
 
-  static Future<void> launchUrlString(
-    String url, {
-    BuildContext? context,
-  }) async {
+  static Future<void> launchUrlString(String url, {BuildContext? context}) async {
     await lanchUrl(url, context: context);
   }
 
@@ -43,12 +39,9 @@ class Utils {
     // (vd: link trong danh mục được bạn bè chia sẻ), nên không được launch
     // thẳng các scheme khác (intent://, content://, file://...) — kẻ xấu có
     // thể lợi dụng để mở app/thành phần khác ngoài ý muốn người dùng.
-    if (uri.toString().isEmpty ||
-        (uri.scheme != 'http' && uri.scheme != 'https')) {
+    if (uri.toString().isEmpty || (uri.scheme != 'http' && uri.scheme != 'https')) {
       if (context != null && context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Invalid URL".tr)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Invalid URL".tr)));
       }
       return;
     }
@@ -64,9 +57,9 @@ class Utils {
       }
     } catch (e) {
       if (context != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("${'Error opening URL'.tr}: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("${'Error opening URL'.tr}: $e")));
       }
     }
   }
@@ -74,14 +67,12 @@ class Utils {
   // Hàm này dùng để verify ở các chỗ khác trong app (Ví dụ: trước khi xoá link, mở danh mục...)
   static Future<bool> verifySecurity() async {
     // Nếu cả 2 đều tắt -> Return true luôn (hoặc tuỳ logic gọi hàm)
-    if (!AppGetStorage.isSecurityEnabled() &&
-        !AppGetStorage.isCategorySecurity()) {
+    if (!AppGetStorage.isSecurityEnabled() && !AppGetStorage.isCategorySecurity()) {
       return true;
     }
 
     // Ưu tiên check vân tay nếu App Security đang bật và Vân tay đang bật
-    if (AppGetStorage.isSecurityEnabled() &&
-        AppGetStorage.isFingerprintEnabled()) {
+    if (AppGetStorage.isSecurityEnabled() && AppGetStorage.isFingerprintEnabled()) {
       final bioSuccess = await BiometricService.authenticate();
       if (bioSuccess) return true;
     }
@@ -118,14 +109,8 @@ class Utils {
       width: width ?? size,
       height: height ?? size,
       fit: fit,
-      colorFilter: color != null
-          ? ColorFilter.mode(color, BlendMode.srcIn)
-          : null,
+      colorFilter: color != null ? ColorFilter.mode(color, BlendMode.srcIn) : null,
     );
-  }
-
-  static void showToast(String message) {
-    Fluttertoast.showToast(msg: message);
   }
 
   static Widget? getSocialIcon({String? urlSocial, double iconSize = 20}) {

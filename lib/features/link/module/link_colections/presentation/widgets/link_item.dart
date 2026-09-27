@@ -54,6 +54,8 @@ class LinkItem extends StatelessWidget {
     final host = _extractHost(meta?.url);
     final favicon = meta?.favicon ?? meta?.appleIcon ?? '';
     final appIcon = _resolveAppIcon(host);
+    final address = meta?.address.trim() ?? '';
+    final hasLocation = address.isNotEmpty;
 
     return Obx(() {
       final isSelectionMode = controller.isSelectionMode.value;
@@ -167,6 +169,29 @@ class LinkItem extends StatelessWidget {
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                if (hasLocation && !isSelectionMode)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Semantics(
+                      label: 'Có vị trí: $address',
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: AppColors.black.withOpacityCompat(0.62),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.location_on_rounded,
+                          size: 12,
+                          color: AppColors.primaryBright,
                         ),
                       ),
                     ),

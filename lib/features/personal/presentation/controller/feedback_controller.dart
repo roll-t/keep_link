@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -61,11 +60,7 @@ class FeedbackController extends GetxController {
     if (message.isEmpty || isLoading.value) return;
 
     if (!isSignedIn) {
-      AppToast.showToast(
-        'Please sign in to send feedback.'.tr,
-        Icons.lock_outline_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('Please sign in to send feedback.'.tr);
       return;
     }
 
@@ -88,37 +83,17 @@ class FeedbackController extends GetxController {
         message: finalMessage,
       );
       Get.back();
-      AppToast.showToast(
-        successMessage,
-        Icons.check_circle_rounded,
-        color: AppColors.success,
-      );
+      AppToast.success(successMessage);
     } on FirebaseException catch (e) {
       if (e.code == 'unauthenticated') {
-        AppToast.showToast(
-          'Please sign in to send feedback.'.tr,
-          Icons.lock_outline_rounded,
-          color: AppColors.warning,
-        );
+        AppToast.warning('Please sign in to send feedback.'.tr);
       } else if (e.code == 'quota-exceeded') {
-        AppToast.showToast(
-          dailyLimitMessage,
-          Icons.info_outline_rounded,
-          color: AppColors.warning,
-        );
+        AppToast.warning(dailyLimitMessage);
       } else {
-        AppToast.showToast(
-          'Failed to send. Please try again.'.tr,
-          Icons.error_outline_rounded,
-          color: AppColors.error,
-        );
+        AppToast.error('Failed to send. Please try again.'.tr);
       }
     } catch (_) {
-      AppToast.showToast(
-        'Failed to send. Please try again.'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('Failed to send. Please try again.'.tr);
     } finally {
       isLoading.value = false;
     }

@@ -173,18 +173,10 @@ class PersonalController extends GetxController {
       final result = await SingleDeviceSessionService.instance
           .signInWithGoogle();
       if (result == null) {
-        AppToast.showToast(
-          'Google sign in cancelled'.tr,
-          Icons.cancel_outlined,
-          color: AppColors.warning,
-        );
+        AppToast.warning('Google sign in cancelled'.tr);
         return;
       }
-      AppToast.showToast(
-        'Signed in successfully'.tr,
-        Icons.check_circle_rounded,
-        color: AppColors.success,
-      );
+      AppToast.success('Signed in successfully'.tr);
       final u = result.user;
       if (u != null) {
         AppGetStorage.saveAccountProfile(
@@ -203,11 +195,7 @@ class PersonalController extends GetxController {
       // signInWithGoogle() now lets real failures (no network, bad config...)
       // propagate instead of returning null like a plain cancel — this is
       // what tells the two apart and shows the right message for each.
-      AppToast.showToast(
-        'Sign in failed, please try again'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('Sign in failed, please try again'.tr);
     } finally {
       isLoading.value = false;
     }
@@ -268,17 +256,9 @@ class PersonalController extends GetxController {
               route.settings.name == PersonalPage.routeName || route.isFirst,
         );
       }
-      AppToast.showToast(
-        'Signed out successfully'.tr,
-        Icons.logout_rounded,
-        color: AppColors.infoMuted,
-      );
+      AppToast.info('Signed out successfully'.tr);
     } catch (e) {
-      AppToast.showToast(
-        'Sign out failed, please try again'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('Sign out failed, please try again'.tr);
     } finally {
       isLoading.value = false;
     }
@@ -356,30 +336,19 @@ class PersonalController extends GetxController {
     );
     if (saved == true) {
       user.value = FirebaseService.currentUser;
-      AppToast.showToast(
-        'Username updated successfully'.tr,
-        Icons.edit_rounded,
-      );
+      AppToast.success('Username updated successfully'.tr);
     }
   }
 
   Future<void> copyPersonalFriendLink() async {
     final link = personalFriendLink;
     if (link == null) {
-      AppToast.showToast(
-        'friend_sign_in_required'.tr,
-        Icons.login_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_sign_in_required'.tr);
       return;
     }
 
     await Clipboard.setData(ClipboardData(text: link));
-    AppToast.showToast(
-      'personal_link_copied'.tr,
-      Icons.copy_rounded,
-      color: AppColors.success,
-    );
+    AppToast.success('personal_link_copied'.tr);
   }
 
   Future<void> savePersonalQrToDevice(Uint8List pngBytes) async {
@@ -393,35 +362,19 @@ class PersonalController extends GetxController {
       final isSuccess =
           (result['isSuccess'] == true) || (result['filePath'] != null);
       if (isSuccess) {
-        AppToast.showToast(
-          'personal_qr_saved'.tr,
-          Icons.download_done_rounded,
-          color: AppColors.success,
-        );
+        AppToast.success('personal_qr_saved'.tr);
         return;
       }
-      AppToast.showToast(
-        'personal_qr_save_failed'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('personal_qr_save_failed'.tr);
     } catch (_) {
-      AppToast.showToast(
-        'personal_qr_save_failed'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('personal_qr_save_failed'.tr);
     }
   }
 
   Future<void> sharePersonalQr(Uint8List pngBytes) async {
     final link = personalFriendLink;
     if (link == null) {
-      AppToast.showToast(
-        'friend_sign_in_required'.tr,
-        Icons.login_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('friend_sign_in_required'.tr);
       return;
     }
 
@@ -436,21 +389,13 @@ class PersonalController extends GetxController {
         subject: 'Linkeep Friend QR',
       );
     } catch (_) {
-      AppToast.showToast(
-        'personal_qr_share_failed'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('personal_qr_share_failed'.tr);
     }
   }
 
   Future<void> changeAvatar() async {
     if (user.value == null) {
-      AppToast.showToast(
-        'Please sign in to change avatar'.tr,
-        Icons.login_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('Please sign in to change avatar'.tr);
       return;
     }
 
@@ -458,11 +403,7 @@ class PersonalController extends GetxController {
 
     // Check daily limit before opening picker
     if (AppGetStorage.avatarChangesRemainingToday(uid) <= 0) {
-      AppToast.showToast(
-        'You can only change your avatar 2 times per day'.tr,
-        Icons.block_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('You can only change your avatar 2 times per day'.tr);
       return;
     }
 
@@ -480,11 +421,7 @@ class PersonalController extends GetxController {
     final lastFingerprint = AppGetStorage.getAvatarFingerprint(uid);
 
     if (lastFingerprint != null && lastFingerprint == pickedSize) {
-      AppToast.showToast(
-        'This is already your current avatar'.tr,
-        Icons.image_rounded,
-        color: AppColors.warning,
-      );
+      AppToast.warning('This is already your current avatar'.tr);
       return;
     }
 
@@ -496,28 +433,16 @@ class PersonalController extends GetxController {
         fileName: 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg',
       );
       if (url == null) {
-        AppToast.showToast(
-          'Upload failed. Please try again.'.tr,
-          Icons.error_outline_rounded,
-          color: AppColors.error,
-        );
+        AppToast.error('Upload failed. Please try again.'.tr);
         return;
       }
       AppGetStorage.setAvatarFingerprint(uid, pickedSize);
       AppGetStorage.recordAvatarChange(uid);
       await FirebaseService.updatePhotoURL(url);
       user.value = FirebaseService.currentUser;
-      AppToast.showToast(
-        'Avatar updated successfully'.tr,
-        Icons.check_circle_rounded,
-        color: AppColors.success,
-      );
+      AppToast.success('Avatar updated successfully'.tr);
     } catch (e) {
-      AppToast.showToast(
-        'Something went wrong'.tr,
-        Icons.error_outline_rounded,
-        color: AppColors.error,
-      );
+      AppToast.error('Something went wrong'.tr);
     } finally {
       isUploadingAvatar.value = false;
     }

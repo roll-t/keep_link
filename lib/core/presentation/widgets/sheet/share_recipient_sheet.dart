@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/config/theme/app_edge_insets.dart';
@@ -11,6 +10,7 @@ import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/core/presentation/widgets/text_field/search_input_field.dart';
 import 'package:keep_link/core/services/backend/firebase_service.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 import 'package:share_plus/share_plus.dart';
@@ -60,22 +60,14 @@ class ShareRecipientSheet extends StatefulWidget {
       subtitle: title,
       shareUrl: url.isNotEmpty ? url : null,
       onGetSharedUids: () => FirebaseService.getLinkSharedFriendUids(link.id),
-      onConfirmShare:
-          ({required toShare, required toRemove, required message}) async {
-            for (final uid in toRemove) {
-              await FirebaseService.unshareLink(
-                friendUid: uid,
-                linkId: link.id,
-              );
-            }
-            for (final uid in toShare) {
-              await FirebaseService.shareLink(
-                friendUid: uid,
-                linkId: link.id,
-                message: message,
-              );
-            }
-          },
+      onConfirmShare: ({required toShare, required toRemove, required message}) async {
+        for (final uid in toRemove) {
+          await FirebaseService.unshareLink(friendUid: uid, linkId: link.id);
+        }
+        for (final uid in toShare) {
+          await FirebaseService.shareLink(friendUid: uid, linkId: link.id, message: message);
+        }
+      },
       successShareMessage: 'share_link_success'.tr,
       successUnshareMessage: 'unshare_link_success'.tr,
       errorMessage: 'share_link_failed'.tr,
@@ -93,32 +85,24 @@ class ShareRecipientSheet extends StatefulWidget {
       title: 'share_send_to'.tr,
       subtitle: categoryName,
       shareUrl: null,
-      onGetSharedUids: () =>
-          FirebaseService.getCategorySharedFriendUids(categoryId),
-      onConfirmShare:
-          ({required toShare, required toRemove, required message}) async {
-            final friendsByUid = {
-              for (final friend in AppCache.friends)
-                friend.friendUserId: friend,
-            };
-            for (final uid in toRemove) {
-              await FirebaseService.unshareCategory(
-                friendUid: uid,
-                categoryId: categoryId,
-              );
-              AppCache.removeSharedFriend(categoryId, uid);
-            }
-            for (final uid in toShare) {
-              final friend = friendsByUid[uid];
-              if (friend == null) continue;
-              await FirebaseService.shareCategory(
-                friendUid: uid,
-                categoryId: categoryId,
-                message: message,
-              );
-              AppCache.addSharedFriend(categoryId, friend);
-            }
-          },
+      onGetSharedUids: () => FirebaseService.getCategorySharedFriendUids(categoryId),
+      onConfirmShare: ({required toShare, required toRemove, required message}) async {
+        final friendsByUid = {for (final friend in AppCache.friends) friend.friendUserId: friend};
+        for (final uid in toRemove) {
+          await FirebaseService.unshareCategory(friendUid: uid, categoryId: categoryId);
+          AppCache.removeSharedFriend(categoryId, uid);
+        }
+        for (final uid in toShare) {
+          final friend = friendsByUid[uid];
+          if (friend == null) continue;
+          await FirebaseService.shareCategory(
+            friendUid: uid,
+            categoryId: categoryId,
+            message: message,
+          );
+          AppCache.addSharedFriend(categoryId, friend);
+        }
+      },
       successShareMessage: 'category_shared'.tr,
       successUnshareMessage: 'category_unshared'.tr,
       errorMessage: 'share_update_failed'.tr,
@@ -193,7 +177,7 @@ class _ShareRecipientSheetState extends State<ShareRecipientSheet> {
   Future<void> _send() async {
     if (_isSending || !_canSubmit) return;
     if (_selectedUids.isEmpty && _initialSharedUids.isEmpty) {
-      Fluttertoast.showToast(msg: 'share_select_recipient'.tr);
+      AppToast.warning('share_select_recipient'.tr);
       return;
     }
 
@@ -206,11 +190,7 @@ class _ShareRecipientSheetState extends State<ShareRecipientSheet> {
     var failed = false;
 
     try {
-      await widget.onConfirmShare(
-        toShare: toShare,
-        toRemove: toRemove,
-        message: message,
-      );
+      await widget.onConfirmShare(toShare: toShare, toRemove: toRemove, message: message);
       _initialSharedUids
         ..removeAll(toRemove)
         ..addAll(toShare);
@@ -221,14 +201,12 @@ class _ShareRecipientSheetState extends State<ShareRecipientSheet> {
     if (!mounted) return;
     setState(() => _isSending = false);
     if (failed) {
-      Fluttertoast.showToast(msg: widget.errorMessage);
+      AppToast.error(widget.errorMessage);
       return;
     }
 
-    Fluttertoast.showToast(
-      msg: _selectedUids.isEmpty
-          ? widget.successUnshareMessage
-          : widget.successShareMessage,
+    AppToast.success(
+      _selectedUids.isEmpty ? widget.successUnshareMessage : widget.successShareMessage,
     );
     Navigator.of(context).pop();
   }
@@ -237,7 +215,7 @@ class _ShareRecipientSheetState extends State<ShareRecipientSheet> {
     if (widget.shareUrl != null && widget.shareUrl!.isNotEmpty) {
       Share.share(widget.shareUrl!);
     } else {
-      Fluttertoast.showToast(msg: 'share_other_hint'.tr);
+      AppToast.info('share_other_hint'.tr);
     }
   }
 
@@ -310,9 +288,7 @@ class _ShareRecipientSheetState extends State<ShareRecipientSheet> {
 
   Widget _buildFriends() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
     if (FirebaseService.currentUser == null) {
       return _EmptyState(text: 'share_sign_in_required'.tr);
@@ -322,9 +298,7 @@ class _ShareRecipientSheetState extends State<ShareRecipientSheet> {
       final friends = _filteredFriends(AppCache.friends.toList());
       if (friends.isEmpty) {
         return _EmptyState(
-          text: _query.trim().isEmpty
-              ? 'share_no_friends'.tr
-              : 'no_friend_search_results'.tr,
+          text: _query.trim().isEmpty ? 'share_no_friends'.tr : 'no_friend_search_results'.tr,
         );
       }
 
@@ -357,60 +331,11 @@ class _ShareRecipientSheetState extends State<ShareRecipientSheet> {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(
-          top: BorderSide(color: AppColors.n500.withOpacityCompat(0.2)),
-        ),
+        border: Border(top: BorderSide(color: AppColors.n500.withOpacityCompat(0.2))),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            height: 40,
-            child: TextField(
-              controller: _messageController,
-              onChanged: (_) => setState(() {}),
-              enabled: !_isSending,
-              maxLength: 200,
-              maxLines: 1,
-              style: const TextStyle(
-                color: AppColors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-              ),
-              textAlignVertical: TextAlignVertical.center,
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: 'share_message_hint'.tr,
-                hintStyle: const TextStyle(
-                  color: AppColors.n70,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400,
-                ),
-                counterText: '',
-                filled: true,
-                fillColor: AppColors.d300,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: const BorderSide(
-                    color: AppColors.primary,
-                    width: 1,
-                  ),
-                ),
-              ),
-            ),
-          ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
@@ -420,18 +345,13 @@ class _ShareRecipientSheetState extends State<ShareRecipientSheet> {
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 disabledBackgroundColor: AppColors.n500,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: _isSending
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        color: AppColors.white,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.white),
                     )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -509,9 +429,7 @@ class _FriendRecipientTile extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: selected
-                            ? AppColors.primary
-                            : AppColors.transparent,
+                        color: selected ? AppColors.primary : AppColors.transparent,
                         width: 2,
                       ),
                     ),
@@ -549,16 +467,9 @@ class _FriendRecipientTile extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: AppColors.primary,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.surface,
-                            width: 2,
-                          ),
+                          border: Border.all(color: AppColors.surface, width: 2),
                         ),
-                        child: const Icon(
-                          Icons.check_rounded,
-                          color: AppColors.white,
-                          size: 16,
-                        ),
+                        child: const Icon(Icons.check_rounded, color: AppColors.white, size: 16),
                       ),
                     ),
                 ],

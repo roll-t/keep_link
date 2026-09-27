@@ -1,14 +1,11 @@
-// ignore_for_file: depend_on_referenced_packages
-
 import 'dart:convert';
 import 'dart:developer';
 
 import 'package:dio/dio.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html_parser;
+import 'package:keep_link/core/services/backend/tiktok_metadata_service.dart';
 import 'package:keep_link/features/link/application/model/meta_data_model.dart';
-import 'package:keep_link/features/link/application/model/tiktok_meta_data.dart';
-import 'package:tiktok_scraper/tiktok_scraper.dart';
 
 /// Loads preview metadata without depending on a page, route or dialog.
 class LinkMetadataService {
@@ -48,7 +45,8 @@ class LinkMetadataService {
     appleIcon: '',
   );
 
-  static bool _isTikTokUrl(String url) => url.contains('tiktok.com');
+  static bool _isTikTokUrl(String url) =>
+      TikTokMetadataService.isTikTokUrl(url);
 
   static bool _isGoogleMapsUrl(String url) {
     final lower = url.toLowerCase();
@@ -93,35 +91,8 @@ class LinkMetadataService {
   }
 
   static Future<MetaDataModel> _fetchTikTokMeta(String url) async {
-    try {
-      final endpoint = Uri.parse(
-        'https://www.tiktok.com/oembed',
-      ).replace(queryParameters: {'url': url}).toString();
-      final response = await _dio.get(endpoint);
-      if (response.statusCode == 200 && response.data is Map) {
-        final data = Map<String, dynamic>.from(response.data as Map);
-        final title = data['title'] as String? ?? '';
-        final thumbnail = data['thumbnail_url'] as String? ?? '';
-        final author = data['author_name'] as String? ?? '';
-        return MetaDataModel(
-          url: url,
-          title: title.isNotEmpty ? title : author,
-          description: author.isNotEmpty ? '@$author' : '',
-          imageUrl: thumbnail,
-          favicon: '',
-          appleIcon: '',
-        );
-      }
-    } catch (_) {}
-
-    try {
-      final video = await TiktokScraper.getVideoInfo(url);
-      return TiktokMetaData.fromJson(
-        video.toMap(),
-      ).toMetaData().copyWith(url: url);
-    } catch (_) {
-      return _fetchNormalMeta(url);
-    }
+    final metadata = await TikTokMetadataService.fetch(url, client: _dio);
+    return metadata ?? _fetchNormalMeta(url);
   }
 
   static Future<MetaDataModel> _fetchNormalMeta(String url) async {

@@ -17,22 +17,21 @@ class CustomPopupWidget extends StatelessWidget {
   final VoidCallback? onSelected;
   final CustomPopupController controller;
   final bool hasAll;
+  final String? allLabel;
 
   const CustomPopupWidget({
     super.key,
     required this.controller,
     this.onSelected,
     this.hasAll = true,
+    this.allLabel,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 45,
-      constraints: BoxConstraints(
-        minWidth: Get.width * .3,
-        maxWidth: Get.width * .45,
-      ),
+      height: 40,
+      constraints: BoxConstraints(minWidth: Get.width * .3, maxWidth: Get.width * .4),
       decoration: BoxDecoration(
         color: AppColors.navigationSurface,
         borderRadius: BorderRadius.circular(100),
@@ -41,22 +40,17 @@ class CustomPopupWidget extends StatelessWidget {
       child: Obx(() {
         String nameWithCount(ItemModel? item, String fallback) {
           if (item == null) return fallback;
-          final base = item.name ?? fallback;
+          final base = item.id == 'all' && allLabel != null ? allLabel! : (item.name ?? fallback);
           if (item.id == 'all') return base;
           final count = item.chilrenCount;
           return count != null ? '$base ($count)' : base;
         }
 
-        // Giá trị chỉ dùng cho frame hiện tại; tạo Rx bên trong build trước
-        // đây sinh subscription/object thừa mỗi lần dropdown rebuild.
         final displayTitle = hasAll
             ? nameWithCount(controller.selectedItem.value, "Select Category".tr)
             : (controller.selectedItem.value?.id == 'all'
                   ? "Select Category".tr
-                  : nameWithCount(
-                      controller.selectedItem.value,
-                      "Select Category".tr,
-                    ));
+                  : nameWithCount(controller.selectedItem.value, "Select Category".tr));
         return CustomPopup(
           barrierColor: AppColors.transparent,
           showArrow: false,
@@ -94,8 +88,7 @@ class CustomPopupWidget extends StatelessWidget {
                   itemCount: displayItems.length,
                   itemBuilder: (context, index) {
                     final item = displayItems[index];
-                    final isSelected =
-                        controller.selectedItem.value?.id == item.id;
+                    final isSelected = controller.selectedItem.value?.id == item.id;
                     final isLastItem = index == displayItems.length - 1;
                     return GestureDetector(
                       onTap: () async {
@@ -112,11 +105,7 @@ class CustomPopupWidget extends StatelessWidget {
                         decoration: BoxDecoration(
                           border: !isLastItem
                               ? Border(
-                                  bottom: BorderSide(
-                                    color: AppColors.white.withValues(
-                                      alpha: .1,
-                                    ),
-                                  ),
+                                  bottom: BorderSide(color: AppColors.white.withValues(alpha: .1)),
                                 )
                               : null,
                           color: isSelected
@@ -129,7 +118,7 @@ class CustomPopupWidget extends StatelessWidget {
                             Expanded(
                               child: TextWidget(
                                 text: item.id == 'all'
-                                    ? (item.name ?? '')
+                                    ? (allLabel ?? item.name ?? '')
                                     : (item.chilrenCount != null
                                           ? '${item.name ?? ''} (${item.chilrenCount})'
                                           : (item.name ?? '')),
@@ -141,23 +130,17 @@ class CustomPopupWidget extends StatelessWidget {
                                 controller.isEnableSecurity.value)
                               Padding(
                                 padding: const EdgeInsets.only(left: 4),
-                                child: Icon(
-                                  Icons.lock,
-                                  size: 16,
-                                  color: AppColors.t300,
-                                ),
+                                child: Icon(Icons.lock, size: 16, color: AppColors.t300),
                               ),
                             // Shared avatars + share-status icon (only for real categories, not "all")
                             if (item.id != null && item.id != 'all')
                               Obx(() {
-                                final isLoggedIn =
-                                    FriendController.currentUser.value != null;
+                                final isLoggedIn = FriendController.currentUser.value != null;
                                 final isPinned = item.isPinned;
                                 if (!isLoggedIn && !isPinned) {
                                   return const SizedBox.shrink();
                                 }
-                                final friends =
-                                    AppCache.sharedWithCache[item.id] ?? [];
+                                final friends = AppCache.sharedWithCache[item.id] ?? [];
                                 final isSharedOut = friends.isNotEmpty;
                                 return Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -175,9 +158,7 @@ class CustomPopupWidget extends StatelessWidget {
                                         _SharedAvatarRow(friends: friends),
                                         const SizedBox(width: 4),
                                       ],
-                                      _ShareStatusIcon(
-                                        isSharedOut: isSharedOut,
-                                      ),
+                                      _ShareStatusIcon(isSharedOut: isSharedOut),
                                     ],
                                   ],
                                 );
@@ -245,11 +226,7 @@ class _ShareStatusIcon extends StatelessWidget {
       ),
       child: Transform.rotate(
         angle: 0.785398,
-        child: const Icon(
-          Icons.arrow_upward_rounded,
-          size: 13,
-          color: AppColors.successBright,
-        ),
+        child: const Icon(Icons.arrow_upward_rounded, size: 13, color: AppColors.successBright),
       ),
     );
   }
@@ -286,11 +263,7 @@ class _SharedAvatarRow extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               '+$extra',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(color: AppColors.primary, fontSize: 9, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -315,10 +288,7 @@ class _Avatar extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(
-            color: url.isNotEmpty ? AppColors.d300 : AppColors.primary,
-            width: .5,
-          ),
+          border: Border.all(color: url.isNotEmpty ? AppColors.d300 : AppColors.primary, width: .5),
         ),
         child: ClipOval(
           child: url.isNotEmpty
