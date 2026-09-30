@@ -29,6 +29,7 @@ class PersonalPage extends GetView<PersonalController> {
         appBar: CustomAppBar(
           title: "Personal".tr,
           centerTitle: false,
+          backgroundColor: AppColors.d500,
           titleStyle: AppTextStyle.bold20,
           actions: [
             Obx(() {

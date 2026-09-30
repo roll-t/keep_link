@@ -28,6 +28,7 @@ class CustomPopup extends StatefulWidget {
   final PopupPosition position;
   final Duration animationDuration;
   final Curve animationCurve;
+  final double verticalOffset;
 
   const CustomPopup({
     super.key,
@@ -48,6 +49,7 @@ class CustomPopup extends StatefulWidget {
     this.position = PopupPosition.auto,
     this.animationDuration = const Duration(milliseconds: 150),
     this.animationCurve = Curves.easeInOut,
+    this.verticalOffset = 0,
   });
 
   @override
@@ -77,6 +79,7 @@ class CustomPopupState extends State<CustomPopup> {
             position: widget.position,
             animationDuration: widget.animationDuration,
             animationCurve: widget.animationCurve,
+            verticalOffset: widget.verticalOffset,
             child: widget.content,
           ),
         )
@@ -86,7 +89,7 @@ class CustomPopupState extends State<CustomPopup> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      behavior: HitTestBehavior.translucent,
+      behavior: HitTestBehavior.opaque,
       onLongPress: widget.isLongPress ? () => show() : null,
       onTapUp: !widget.isLongPress ? (_) => show() : null,
       child: widget.child,
@@ -128,21 +131,19 @@ class _PopupContent extends StatelessWidget {
         Container(
           key: childKey,
           padding: contentPadding,
-          margin: const EdgeInsets.symmetric(vertical: 10).copyWith(
+          margin: EdgeInsets.symmetric(vertical: showArrow ? 10 : 0).copyWith(
             top: arrowDirection == _ArrowDirection.bottom ? 0 : null,
             bottom: arrowDirection == _ArrowDirection.top ? 0 : null,
           ),
           constraints: const BoxConstraints(minWidth: 50),
+          clipBehavior: Clip.antiAlias,
           decoration:
               contentDecoration ??
               BoxDecoration(
                 color: backgroundColor ?? AppColors.white,
                 borderRadius: BorderRadius.circular(contentRadius ?? 10),
                 boxShadow: [
-                  BoxShadow(
-                    color: AppColors.black.withValues(alpha: 0.1),
-                    blurRadius: 10,
-                  ),
+                  BoxShadow(color: AppColors.black.withValues(alpha: 0.1), blurRadius: 10),
                 ],
               ),
           child: child,
@@ -248,6 +249,8 @@ class _PopupRoute extends PopupRoute<void> {
   double? _left;
   double? _right;
 
+  final double verticalOffset;
+
   _PopupRoute({
     required this.child,
     required this.targetRect,
@@ -261,11 +264,11 @@ class _PopupRoute extends PopupRoute<void> {
     this.position = PopupPosition.auto,
     required this.animationDuration,
     this.animationCurve = Curves.easeInOut,
+    this.verticalOffset = 0,
   });
 
   @override
-  Color? get barrierColor =>
-      barriersColor ?? AppColors.black.withOpacityCompat(0.1);
+  Color? get barrierColor => barriersColor ?? AppColors.black.withOpacityCompat(0.1);
 
   @override
   bool get barrierDismissible => true;
@@ -328,20 +331,21 @@ class _PopupRoute extends PopupRoute<void> {
   void _calculateChildOffset(Rect? childRect) {
     if (childRect == null) return;
 
-    final topHeight = targetRect.top - _viewportRect.top;
-    final bottomHeight = _viewportRect.bottom - targetRect.bottom;
-    final maximum = max(topHeight, bottomHeight);
-    _maxHeight = childRect.height > maximum ? maximum : childRect.height;
+    final topOffset = (showArrow ? 20.0 : 6.0) + verticalOffset;
+    final availableBelow = max(0.0, _viewportRect.bottom - targetRect.bottom - topOffset);
+    final availableAbove = max(0.0, targetRect.top - _viewportRect.top - topOffset);
 
     if (position == PopupPosition.top ||
-        (position == PopupPosition.auto && _maxHeight > bottomHeight)) {
-      _bottom = Screen.height - targetRect.top;
+        (position == PopupPosition.auto && (childRect.height > availableBelow && availableAbove > availableBelow))) {
+      _bottom = Screen.height - targetRect.top - verticalOffset;
       _arrowDirection = _ArrowDirection.bottom;
       _scaleAlignDy = 1;
+      _maxHeight = availableAbove;
     } else {
-      _top = targetRect.bottom + 20;
+      _top = targetRect.bottom + topOffset;
       _arrowDirection = _ArrowDirection.top;
       _scaleAlignDy = 0;
+      _maxHeight = availableBelow;
     }
 
     final left = targetRect.center.dx - childRect.center.dx;
@@ -383,10 +387,7 @@ class _PopupRoute extends PopupRoute<void> {
       child: child,
     );
     if (!animation.isCompleted) {
-      final curvedAnimation = CurvedAnimation(
-        parent: animation,
-        curve: animationCurve,
-      );
+      final curvedAnimation = CurvedAnimation(parent: animation, curve: animationCurve);
       child = FadeTransition(
         opacity: curvedAnimation,
         child: ScaleTransition(
@@ -404,10 +405,7 @@ class _PopupRoute extends PopupRoute<void> {
           top: _top,
           bottom: _bottom,
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: _viewportRect.width,
-              maxHeight: _maxHeight,
-            ),
+            constraints: BoxConstraints(maxWidth: _viewportRect.width, maxHeight: _maxHeight),
             child: Material(
               color: AppColors.transparent,
               type: MaterialType.transparency,

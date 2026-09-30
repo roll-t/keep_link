@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
+import 'package:keep_link/core/config/theme/app_text_styles.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/friend/application/model/friend_request_model.dart';
 import 'package:keep_link/features/friend/presentation/controller/friend_controller.dart';
-import 'package:keep_link/features/friend/presentation/page/shared_categories_page.dart';
 
-Future<void> openRequestsSheet(
-  BuildContext context,
-  FriendController controller,
-) async {
+Future<void> openRequestsSheet(BuildContext context, FriendController controller) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -67,11 +65,7 @@ class RequestsTabContent extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.mark_email_read_outlined,
-                        size: 48,
-                        color: AppColors.n500,
-                      ),
+                      const Icon(Icons.mark_email_read_outlined, size: 48, color: AppColors.n500),
                       const SizedBox(height: 12),
                       TextWidget(
                         text: 'No pending requests'.tr,
@@ -90,14 +84,12 @@ class RequestsTabContent extends StatelessWidget {
 
       return ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: requests.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        separatorBuilder: (_, __) => const SizedBox(height: 6),
         itemBuilder: (_, index) {
           final req = requests[index];
-          final isProcessing = controller.processingRequestUserIds.contains(
-            req.fromUserId,
-          );
+          final isProcessing = controller.processingRequestUserIds.contains(req.fromUserId);
           return FriendRequestCard(
             request: req,
             isProcessing: isProcessing,
@@ -126,83 +118,151 @@ class FriendRequestCard extends StatelessWidget {
   final Future<void> Function() onAccept;
   final Future<void> Function() onDecline;
 
+  static String _formatTimeAgo(DateTime? date) {
+    if (date == null) return '';
+    final diff = DateTime.now().difference(date);
+    if (diff.inSeconds < 60) {
+      return 'Vừa xong';
+    } else if (diff.inMinutes < 60) {
+      return '${diff.inMinutes} phút';
+    } else if (diff.inHours < 24) {
+      return '${diff.inHours} giờ';
+    } else if (diff.inDays < 7) {
+      return '${diff.inDays} ngày';
+    } else if (diff.inDays < 30) {
+      final weeks = (diff.inDays / 7).floor();
+      return '$weeks tuần';
+    } else if (diff.inDays < 365) {
+      final months = (diff.inDays / 30).floor();
+      return '$months tháng';
+    } else {
+      final years = (diff.inDays / 365).floor();
+      return '$years năm';
+    }
+  }
+
+  Widget _buildAvatar() {
+    if (request.photoUrl != null && request.photoUrl!.trim().isNotEmpty) {
+      return ClipOval(child: CacheImageWidget(imageUrl: request.photoUrl!, width: 66, height: 66));
+    }
+
+    return Container(
+      width: 66,
+      height: 66,
+      decoration: const BoxDecoration(color: Color(0xFF3A3B3C), shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: const Icon(Icons.person_rounded, size: 40, color: Color(0xFF8E8E93)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.d500,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.white.withOpacityCompat(0.06)),
-      ),
+    final timeAgo = _formatTimeAgo(request.createdAt);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SharedOwnerAvatar(
-            displayName: request.displayName,
-            photoUrl: request.photoUrl,
-            size: 42,
-          ),
-          const SizedBox(width: 12),
+          _buildAvatar(),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextWidget(
-                  text: request.displayName,
-                  color: AppColors.white,
-                  size: 14,
-                  fontWeight: FontWeight.w600,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextWidget(
+                        text: request.displayName,
+                        textStyle: AppTextStyle.semiBold14,
+                        maxLines: 1,
+                      ),
+                    ),
+                    if (timeAgo.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      TextWidget(
+                        text: timeAgo,
+                        color: AppColors.white.withOpacityCompat(0.55),
+                        textStyle: AppTextStyle.regular10,
+                      ),
+                    ],
+                  ],
                 ),
                 if ((request.email ?? '').isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: TextWidget(
                       text: request.email!,
-                      color: AppColors.n70,
-                      size: 12,
-                      maxLines: 1,
+                      color: AppColors.white.withOpacityCompat(0.55),
+                      textStyle: AppTextStyle.regular10,
                     ),
                   ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    // Nút Xác nhận (Facebook Blue)
+                    Expanded(
+                      child: SizedBox(
+                        height: 36,
+                        child: ElevatedButton(
+                          onPressed: isProcessing ? null : onAccept,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1877F2),
+                            foregroundColor: AppColors.white,
+                            elevation: 0,
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: isProcessing
+                              ? const SizedBox.square(
+                                  dimension: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Xác nhận',
+                                  style: TextStyle(
+                                    color: AppColors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Nút Xóa (Facebook Secondary Grey)
+                    Expanded(
+                      child: SizedBox(
+                        height: 36,
+                        child: ElevatedButton(
+                          onPressed: isProcessing ? null : onDecline,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3A3B3C),
+                            foregroundColor: AppColors.white,
+                            elevation: 0,
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text(
+                            'Xóa',
+                            style: TextStyle(
+                              color: AppColors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: isProcessing ? null : onDecline,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.white,
-              side: BorderSide(color: AppColors.n500.withOpacityCompat(0.35)),
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              minimumSize: const Size(0, 34),
-            ),
-            child: TextWidget(
-              text: 'Decline'.tr,
-              color: AppColors.white,
-              size: 12,
-            ),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: isProcessing ? null : onAccept,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              minimumSize: const Size(0, 34),
-            ),
-            child: isProcessing
-                ? const SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.white,
-                    ),
-                  )
-                : TextWidget(
-                    text: 'Accept'.tr,
-                    color: AppColors.white,
-                    size: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
           ),
         ],
       ),

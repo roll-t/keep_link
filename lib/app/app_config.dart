@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
@@ -7,6 +9,7 @@ import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/data/cache/sql_lite.dart';
 import 'package:keep_link/core/localization/translation_service.dart';
 import 'package:keep_link/core/services/platform/deep_link_service.dart';
+import 'package:keep_link/core/services/platform/fcm_push_service.dart';
 import 'package:keep_link/core/services/platform/local_notification_service.dart';
 import 'package:keep_link/core/services/backend/session_sync_service.dart';
 import 'package:keep_link/core/services/backend/single_device_session_service.dart';
@@ -39,31 +42,36 @@ Future<void> appConfig() async {
     AppGetStorage.markLaunched();
   }
 
-  await LocalNotificationService.init();
+  // Local notification channel setup does not gate the first frame.
+  unawaited(LocalNotificationService.init());
+  unawaited(FcmPushService.initialize());
 
   await LocalizationService.initialize();
 
   // Initialize theme service to load saved theme preference
   await ThemeService.initialize();
 
-  // Validate the restored login before any account data is pushed or pulled.
-  // The realtime watcher remains active for the lifetime of the app.
-  await SingleDeviceSessionService.instance.initialize();
-
   Utils.ignoreException();
   WidgetsBinding.instance.addObserver(AppLifecycleHandler());
 
-  // Push any changes that were queued in the previous session.
-  // Runs after Firebase is ready; silently skips if not authenticated.
-  await SessionSyncService.instance.flushPersistedQueue();
-
-  // Reconcile: compare local SQLite with Firebase and push any missing records.
-  // Throttled to once per 24 hours (max 1 GET + 1 UPDATE request).
-  await SessionSyncService.instance.reconcileLocalToFirebase();
+  // Session validation and cloud reconciliation may each wait up to the
+  // network timeout. Preserve their order, but do not keep the first Flutter
+  // frame waiting for them; the session service can safely sign out/navigate
+  // after the app has mounted if another device owns the account.
+  unawaited(_startAccountBackgroundWork());
 
   // Debug only — uncomment to wipe DB + cache:
   // await DbHelper.resetDatabase();
   // AppCache.invalidateAll();
+}
+
+Future<void> _startAccountBackgroundWork() async {
+  await SingleDeviceSessionService.instance.initialize();
+
+  // Push changes queued in the previous session, then reconcile local data.
+  // Reconcile is throttled to once per 24 hours.
+  await SessionSyncService.instance.flushPersistedQueue();
+  await SessionSyncService.instance.reconcileLocalToFirebase();
 }
 
 /// Lightweight bootstrap used only by Android's translucent share activity.

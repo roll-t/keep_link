@@ -22,7 +22,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onBack,
     this.actions,
     this.centerTitle = true,
-    this.backgroundColor,
+    this.backgroundColor = AppColors.d500,
     this.titleStyle,
   });
 
@@ -30,25 +30,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       elevation: 0,
-      backgroundColor: backgroundColor,
+      backgroundColor: backgroundColor ?? AppColors.d500,
       centerTitle: centerTitle,
       leading: showBackButton
           ? GestureDetector(
               behavior: HitTestBehavior.translucent,
               onTap: onBack ?? () => Get.back(),
-              child: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: AppColors.t200,
-              ),
+              child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.t200),
             )
           : null,
       automaticallyImplyLeading: false,
       title:
-          titleWidget ??
-          TextWidget(
-            text: title,
-            textStyle: titleStyle ?? AppTextStyle.semiBold20,
-          ),
+          titleWidget ?? TextWidget(text: title, textStyle: titleStyle ?? AppTextStyle.semiBold20),
       actions: actions,
     );
   }

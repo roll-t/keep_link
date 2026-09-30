@@ -11,10 +11,8 @@ class AppColors {
   // DESIGN SYSTEM COLORS (Primary Palette)
   // ========================================
 
-  /// Deep immersive base canvas - #0e0e0e
   static const Color background = Color(0xFF0e0e0e);
 
-  /// Primary surface for main content - #1a1a1a
   static const Color surface = Color(0xFF1a1a1a);
 
   /// Subtle section dividers and grouped elements - #131313
@@ -126,7 +124,7 @@ class AppColors {
 
   // Dark palette (legacy naming, maps to design system)
   static const Color d700 = Color(0xFF0e0e0e); // background
-  static const Color d500 = Color(0xFF1a1a1a); // surface
+  static const Color d500 = Color(0xFF101215); // surface
   static const Color d300 = Color(0xff252626); // surfaceContainerHighest
   static const Color d200 = Color(0xff3f3f3f);
   static const Color d100 = Color(0xff575757);

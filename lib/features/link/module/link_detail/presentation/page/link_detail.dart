@@ -1,264 +1,140 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/assets/app_vectors.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/config/theme/app_text_styles.dart';
+import 'package:keep_link/core/presentation/extensions/colors.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/controller/link_detail_controller.dart';
-import 'package:keep_link/features/link/module/link_detail/presentation/widgets/change_category_sheet.dart';
+import 'package:keep_link/features/link/module/link_detail/presentation/widgets/category_card.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/widgets/destination_card.dart';
+import 'package:keep_link/features/link/module/link_detail/presentation/widgets/download_video_card.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/widgets/hero_media_widget.dart';
-import 'package:keep_link/features/link/module/link_detail/presentation/widgets/share_link_sheet.dart';
+import 'package:keep_link/features/link/module/link_detail/presentation/widgets/link_detail_app_bar.dart';
 
-class LinkDetailPage extends StatelessWidget {
+class LinkDetailPage extends GetView<LinkDetailController> {
   static const routeName = '/LinkDetailPage';
-
   final LinkModel? link;
   final bool readOnly;
   const LinkDetailPage({super.key, this.link, this.readOnly = false});
 
-  LinkDetailController get _controller {
-    // Route binding is the owner of this controller. `Get.arguments` is route
-    // scoped and can be null on later rebuilds (for example after hot reload
-    // or after an overlay route has been shown), while the initialized
-    // controller remains valid. Always reuse it before consulting arguments.
-    if (Get.isRegistered<LinkDetailController>()) {
-      return Get.find<LinkDetailController>();
-    }
-
-    // Keep direct `LinkDetailPage(link: ...)` construction working outside
-    // the named route, but fail clearly if neither source supplies a link.
-    final raw = Get.arguments;
-    final args = link != null
-        ? LinkDetailArguments(link: link!, readOnly: readOnly)
-        : raw is LinkDetailArguments
-        ? raw
-        : raw is LinkModel
-        ? LinkDetailArguments(link: raw)
-        : throw StateError('LinkDetailPage requires a LinkModel argument.');
-
-    return Get.put(
-      LinkDetailController(link: args.link, readOnly: args.readOnly),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final controller = _controller;
     return SafeArea(
       top: false,
       child: Obx(() {
-        final isFullscreenPlayer =
-            controller.isPlayingVideo.value && controller.isExpanded.value;
+        final isFullscreenPlayer = controller.isPlayingVideo.value && controller.isExpanded.value;
 
-        return Scaffold(
-          backgroundColor: AppColors.surfaceDeep,
-          // Đang xem webview toàn màn hình: ẩn hẳn appbar (share/xoá/sửa +
-          // nút back) — thanh điều hướng riêng của webview đã có nút X để
-          // thoát, hai nút "đóng" chồng nhau dễ bấm nhầm khi đang đọc.
-          appBar: isFullscreenPlayer ? null : _buildAppBar(context, controller),
-          // Không có appBar (đã ẩn ở trên) nên không còn ai tự lo phần status
-          // bar nữa — phải tự bọc SafeArea(top: true) ở đây, nếu không thanh
-          // điều hướng webview sẽ bị đồng hồ/icon status bar đè lên.
-          body: isFullscreenPlayer
-              ? const SafeArea(
-                  top: true,
-                  bottom: false,
-                  child: HeroMediaWidget(),
-                )
-              : _buildDetailBody(context, controller),
+        if (isFullscreenPlayer) {
+          return const Scaffold(
+            backgroundColor: AppColors.surfaceDeep,
+            body: SafeArea(top: true, bottom: false, child: HeroMediaWidget()),
+          );
+        }
+
+        final dragOffset = controller.dragOffsetY.value;
+        final bgOpacity = (1.0 - (dragOffset / 600)).clamp(0.4, 1.0);
+
+        return AnimatedContainer(
+          duration: controller.isDragging.value ? Duration.zero : const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          transform: Matrix4.translationValues(0, dragOffset, 0),
+          child: Scaffold(
+            backgroundColor: AppColors.surfaceDeep.withOpacityCompat(bgOpacity),
+            appBar: PreferredSize(
+              preferredSize: const Size.fromHeight(kToolbarHeight),
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onVerticalDragStart: (_) => controller.onVerticalDragStart(),
+                onVerticalDragUpdate: (details) =>
+                    controller.onVerticalDragUpdate(details.delta.dy),
+                onVerticalDragEnd: (details) =>
+                    controller.onVerticalDragEnd(details.primaryVelocity ?? 0.0),
+                child: const LinkDetailAppBar(),
+              ),
+            ),
+            body: const _BodyBuilder(),
+          ),
         );
       }),
     );
   }
+}
 
-  Widget _buildDetailBody(
-    BuildContext context,
-    LinkDetailController controller,
-  ) {
+class _BodyBuilder extends GetView<LinkDetailController> {
+  const _BodyBuilder();
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const HeroMediaWidget(),
+        GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onVerticalDragStart: (_) => controller.onVerticalDragStart(),
+          onVerticalDragUpdate: (details) => controller.onVerticalDragUpdate(details.delta.dy),
+          onVerticalDragEnd: (details) =>
+              controller.onVerticalDragEnd(details.primaryVelocity ?? 0.0),
+          child: const HeroMediaWidget(),
+        ),
         const SizedBox(height: 16),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (controller.title.isNotEmpty)
-                  TextWidget(
-                    text: controller.title,
-                    textStyle: AppTextStyle.bold20,
-                    color: AppColors.white,
-                    maxLines: 2,
-                  ),
-                if (controller.description.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  TextWidget(
-                    text: controller.description,
-                    textStyle: AppTextStyle.regular12,
-                    color: AppColors.mediaTextMuted,
-                    maxLines: 2,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is ScrollUpdateNotification) {
+                final delta = notification.scrollDelta ?? 0.0;
+                if (notification.metrics.pixels <= 0) {
+                  if (delta < 0 || controller.dragOffsetY.value > 0) {
+                    controller.onVerticalDragUpdate(-delta);
+                  }
+                }
+              } else if (notification is OverscrollNotification) {
+                if (notification.overscroll < 0) {
+                  controller.onVerticalDragUpdate(-notification.overscroll);
+                }
+              } else if (notification is ScrollEndNotification) {
+                final velocity = notification.dragDetails?.primaryVelocity ?? 0.0;
+                controller.onVerticalDragEnd(velocity);
+              }
+              return false;
+            },
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 6,
+                children: [
+                  if (controller.title.isNotEmpty)
+                    TextWidget(
+                      text: controller.title,
+                      textStyle: AppTextStyle.bold20,
+                      color: AppColors.white,
+                      maxLines: 2,
+                    ),
+                  if (controller.description.isNotEmpty) ...[
+                    TextWidget(
+                      text: controller.description,
+                      textStyle: AppTextStyle.regular12,
+                      color: AppColors.mediaTextMuted,
+                      maxLines: 2,
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Column(
+                    spacing: 8,
+                    children: [
+                      const DestinationCard(),
+                      if (controller.isMine) const CategoryCard(),
+                      const DownloadVideoCard(),
+                    ],
                   ),
                 ],
-                const SizedBox(height: 16),
-                _buildCategoryCard(context, controller),
-                const SizedBox(height: 8),
-                const DestinationCard(),
-                const SizedBox(height: 24),
-              ],
+              ),
             ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildCategoryCard(
-    BuildContext context,
-    LinkDetailController controller,
-  ) {
-    return Obx(() {
-      final category = controller.currentCategory;
-      final hasCategory = category != null;
-
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          if (controller.readOnly) {
-            controller.showReadOnlyMessage();
-            return;
-          }
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: AppColors.transparent,
-            builder: (_) => ChangeCategorySheet(controller: controller),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceElevated,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.folder_outlined,
-                          color: AppColors.white,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextWidget(
-                            text: hasCategory
-                                ? (category.name ?? "Folder".tr)
-                                : "Folder".tr,
-                            textStyle: AppTextStyle.semiBold14,
-                            color: AppColors.white,
-                            maxLines: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    TextWidget(
-                      text: hasCategory
-                          ? "Tap to move to another category".tr
-                          : "Add this post to a category".tr,
-                      textStyle: AppTextStyle.regular12,
-                      color: AppColors.grey,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                width: 44,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: AppColors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  hasCategory
-                      ? Icons.drive_file_move_outlined
-                      : Icons.create_new_folder_outlined,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    });
-  }
-
-  PreferredSizeWidget _buildAppBar(
-    BuildContext context,
-    LinkDetailController controller,
-  ) {
-    return AppBar(
-      backgroundColor: AppColors.transparent,
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(
-          Icons.arrow_back_ios_new_rounded,
-          color: AppColors.white,
-          size: 20,
-        ),
-        onPressed: () => Get.back(),
-      ),
-      centerTitle: true,
-      actions: controller.readOnly
-          ? const []
-          : [
-              InkWell(
-                onTap: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: AppColors.transparent,
-                    builder: (_) => ShareLinkSheet(link: controller.link),
-                  );
-                },
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: AppColors.bg500,
-                    shape: BoxShape.circle,
-                  ),
-                  child: AppVectors.icSharedCategory.show(
-                    size: 18,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              AppVectors.icDelete.show(
-                backgroundColor: AppColors.bg500,
-                padding: const EdgeInsets.all(8),
-                color: AppColors.error,
-                onTap: controller.deleteLink,
-              ),
-              const SizedBox(width: 16),
-            ],
     );
   }
 }

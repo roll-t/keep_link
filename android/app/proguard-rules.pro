@@ -35,6 +35,32 @@
 -keep class com.google.android.play.core.splitinstall.** { *; }
 -keep class com.google.android.play.core.tasks.** { *; }
 
+# ── ImageKit Android SDK & Dependencies ───────────────────────────────────────
+# R8 / ProGuard in release builds strips models/reflection needed by ImageKit (Gson/Retrofit).
+# Without these rules, the app crashes immediately when uploading an image on release builds.
+-keepattributes Signature, *Annotation*, EnclosingMethod, InnerClasses
+-dontwarn com.imagekit.android.**
+-keep class com.imagekit.android.** { *; }
+-keep interface com.imagekit.android.** { *; }
+-keep class com.imagekit.android.entity.** { *; }
+-keepclassmembers class com.imagekit.android.entity.** { *; }
+
+# ── Keep Channel Managers & Native Callbacks ──────────────────────────────────
+-keep class com.phamtruong.keeplink.channel.** { *; }
+-keepclassmembers class com.phamtruong.keeplink.channel.** { *; }
+
+# ── Gson / Retrofit (used by ImageKit SDK) ────────────────────────────────────
+-dontwarn com.google.gson.**
+-keep class com.google.gson.** { *; }
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+-dontwarn retrofit2.**
+-keep class retrofit2.** { *; }
+-keepclasseswithmembers class * {
+    @retrofit2.http.* <methods>;
+}
+
 # ── Suppress warnings from library internals we don't control ─────────────────
 -dontwarn sun.misc.**
 -dontwarn java.lang.invoke.**

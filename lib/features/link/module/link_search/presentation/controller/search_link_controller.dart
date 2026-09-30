@@ -7,23 +7,12 @@ import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/config/constants/app_enum.dart';
 import 'package:keep_link/core/data/repositories/category_repository.dart';
 import 'package:keep_link/core/data/repositories/link_repository.dart';
+import 'package:keep_link/core/utils/link_source_util.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/application/model/category_model.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 
 enum SortOption { newest, oldest, nameAZ, nameZA }
-
-/// Thống kê số lượng link theo nguồn (domain).
-class SourceStat {
-  final String host; // normalized key, e.g. "tiktok.com"
-  final String label; // display name, e.g. "TikTok"
-  final int count;
-  const SourceStat({
-    required this.host,
-    required this.label,
-    required this.count,
-  });
-}
 
 class SearchLinkController extends GetxController {
   // ── State ──────────────────────────────────────────────────────────────────
@@ -378,63 +367,13 @@ class SearchLinkController extends GetxController {
   // ── Source helpers ─────────────────────────────────────────────────────────
 
   /// Normalises a URL to a canonical host key (e.g. "vm.tiktok.com" → "tiktok.com").
-  static String _normalizeHost(String? url) {
-    if (url == null || url.isEmpty) return '';
-    try {
-      final normalizedUrl = url.contains('://') ? url : 'https://$url';
-      final h = Uri.parse(
-        normalizedUrl,
-      ).host.toLowerCase().replaceFirst('www.', '');
-      if (h.contains('tiktok.com')) return 'tiktok.com';
-      if (h.contains('youtu.be') || h.contains('youtube.com')) {
-        return 'youtube.com';
-      }
-      if (h.contains('instagram.com')) return 'instagram.com';
-      if (h.contains('facebook.com') ||
-          h.contains('fb.com') ||
-          h.contains('fb.watch')) {
-        return 'facebook.com';
-      }
-      if (h.contains('twitter.com') || h.contains('x.com')) return 'x.com';
-      if (h.contains('google.com')) return 'google.com';
-      return h;
-    } catch (_) {
-      return '';
-    }
-  }
-
-  static String _labelForHost(String host) {
-    const labels = {
-      'tiktok.com': 'TikTok',
-      'youtube.com': 'YouTube',
-      'instagram.com': 'Instagram',
-      'facebook.com': 'Facebook',
-      'x.com': 'X',
-      'google.com': 'Google',
-    };
-    return labels[host] ?? host;
-  }
+  static String _normalizeHost(String? url) => LinkSourceUtil.normalizeHost(url);
 
   void _computeTopSources() {
-    final counter = <String, int>{};
-    for (final link in AppCache.links) {
-      if (_privateCategoryIds.contains(link.categoryId)) continue;
-      final host = _normalizeHost(link.metaDataModel?.url);
-      if (host.isEmpty) continue;
-      counter[host] = (counter[host] ?? 0) + 1;
-    }
-    final sorted = counter.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    topSources.assignAll(
-      sorted
-          .take(5)
-          .map(
-            (e) => SourceStat(
-              host: e.key,
-              label: _labelForHost(e.key),
-              count: e.value,
-            ),
-          ),
+    final sources = LinkSourceUtil.computeSources(
+      AppCache.links,
+      privateCategoryIds: _privateCategoryIds,
     );
+    topSources.assignAll(sources.take(5));
   }
 }

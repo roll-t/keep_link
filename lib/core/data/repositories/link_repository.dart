@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/cache/sql_lite.dart';
+import 'package:keep_link/core/services/backend/link_thumbnail_service.dart';
 import 'package:keep_link/core/services/backend/session_sync_service.dart';
+import 'package:keep_link/core/utils/link_source_util.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 
 /// Data-access layer for [LinkModel].
@@ -34,6 +38,7 @@ class LinkRepository {
         .map((r) => LinkModel.fromJson(Map<String, dynamic>.from(r)))
         .toList();
     AppCache.setLinks(list);
+    LinkThumbnailService.backfillThumbnails(list);
   }
 
   // ── Reads (in-memory, no I/O) ─────────────────────────────────────────────
@@ -50,6 +55,7 @@ class LinkRepository {
   /// through the whole list into an O(N²) scan.
   static List<LinkModel> getFiltered({
     String? categoryId,
+    String? source,
     Set<String> privateCategoryIds = const {},
     bool excludePrivate = false,
   }) {
@@ -62,7 +68,13 @@ class LinkRepository {
       }
       // Category filter.
       if (categoryId != null && categoryId != 'all') {
-        return link.categoryId == categoryId;
+        if (link.categoryId != categoryId) return false;
+      }
+      // Source filter.
+      if (source != null && source.isNotEmpty) {
+        if (LinkSourceUtil.normalizeHost(link.metaDataModel?.url) != source) {
+          return false;
+        }
       }
       return true;
     }).toList();
@@ -83,6 +95,11 @@ class LinkRepository {
     } else {
       SessionSyncService.instance.persistQueue();
     }
+
+    // Tự động tải và lưu thumbnail bền vững trong background
+    if (link.image == null || link.image!.isEmpty) {
+      unawaited(LinkThumbnailService.saveAndAttachThumbnail(link));
+    }
   }
 
   /// Update an existing link.  Writes to DB then updates cache in-place.
@@ -97,6 +114,7 @@ class LinkRepository {
   static Future<void> delete(String id) async {
     await DbHelper.delete(_table, id);
     AppCache.removeLink(id);
+    unawaited(LinkThumbnailService.deleteThumbnail(id));
     SessionSyncService.instance.trackLinkDelete(id);
     SessionSyncService.instance.pushNow();
   }
@@ -108,6 +126,7 @@ class LinkRepository {
 
     await DbHelper.deleteAll(_table, uniqueIds);
     AppCache.removeLinks(uniqueIds);
+    unawaited(LinkThumbnailService.deleteThumbnails(uniqueIds));
     for (final id in uniqueIds) {
       SessionSyncService.instance.trackLinkDelete(id);
     }

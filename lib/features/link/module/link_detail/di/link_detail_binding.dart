@@ -6,11 +6,7 @@ class LinkDetailBinding extends Bindings {
   @override
   void dependencies() {
     final raw = Get.arguments;
-    final args = raw is LinkDetailArguments
-        ? raw
-        : LinkDetailArguments(link: raw as LinkModel);
-    Get.lazyPut(
-      () => LinkDetailController(link: args.link, readOnly: args.readOnly),
-    );
+    final args = raw is LinkDetailArguments ? raw : LinkDetailArguments(link: raw as LinkModel);
+    Get.lazyPut(() => LinkDetailController(link: args.link, readOnly: args.readOnly));
   }
 }

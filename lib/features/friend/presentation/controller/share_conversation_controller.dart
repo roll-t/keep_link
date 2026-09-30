@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
+import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/data/repositories/category_repository.dart';
 import 'package:keep_link/core/data/repositories/link_repository.dart';
 import 'package:keep_link/core/services/backend/firebase_service.dart';
+import 'package:keep_link/core/utils/app_toast.dart';
+import 'package:keep_link/core/utils/link_source_util.dart';
 import 'package:keep_link/features/category/application/model/category_model.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
@@ -14,30 +17,255 @@ import 'package:keep_link/features/friend/presentation/controller/friend_control
 import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
 import 'package:keep_link/features/link/application/model/link_model.dart';
 
+enum ShareSortOption { newest, oldest }
+enum ShareSenderFilter { all, mine, friend }
+enum ShareTypeFilter { all, link, category }
+
 class ShareConversationController extends GetxController {
   ShareConversationController({required this.friend});
+
+  static const int _pageSize = 12;
+  static const double _loadOlderThreshold = 240;
 
   final FriendModel friend;
   final SharedCategoryController shared = Get.find<SharedCategoryController>();
   final ScrollController scrollController = ScrollController();
 
   final RxList<ShareConversationEntry> items = <ShareConversationEntry>[].obs;
+  final RxMap<String, String> reactions = <String, String>{}.obs;
   final RxBool isLoading = true.obs;
   final RxBool isRefreshing = false.obs;
+  final RxBool isLoadingOlder = false.obs;
+  final RxBool hasMoreOlder = false.obs;
   final RxBool hasNewItemsBelow = false.obs;
+  final RxBool isDeleting = false.obs;
   final RxnString errorMessage = RxnString();
+
+  // Search & Filter
+  final TextEditingController searchTec = TextEditingController();
+  final FocusNode searchFocusNode = FocusNode();
+  final RxString searchText = ''.obs;
+  final RxBool isSearching = false.obs;
+
+  final Rx<ShareSortOption> selectedSort = ShareSortOption.newest.obs;
+  final Rx<ShareSenderFilter> selectedSender = ShareSenderFilter.all.obs;
+  final Rx<ShareTypeFilter> selectedType = ShareTypeFilter.all.obs;
+  final RxnString selectedSource = RxnString();
+  final RxList<SourceStat> availableSources = <SourceStat>[].obs;
+
+  int get activeFilterCount =>
+      (selectedSender.value != ShareSenderFilter.all ? 1 : 0) +
+      (selectedType.value != ShareTypeFilter.all ? 1 : 0) +
+      (selectedSource.value != null ? 1 : 0) +
+      (selectedSort.value != ShareSortOption.newest ? 1 : 0);
+
+  bool get hasActiveFilters => activeFilterCount > 0;
+
+  String get senderLabel {
+    switch (selectedSender.value) {
+      case ShareSenderFilter.mine:
+        return 'Tôi gửi';
+      case ShareSenderFilter.friend:
+        return friend.displayName.isNotEmpty ? friend.displayName : 'Bạn bè';
+      case ShareSenderFilter.all:
+        return 'Tất cả';
+    }
+  }
+
+  String get typeLabel {
+    switch (selectedType.value) {
+      case ShareTypeFilter.link:
+        return 'Link';
+      case ShareTypeFilter.category:
+        return 'Danh mục';
+      case ShareTypeFilter.all:
+        return 'Tất cả';
+    }
+  }
+
+  String get sortLabel {
+    switch (selectedSort.value) {
+      case ShareSortOption.newest:
+        return 'Mới nhất';
+      case ShareSortOption.oldest:
+        return 'Cũ nhất';
+    }
+  }
+
+  void toggleSearch() {
+    isSearching.value = !isSearching.value;
+    if (isSearching.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!searchFocusNode.hasFocus) {
+          searchFocusNode.requestFocus();
+        }
+      });
+    } else {
+      clearSearch();
+    }
+  }
+
+  void clearSearch() {
+    searchTec.clear();
+    searchText.value = '';
+    _applyFilterAndSearch();
+  }
+
+  void _handleSearchFocusChange() {
+    if (!searchFocusNode.hasFocus && isSearching.value && searchTec.text.trim().isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!searchFocusNode.hasFocus && isSearching.value && searchTec.text.trim().isEmpty) {
+          closeSearch();
+        }
+      });
+    }
+  }
+
+  void closeSearch() {
+    isSearching.value = false;
+    searchFocusNode.unfocus();
+    clearSearch();
+  }
+
+  void selectSort(ShareSortOption sort) {
+    selectedSort.value = sort;
+    _applyFilterAndSearch();
+  }
+
+  void selectSender(ShareSenderFilter sender) {
+    selectedSender.value = sender;
+    _applyFilterAndSearch();
+  }
+
+  void selectType(ShareTypeFilter type) {
+    selectedType.value = type;
+    _applyFilterAndSearch();
+  }
+
+  void selectSource(String? source) {
+    selectedSource.value = source;
+    _applyFilterAndSearch();
+  }
+
+  void resetFilters() {
+    selectedSender.value = ShareSenderFilter.all;
+    selectedType.value = ShareTypeFilter.all;
+    selectedSource.value = null;
+    selectedSort.value = ShareSortOption.newest;
+    _applyFilterAndSearch();
+  }
+
+  void clearAllFiltersAndSearch() {
+    clearSearch();
+    resetFilters();
+  }
+
+  List<ShareConversationEntry> get filteredAllItems => _getFilteredItems();
+
+  List<ShareConversationEntry> _getFilteredItems() {
+    var list = _allItems;
+
+    // 1. Search text
+    final query = searchText.value.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      list = list.where((entry) {
+        final title = entry.title.toLowerCase();
+        final url = entry.url.toLowerCase();
+        final host = entry.host.toLowerCase();
+        return title.contains(query) || url.contains(query) || host.contains(query);
+      }).toList();
+    }
+
+    // 2. Sender
+    if (selectedSender.value == ShareSenderFilter.mine) {
+      list = list.where((entry) => entry.isMine).toList();
+    } else if (selectedSender.value == ShareSenderFilter.friend) {
+      list = list.where((entry) => !entry.isMine).toList();
+    }
+
+    // 3. Type
+    if (selectedType.value == ShareTypeFilter.link) {
+      list = list.where((entry) => !entry.isCategory).toList();
+    } else if (selectedType.value == ShareTypeFilter.category) {
+      list = list.where((entry) => entry.isCategory).toList();
+    }
+
+    // 4. Source
+    final source = selectedSource.value;
+    if (source != null && source.isNotEmpty) {
+      list = list.where((entry) {
+        final entryHost = LinkSourceUtil.normalizeHost(entry.url);
+        return entryHost == source || entry.host.toLowerCase().contains(source.toLowerCase());
+      }).toList();
+    }
+
+    // 5. Sort
+    if (selectedSort.value == ShareSortOption.oldest) {
+      list = list.toList()..sort((a, b) => a.time.compareTo(b.time));
+    } else {
+      list = list.toList()..sort((a, b) => b.time.compareTo(a.time));
+    }
+
+    return list;
+  }
+
+  void _applyFilterAndSearch() {
+    final filtered = _getFilteredItems();
+    items.assignAll(filtered.take(_pageSize));
+    hasMoreOlder.value = items.length < filtered.length;
+  }
+
+  void _updateAvailableSources() {
+    final counter = <String, int>{};
+    for (final entry in _allItems) {
+      final host = LinkSourceUtil.normalizeHost(entry.url);
+      if (host.isEmpty) continue;
+      counter[host] = (counter[host] ?? 0) + 1;
+    }
+    final sorted = counter.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    availableSources.assignAll(
+      sorted.map(
+        (e) => SourceStat(
+          host: e.key,
+          label: LinkSourceUtil.labelForHost(e.key),
+          count: e.value,
+        ),
+      ),
+    );
+  }
+
+  String? getReaction(String identityKey) {
+    return reactions[identityKey] ??
+        AppGetStorage.getMessageReaction(identityKey);
+  }
+
+  void toggleReaction(String identityKey, String emoji) {
+    final current = getReaction(identityKey);
+    if (current == emoji) {
+      reactions.remove(identityKey);
+      AppGetStorage.setMessageReaction(identityKey, null);
+    } else {
+      reactions[identityKey] = emoji;
+      AppGetStorage.setMessageReaction(identityKey, emoji);
+    }
+  }
+
+  List<ShareConversationEntry> _allItems = const [];
 
   Timer? _liveReloadDebounce;
   StreamSubscription? _incomingLinksSub;
   StreamSubscription? _incomingCategoriesSub;
   StreamSubscription? _outgoingLinksSub;
   StreamSubscription? _outgoingCategoriesSub;
+  StreamSubscription? _shareEventsSub;
   Future<void>? _loadFuture;
   int _loadGeneration = 0;
   bool _hasCompletedInitialLoad = false;
   bool _reloadQueued = false;
   bool _queuedForceShared = false;
-  bool _queuedJumpToLatest = false;
+  bool _deferRealtimeReload = false;
+  bool _hasDeferredRealtimeChange = false;
 
   String get myDisplayName {
     final user = FirebaseService.currentUser;
@@ -60,13 +288,22 @@ class ShareConversationController extends GetxController {
     }
     FriendController.activeConversationFriendId = friendId;
     scrollController.addListener(_handleScroll);
+    searchTec.addListener(() {
+      searchText.value = searchTec.text;
+    });
+    searchFocusNode.addListener(_handleSearchFocusChange);
+    debounce(
+      searchText,
+      (_) => _applyFilterAndSearch(),
+      time: const Duration(milliseconds: 250),
+    );
     _startRealtimeWatchers();
   }
 
   @override
   void onReady() {
     super.onReady();
-    load(showLoading: true, forceShared: true, jumpToLatest: true);
+    load(showLoading: true, forceShared: true);
   }
 
   void _startRealtimeWatchers() {
@@ -83,9 +320,16 @@ class ShareConversationController extends GetxController {
     _outgoingCategoriesSub = FirebaseService.watchOutgoingCategoriesToFriend(
       friendId,
     ).skip(1).listen((_) => _onRealtimeChange(), onError: (_) {});
+    _shareEventsSub = FirebaseService.watchShareEventsWithFriend(
+      friendId,
+    ).skip(1).listen((_) => _onRealtimeChange(), onError: (_) {});
   }
 
   void _onRealtimeChange() {
+    if (_deferRealtimeReload) {
+      _hasDeferredRealtimeChange = true;
+      return;
+    }
     _liveReloadDebounce?.cancel();
     _liveReloadDebounce = Timer(const Duration(milliseconds: 300), () {
       SharedCategoryController.invalidateCache();
@@ -93,34 +337,53 @@ class ShareConversationController extends GetxController {
     });
   }
 
-  Future<void> refreshConversation() => load(forceShared: true);
+  void beginShareSelection() {
+    _deferRealtimeReload = true;
+    if (_liveReloadDebounce?.isActive ?? false) {
+      _hasDeferredRealtimeChange = true;
+      _liveReloadDebounce?.cancel();
+    }
+  }
 
-  Future<void> reloadAfterShare() =>
-      load(forceShared: true, jumpToLatest: true);
+  Future<void> endShareSelection({required bool changed}) async {
+    _deferRealtimeReload = false;
+    final shouldReload = changed || _hasDeferredRealtimeChange;
+    _hasDeferredRealtimeChange = false;
+    if (!shouldReload || isClosed) return;
+    SharedCategoryController.invalidateCache();
+    await load(forceShared: true);
+  }
+
+  Future<void> refreshConversation() => load(forceShared: true);
 
   Future<void> load({
     bool showLoading = false,
     bool forceShared = false,
-    bool jumpToLatest = false,
   }) async {
     final pending = _loadFuture;
     if (pending != null) {
       _reloadQueued = true;
       _queuedForceShared = _queuedForceShared || forceShared;
-      _queuedJumpToLatest = _queuedJumpToLatest || jumpToLatest;
       await pending;
       return;
     }
 
     final generation = ++_loadGeneration;
     final wasNearBottom = isNearBottom;
-    final previousKeys = items.map((item) => item.identityKey).toSet();
+    final previousPixels = scrollController.hasClients
+        ? scrollController.position.pixels
+        : null;
+    final previousMaxScrollExtent = scrollController.hasClients
+        ? scrollController.position.maxScrollExtent
+        : null;
+    final previousKeys = _allItems.map((item) => item.identityKey).toSet();
     final future = _performLoad(
       generation: generation,
       showLoading: showLoading,
       forceShared: forceShared,
-      jumpToLatest: jumpToLatest,
       wasNearBottom: wasNearBottom,
+      previousPixels: previousPixels,
+      previousMaxScrollExtent: previousMaxScrollExtent,
       previousKeys: previousKeys,
     );
     _loadFuture = future;
@@ -130,11 +393,9 @@ class ShareConversationController extends GetxController {
       if (identical(_loadFuture, future)) _loadFuture = null;
       if (_reloadQueued && !isClosed) {
         final queuedForce = _queuedForceShared;
-        final queuedJump = _queuedJumpToLatest;
         _reloadQueued = false;
         _queuedForceShared = false;
-        _queuedJumpToLatest = false;
-        unawaited(load(forceShared: queuedForce, jumpToLatest: queuedJump));
+        unawaited(load(forceShared: queuedForce));
       }
     }
   }
@@ -143,8 +404,9 @@ class ShareConversationController extends GetxController {
     required int generation,
     required bool showLoading,
     required bool forceShared,
-    required bool jumpToLatest,
     required bool wasNearBottom,
+    required double? previousPixels,
+    required double? previousMaxScrollExtent,
     required Set<String> previousKeys,
   }) async {
     if (showLoading && items.isEmpty) {
@@ -165,6 +427,7 @@ class ShareConversationController extends GetxController {
         FirebaseService.getCategoryIdsSharedWithFriend(friend.friendUserId),
         FirebaseService.getLinkIdsSharedWithFriend(friend.friendUserId),
         FirebaseService.getShareTimesWithFriend(friend.friendUserId),
+        FirebaseService.getShareEventsWithFriend(friend.friendUserId),
       ]);
       final nextItems = await _composeItems(outgoing);
       if (generation != _loadGeneration || isClosed) return;
@@ -172,14 +435,31 @@ class ShareConversationController extends GetxController {
       final hasNewItem = nextItems.any(
         (item) => !previousKeys.contains(item.identityKey),
       );
+      _allItems = nextItems;
+      _updateAvailableSources();
+      final filtered = _getFilteredItems();
       final isInitialLoad = !_hasCompletedInitialLoad;
-      items.assignAll(nextItems);
+      final visibleCount = isInitialLoad
+          ? _pageSize
+          : (items.length < _pageSize ? _pageSize : items.length);
+      items.assignAll(filtered.take(visibleCount));
+      hasMoreOlder.value = items.length < filtered.length;
       _hasCompletedInitialLoad = true;
 
-      if (jumpToLatest || isInitialLoad || wasNearBottom) {
-        scrollToLatest(animate: !isInitialLoad);
-      } else if (hasNewItem) {
+      if (!isInitialLoad &&
+          !wasNearBottom &&
+          previousPixels != null &&
+          previousMaxScrollExtent != null) {
+        _restoreViewportAfterReload(
+          previousPixels: previousPixels,
+          previousMaxScrollExtent: previousMaxScrollExtent,
+        );
+      }
+
+      if (!isInitialLoad && hasNewItem && !wasNearBottom) {
         hasNewItemsBelow.value = true;
+      } else if (wasNearBottom) {
+        hasNewItemsBelow.value = false;
       }
     } catch (error) {
       if (!isClosed) {
@@ -198,22 +478,62 @@ class ShareConversationController extends GetxController {
     List<dynamic> outgoing,
   ) async {
     final result = <ShareConversationEntry>[];
+    final categoryIds = (outgoing[0] as List<String>).toSet();
+    final linkIds = (outgoing[1] as List<String>).toSet();
+    final shareTimes = outgoing[2] as Map<String, int>;
+    final shareEvents = outgoing[3] as List<ShareEventModel>;
+    final currentUserId = FirebaseService.currentUser?.uid;
+    final outgoingLinkEvents = <String, List<ShareEventModel>>{};
+    final incomingLinkEvents = <String, List<ShareEventModel>>{};
+    final outgoingCategoryEvents = <String, List<ShareEventModel>>{};
+    final incomingCategoryEvents = <String, List<ShareEventModel>>{};
+    for (final event in shareEvents) {
+      final isMine = event.senderUid == currentUserId;
+      final eventsByItem = event.type == 'category'
+          ? (isMine ? outgoingCategoryEvents : incomingCategoryEvents)
+          : (isMine ? outgoingLinkEvents : incomingLinkEvents);
+      eventsByItem.putIfAbsent(event.itemId, () => []).add(event);
+    }
+
     for (final category in shared.sharedCategories.where(
       (item) => item.ownerUid == friend.friendUserId,
     )) {
       shared.markCategoryViewed(category);
-      result.add(ShareConversationEntry.incomingCategory(category));
+      final events = incomingCategoryEvents[category.categoryId];
+      if (events == null || events.isEmpty) {
+        result.add(ShareConversationEntry.incomingCategory(category));
+      } else {
+        result.addAll(
+          events.map(
+            (event) => ShareConversationEntry.incomingCategory(
+              category,
+              eventId: event.id,
+              sharedTime: event.sharedAt,
+            ),
+          ),
+        );
+      }
     }
     for (final item in shared.sharedIndividualLinks.where(
       (item) => item.ownerUid == friend.friendUserId,
     )) {
       shared.markLinkViewed(item);
-      result.add(ShareConversationEntry.incomingLink(item));
+      final events = incomingLinkEvents[item.linkId];
+      if (events == null || events.isEmpty) {
+        result.add(ShareConversationEntry.incomingLink(item));
+      } else {
+        result.addAll(
+          events.map(
+            (event) => ShareConversationEntry.incomingLink(
+              item,
+              eventId: event.id,
+              sharedTime: event.sharedAt,
+            ),
+          ),
+        );
+      }
     }
 
-    final categoryIds = (outgoing[0] as List<String>).toSet();
-    final linkIds = (outgoing[1] as List<String>).toSet();
-    final shareTimes = outgoing[2] as Map<String, int>;
     Map<String, dynamic>? remoteCategories;
     Map<String, dynamic>? remoteLinks;
 
@@ -233,15 +553,16 @@ class ShareConversationController extends GetxController {
 
     for (final categoryId in categoryIds) {
       final sharedTime = _shareTime(categoryId, shareTimes);
+      final events = outgoingCategoryEvents[categoryId];
       final local = AppCache.categories.firstWhereOrNull(
         (category) => category.id == categoryId,
       );
       if (local != null) {
-        result.add(
-          ShareConversationEntry.outgoingCategory(
-            local,
-            sharedTime: sharedTime,
-          ),
+        _addOutgoingCategoryEntries(
+          result: result,
+          category: local,
+          legacySharedTime: sharedTime,
+          events: events,
         );
         continue;
       }
@@ -249,40 +570,122 @@ class ShareConversationController extends GetxController {
       final raw = remoteCategories![categoryId];
       if (raw is Map) {
         final json = Map<String, dynamic>.from(raw)..['id'] = categoryId;
-        result.add(
-          ShareConversationEntry.outgoingCategory(
-            CategoryModel.fromJson(json),
-            sharedTime: sharedTime,
-          ),
+        _addOutgoingCategoryEntries(
+          result: result,
+          category: CategoryModel.fromJson(json),
+          legacySharedTime: sharedTime,
+          events: events,
         );
       }
     }
 
     for (final linkId in linkIds) {
       final sharedTime = _shareTime(linkId, shareTimes);
+      final events = outgoingLinkEvents[linkId];
       final local = AppCache.links.firstWhereOrNull(
         (link) => link.id == linkId,
       );
       if (local != null) {
-        result.add(
-          ShareConversationEntry.outgoingLink(local, sharedTime: sharedTime),
+        _addOutgoingLinkEntries(
+          result: result,
+          link: local,
+          legacySharedTime: sharedTime,
+          events: events,
         );
         continue;
       }
       await ensureRemoteContent();
       final raw = remoteLinks![linkId];
       if (raw is Map) {
-        result.add(
-          ShareConversationEntry.outgoingLink(
-            LinkModel.fromJson(Map<String, dynamic>.from(raw), id: linkId),
-            sharedTime: sharedTime,
-          ),
+        _addOutgoingLinkEntries(
+          result: result,
+          link: LinkModel.fromJson(Map<String, dynamic>.from(raw), id: linkId),
+          legacySharedTime: sharedTime,
+          events: events,
         );
       }
     }
 
-    result.sort((a, b) => a.time.compareTo(b.time));
+    result.sort((a, b) => b.time.compareTo(a.time));
     return result;
+  }
+
+  void _addOutgoingCategoryEntries({
+    required List<ShareConversationEntry> result,
+    required CategoryModel category,
+    required DateTime? legacySharedTime,
+    required List<ShareEventModel>? events,
+  }) {
+    if (events == null || events.isEmpty) {
+      result.add(
+        ShareConversationEntry.outgoingCategory(
+          category,
+          sharedTime: legacySharedTime,
+        ),
+      );
+      return;
+    }
+    result.addAll(
+      events.map(
+        (event) => ShareConversationEntry.outgoingCategory(
+          category,
+          eventId: event.id,
+          sharedTime: event.sharedAt,
+        ),
+      ),
+    );
+  }
+
+  void _addOutgoingLinkEntries({
+    required List<ShareConversationEntry> result,
+    required LinkModel link,
+    required DateTime? legacySharedTime,
+    required List<ShareEventModel>? events,
+  }) {
+    if (events == null || events.isEmpty) {
+      result.add(
+        ShareConversationEntry.outgoingLink(link, sharedTime: legacySharedTime),
+      );
+      return;
+    }
+    result.addAll(
+      events.map(
+        (event) => ShareConversationEntry.outgoingLink(
+          link,
+          eventId: event.id,
+          sharedTime: event.sharedAt,
+        ),
+      ),
+    );
+  }
+
+  void loadOlder() {
+    if (isLoadingOlder.value || !hasMoreOlder.value || isClosed) return;
+    isLoadingOlder.value = true;
+
+    final currentFiltered = _getFilteredItems();
+    final olderItems = currentFiltered.skip(items.length).take(_pageSize).toList();
+    if (olderItems.isNotEmpty) {
+      items.addAll(olderItems);
+    }
+    hasMoreOlder.value = items.length < currentFiltered.length;
+    isLoadingOlder.value = false;
+  }
+
+  void _restoreViewportAfterReload({
+    required double previousPixels,
+    required double previousMaxScrollExtent,
+  }) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (isClosed || !scrollController.hasClients) return;
+      final position = scrollController.position;
+      final extentDelta = position.maxScrollExtent - previousMaxScrollExtent;
+      final target = (previousPixels + extentDelta).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      position.jumpTo(target);
+    });
   }
 
   DateTime? _shareTime(String id, Map<String, int> remoteTimes) {
@@ -321,15 +724,71 @@ class ShareConversationController extends GetxController {
     return links;
   }
 
+  Future<bool> deleteEntry(ShareConversationEntry entry) async {
+    if (isDeleting.value) return false;
+    isDeleting.value = true;
+    try {
+      if (entry.eventId != null) {
+        final removedFinalEvent = await FirebaseService.deleteShareEvent(
+          friendUid: friend.friendUserId,
+          itemId: entry.itemId,
+          type: entry.isCategory ? 'category' : 'link',
+          eventId: entry.eventId!,
+          isMine: entry.isMine,
+        );
+        if (removedFinalEvent && entry.isMine && entry.isCategory) {
+          AppCache.removeSharedFriend(entry.itemId, friend.friendUserId);
+        }
+      } else if (entry.isMine) {
+        if (entry.outgoingLink != null) {
+          await FirebaseService.unshareLink(
+            friendUid: friend.friendUserId,
+            linkId: entry.itemId,
+          );
+        } else {
+          await FirebaseService.unshareCategory(
+            friendUid: friend.friendUserId,
+            categoryId: entry.itemId,
+          );
+          AppCache.removeSharedFriend(entry.itemId, friend.friendUserId);
+        }
+      } else {
+        await FirebaseService.deleteIncomingShareForMe(
+          friendUid: friend.friendUserId,
+          itemId: entry.itemId,
+          isCategory: entry.isCategory,
+        );
+      }
+
+      SharedCategoryController.invalidateCache();
+      await load(forceShared: true);
+      if (Get.isRegistered<SharedCategoryController>()) {
+        shared.notifyOutgoingSharesChanged();
+      }
+      AppToast.success('delete_message_success'.tr);
+      return true;
+    } catch (error) {
+      debugPrint('Delete share conversation entry error: $error');
+      AppToast.error('delete_message_failed'.tr);
+      return false;
+    } finally {
+      isDeleting.value = false;
+    }
+  }
+
   bool get isNearBottom {
     if (!scrollController.hasClients) return true;
-    final position = scrollController.position;
-    return position.maxScrollExtent - position.pixels < 180;
+    return scrollController.position.pixels < 180;
   }
 
   void _handleScroll() {
     if (hasNewItemsBelow.value && isNearBottom) {
       hasNewItemsBelow.value = false;
+    }
+    if (!scrollController.hasClients) return;
+    final position = scrollController.position;
+    if (position.maxScrollExtent - position.pixels < _loadOlderThreshold) {
+      loadOlder();
     }
   }
 
@@ -337,7 +796,7 @@ class ShareConversationController extends GetxController {
     hasNewItemsBelow.value = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (isClosed || !scrollController.hasClients) return;
-      final target = scrollController.position.maxScrollExtent;
+      const target = 0.0;
       if (animate) {
         scrollController.animateTo(
           target,
@@ -361,7 +820,11 @@ class ShareConversationController extends GetxController {
     _incomingCategoriesSub?.cancel();
     _outgoingLinksSub?.cancel();
     _outgoingCategoriesSub?.cancel();
+    _shareEventsSub?.cancel();
     scrollController.dispose();
+    searchFocusNode.removeListener(_handleSearchFocusChange);
+    searchTec.dispose();
+    searchFocusNode.dispose();
     super.onClose();
   }
 }
@@ -370,28 +833,38 @@ class ShareConversationEntry {
   const ShareConversationEntry._({
     required this.isMine,
     required this.time,
+    this.eventId,
     this.incomingCategory,
     this.incomingLink,
     this.outgoingCategory,
     this.outgoingLink,
   });
 
-  factory ShareConversationEntry.incomingCategory(SharedCategoryModel item) =>
-      ShareConversationEntry._(
-        isMine: false,
-        time: item.sharedAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-        incomingCategory: item,
-      );
+  factory ShareConversationEntry.incomingCategory(
+    SharedCategoryModel item, {
+    String? eventId,
+    DateTime? sharedTime,
+  }) => ShareConversationEntry._(
+    isMine: false,
+    time: sharedTime ?? item.sharedAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+    eventId: eventId,
+    incomingCategory: item,
+  );
 
-  factory ShareConversationEntry.incomingLink(SharedIndividualLinkModel item) =>
-      ShareConversationEntry._(
-        isMine: false,
-        time: item.sharedAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-        incomingLink: item,
-      );
+  factory ShareConversationEntry.incomingLink(
+    SharedIndividualLinkModel item, {
+    String? eventId,
+    DateTime? sharedTime,
+  }) => ShareConversationEntry._(
+    isMine: false,
+    time: sharedTime ?? item.sharedAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+    eventId: eventId,
+    incomingLink: item,
+  );
 
   factory ShareConversationEntry.outgoingCategory(
     CategoryModel item, {
+    String? eventId,
     DateTime? sharedTime,
   }) => ShareConversationEntry._(
     isMine: true,
@@ -400,11 +873,13 @@ class ShareConversationEntry {
         item.updatedAt ??
         item.createdAt ??
         DateTime.fromMillisecondsSinceEpoch(0),
+    eventId: eventId,
     outgoingCategory: item,
   );
 
   factory ShareConversationEntry.outgoingLink(
     LinkModel item, {
+    String? eventId,
     DateTime? sharedTime,
   }) => ShareConversationEntry._(
     isMine: true,
@@ -413,17 +888,20 @@ class ShareConversationEntry {
         item.updatedAt ??
         item.createdAt ??
         DateTime.fromMillisecondsSinceEpoch(0),
+    eventId: eventId,
     outgoingLink: item,
   );
 
   final bool isMine;
   final DateTime time;
+  final String? eventId;
   final SharedCategoryModel? incomingCategory;
   final SharedIndividualLinkModel? incomingLink;
   final CategoryModel? outgoingCategory;
   final LinkModel? outgoingLink;
 
   String get identityKey {
+    if (eventId != null) return 'event:$eventId';
     if (incomingCategory != null) {
       return 'in:category:${incomingCategory!.ownerUid}/${incomingCategory!.categoryId}';
     }
@@ -437,6 +915,12 @@ class ShareConversationEntry {
   }
 
   bool get isCategory => incomingCategory != null || outgoingCategory != null;
+  String get itemId =>
+      incomingCategory?.categoryId ??
+      outgoingCategory?.id ??
+      incomingLink?.linkId ??
+      outgoingLink?.id ??
+      '';
   String get title =>
       incomingCategory?.categoryName ??
       outgoingCategory?.name ??

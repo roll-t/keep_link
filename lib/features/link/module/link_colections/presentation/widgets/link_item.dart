@@ -88,7 +88,7 @@ class LinkItem extends StatelessWidget {
                 Positioned.fill(
                   child: CacheImageWidget(
                     borderRadius: BorderRadius.circular(8),
-                    imageUrl: item.metaDataModel?.imageUrl ?? '',
+                    imageUrl: item.displayImage,
                     memCacheWidth: 640,
                     memCacheHeight: 640,
                   ),
@@ -204,7 +204,7 @@ class LinkItem extends StatelessWidget {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
                         color: AppColors.black.withOpacityCompat(0.35),
-                        border: Border.all(color: AppColors.primaryDim, width: 2),
+                        border: Border.all(color: AppColors.primaryDim, width: 1),
                       ),
                     ),
                   ),
@@ -216,17 +216,17 @@ class LinkItem extends StatelessWidget {
                     right: 8,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
-                      width: 24,
-                      height: 24,
+                      width: 18,
+                      height: 18,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isSelected
                             ? AppColors.primaryDim
                             : AppColors.black.withOpacityCompat(0.45),
-                        border: Border.all(color: AppColors.white, width: 2),
+                        border: Border.all(color: AppColors.white, width: 1),
                       ),
                       child: isSelected
-                          ? const Icon(Icons.check_rounded, size: 14, color: AppColors.white)
+                          ? const Icon(Icons.check_rounded, size: 12, color: AppColors.white)
                           : null,
                     ),
                   ),
@@ -299,7 +299,7 @@ class LinkListItem extends StatelessWidget {
     final host = _extractHost(meta?.url);
     final favicon = meta?.favicon ?? meta?.appleIcon ?? '';
     final appIcon = _resolveAppIcon(host);
-    final imageUrl = meta?.imageUrl ?? '';
+    final imageUrl = item.displayImage;
     final description = meta?.description ?? '';
     final itemName = item.name;
     final metaTitle = meta?.title;

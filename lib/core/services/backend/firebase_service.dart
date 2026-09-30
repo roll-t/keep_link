@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:keep_link/core/data/cache/app_cache.dart';
+import 'package:keep_link/core/services/platform/fcm_push_service.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/friend/application/model/friend_request_model.dart';
 import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
@@ -23,6 +26,7 @@ class FirebaseService {
   static const String _sharedLinksWithKey = 'sharedLinksWith';
   static const String _sharedLinkAccessKey = 'sharedLinkAccess';
   static const String _shareTimesKey = 'shareTimes';
+  static const String _shareEventsKey = 'shareEvents';
   static final Map<String, int> _sessionShareTimes = {};
 
   static int? getSessionShareTime(String friendUid, String id) {
@@ -30,7 +34,8 @@ class FirebaseService {
   }
 
   static void recordSessionShareTime(String friendUid, String id) {
-    _sessionShareTimes['$friendUid/$id'] = DateTime.now().millisecondsSinceEpoch;
+    _sessionShareTimes['$friendUid/$id'] =
+        DateTime.now().millisecondsSinceEpoch;
   }
 
   static const Duration _ownerProfileCacheTtl = Duration(minutes: 5);
@@ -87,6 +92,7 @@ class FirebaseService {
     } catch (e) {
       log('Google sign out error (continuing to sign out of Firebase): $e');
     }
+    await FcmPushService.clearTokenFromFirebase();
     await _auth.signOut();
     log('Sign out success');
   }
@@ -271,6 +277,23 @@ class FirebaseService {
       }
 
       log('Friend request sent: ${currentUser.uid} -> $targetUserId');
+
+      final requesterName = requesterDisplayName.trim().isNotEmpty
+          ? requesterDisplayName.trim()
+          : 'Bạn bè';
+      unawaited(
+        FcmPushService.sendPushNotification(
+          receiverUid: targetUserId,
+          title: requesterName,
+          body: 'Đã gửi cho bạn một lời mời kết bạn',
+          data: {
+            'type': 'friend_request',
+            'friendUid': currentUser.uid,
+            'friendName': requesterName,
+            'friendPhotoUrl': currentUser.photoURL ?? '',
+          },
+        ),
+      );
     } catch (e) {
       log('Send friend request error: $e');
       rethrow;
@@ -699,6 +722,186 @@ class FirebaseService {
   // CATEGORY SHARING
   // ────────────────────────────────────────────────────────────────────────
 
+  /// Shares every selected link and category in one atomic RTDB update.
+  ///
+  /// The single-item methods need several sequential round trips per item.
+  /// This method reads legacy history at most once, builds all access indexes
+  /// and immutable events locally, then sends the whole batch in one request.
+  static Future<void> shareItemsBatch({
+    required String friendUid,
+    Iterable<String> linkIds = const <String>[],
+    Iterable<String> categoryIds = const <String>[],
+  }) async {
+    final owner = _auth.currentUser;
+    if (owner == null) {
+      throw FirebaseException(
+        plugin: 'firebase_database',
+        code: 'unauthenticated',
+        message: 'Sign in is required to share items.',
+      );
+    }
+
+    final normalizedFriendUid = friendUid.trim();
+    final links = linkIds.where((id) => id.isNotEmpty).toSet();
+    final categories = categoryIds.where((id) => id.isNotEmpty).toSet();
+    if (normalizedFriendUid.isEmpty || (links.isEmpty && categories.isEmpty)) {
+      return;
+    }
+
+    // Preserve legacy conversation entries without repeating this lookup for
+    // every item. A batch of brand-new shares only needs this one read.
+    final previousShareTimes = await getShareTimesWithFriend(
+      normalizedFriendUid,
+    );
+    final hasPreviouslySharedItem =
+        links.any(previousShareTimes.containsKey) ||
+        categories.any(previousShareTimes.containsKey);
+    List<ShareEventModel> existingEvents = const [];
+    if (hasPreviouslySharedItem) {
+      try {
+        existingEvents = await getShareEventsWithFriend(normalizedFriendUid);
+      } catch (_) {
+        // Legacy migration is optional; the new batch must still be shareable.
+      }
+    }
+
+    final updates = <String, dynamic>{};
+
+    // A share is only useful after the recipient can read the actual item.
+    // Link/category saves are normally uploaded by SessionSyncService in the
+    // background, so a freshly-created item can still be local when this
+    // method runs. Put the selected content in this same atomic root update;
+    // otherwise the access entry may arrive first and the receiver silently
+    // drops the item because users/$owner/links/$id does not exist yet.
+    final localLinksById = {for (final link in AppCache.links) link.id: link};
+    final localCategoriesById = {
+      for (final category in AppCache.categories)
+        if (category.id case final String id when id.isNotEmpty) id: category,
+    };
+
+    for (final linkId in links) {
+      final link = localLinksById[linkId];
+      if (link != null) {
+        updates['users/${owner.uid}/links/$linkId'] = link.toJson();
+      }
+    }
+
+    for (final categoryId in categories) {
+      final category = localCategoriesById[categoryId];
+      if (category != null) {
+        updates['users/${owner.uid}/categories/$categoryId'] = category
+            .toJson();
+      }
+      for (final link in AppCache.links.where(
+        (item) => item.categoryId == categoryId,
+      )) {
+        updates['users/${owner.uid}/links/${link.id}'] = link.toJson();
+      }
+    }
+
+    void addEvent({
+      required String itemId,
+      required String type,
+      required Object sharedAt,
+    }) {
+      final eventId = _db
+          .ref('users/${owner.uid}/$_shareEventsKey/$normalizedFriendUid')
+          .push()
+          .key;
+      if (eventId == null) {
+        throw StateError('Could not create a share event id.');
+      }
+      final accessKey = type == 'category'
+          ? _sharedCategoryAccessKey
+          : _sharedLinkAccessKey;
+      updates['users/${owner.uid}/$_shareEventsKey/$normalizedFriendUid/$eventId'] =
+          {
+            'senderUid': owner.uid,
+            'type': type,
+            'itemId': itemId,
+            'sharedAt': sharedAt,
+          };
+      updates['users/$normalizedFriendUid/$accessKey/${owner.uid}/$itemId/events/$eventId'] =
+          sharedAt;
+    }
+
+    void addLegacyEventIfNeeded(String itemId, String type) {
+      final previousSharedAt = previousShareTimes[itemId];
+      if (previousSharedAt == null) return;
+      final alreadyRecorded = existingEvents.any(
+        (event) =>
+            event.senderUid == owner.uid &&
+            event.type == type &&
+            event.itemId == itemId,
+      );
+      if (!alreadyRecorded) {
+        addEvent(itemId: itemId, type: type, sharedAt: previousSharedAt);
+      }
+    }
+
+    for (final linkId in links) {
+      addLegacyEventIfNeeded(linkId, 'link');
+      updates['users/${owner.uid}/$_sharedLinksWithKey/$normalizedFriendUid/$linkId'] =
+          true;
+      updates['users/${owner.uid}/$_shareTimesKey/$normalizedFriendUid/$linkId'] =
+          ServerValue.timestamp;
+      updates['users/$normalizedFriendUid/$_sharedLinkAccessKey/${owner.uid}/$linkId/sharedAt'] =
+          ServerValue.timestamp;
+      updates['users/$normalizedFriendUid/$_sharedLinkAccessKey/${owner.uid}/$linkId/message'] =
+          null;
+      addEvent(itemId: linkId, type: 'link', sharedAt: ServerValue.timestamp);
+    }
+
+    for (final categoryId in categories) {
+      addLegacyEventIfNeeded(categoryId, 'category');
+      updates['users/${owner.uid}/$_sharedWithKey/$normalizedFriendUid/$categoryId'] =
+          true;
+      updates['users/${owner.uid}/$_shareTimesKey/$normalizedFriendUid/$categoryId'] =
+          ServerValue.timestamp;
+      updates['users/$normalizedFriendUid/$_sharedCategoryAccessKey/${owner.uid}/$categoryId/sharedAt'] =
+          ServerValue.timestamp;
+      updates['users/$normalizedFriendUid/$_sharedCategoryAccessKey/${owner.uid}/$categoryId/message'] =
+          null;
+      addEvent(
+        itemId: categoryId,
+        type: 'category',
+        sharedAt: ServerValue.timestamp,
+      );
+    }
+
+    await _db.ref().update(updates).timeout(_requestTimeout);
+
+    final localSharedAt = DateTime.now().millisecondsSinceEpoch;
+    for (final id in <String>{...links, ...categories}) {
+      _sessionShareTimes['$normalizedFriendUid/$id'] = localSharedAt;
+    }
+    log(
+      'Share batch completed: ${owner.uid} -> $normalizedFriendUid '
+      '(${links.length} link(s), ${categories.length} category/categories)',
+    );
+
+    final totalCount = links.length + categories.length;
+    final senderName = owner.displayName?.trim().isNotEmpty == true
+        ? owner.displayName!
+        : 'Bạn bè';
+    final bodyText = totalCount > 1
+        ? 'Đã gửi cho bạn $totalCount link mới'
+        : 'Đã gửi cho bạn 1 link mới';
+    unawaited(
+      FcmPushService.sendPushNotification(
+        receiverUid: normalizedFriendUid,
+        title: senderName,
+        body: bodyText,
+        data: {
+          'type': 'share_batch',
+          'friendUid': owner.uid,
+          'friendName': senderName,
+          'friendPhotoUrl': owner.photoURL ?? '',
+        },
+      ),
+    );
+  }
+
   /// Share [categoryId] with [friendUid].
   /// Writes to two paths atomically (per-user updates to avoid root write):
   ///   users/$ownerUid/sharedWith/$friendUid/$categoryId: true
@@ -717,8 +920,31 @@ class FirebaseService {
       );
     }
 
+    int? previousSharedAt;
+    var hasExistingEvent = true;
     try {
-      _sessionShareTimes['$friendUid/$categoryId'] = DateTime.now().millisecondsSinceEpoch;
+      final previousTimeSnapshot = await _db
+          .ref('users/${owner.uid}/$_shareTimesKey/$friendUid/$categoryId')
+          .get()
+          .timeout(_requestTimeout);
+      final rawPreviousTime = previousTimeSnapshot.value;
+      if (rawPreviousTime is num) {
+        previousSharedAt = rawPreviousTime.toInt();
+        final events = await getShareEventsWithFriend(friendUid);
+        hasExistingEvent = events.any(
+          (event) =>
+              event.senderUid == owner.uid &&
+              event.type == 'category' &&
+              event.itemId == categoryId,
+        );
+      }
+    } catch (_) {
+      // Sharing must still work if the optional legacy-history lookup fails.
+    }
+
+    try {
+      _sessionShareTimes['$friendUid/$categoryId'] =
+          DateTime.now().millisecondsSinceEpoch;
       await _db
           .ref('users/${owner.uid}/$_sharedWithKey/$friendUid')
           .update({categoryId: true})
@@ -729,12 +955,14 @@ class FirebaseService {
           .catchError((_) {});
       try {
         final trimmedMessage = message?.trim() ?? '';
-        final accessValue = trimmedMessage.isEmpty
-            ? ServerValue.timestamp
-            : {'sharedAt': ServerValue.timestamp, 'message': trimmedMessage};
         await _db
-            .ref('users/$friendUid/$_sharedCategoryAccessKey/${owner.uid}')
-            .update({categoryId: accessValue})
+            .ref(
+              'users/$friendUid/$_sharedCategoryAccessKey/${owner.uid}/$categoryId',
+            )
+            .update({
+              'sharedAt': ServerValue.timestamp,
+              'message': trimmedMessage.isEmpty ? null : trimmedMessage,
+            })
             .timeout(_requestTimeout);
       } catch (e) {
         // Same rollback as shareLink(): don't leave the owner's own node
@@ -752,7 +980,38 @@ class FirebaseService {
             .catchError((_) {});
         rethrow;
       }
+      if (previousSharedAt != null && !hasExistingEvent) {
+        await _recordShareEvent(
+          friendUid: friendUid,
+          itemId: categoryId,
+          type: 'category',
+          sharedAt: previousSharedAt,
+        );
+      }
+      await _recordShareEvent(
+        friendUid: friendUid,
+        itemId: categoryId,
+        type: 'category',
+      );
       log('Category shared: ${owner.uid} -> $friendUid (cat: $categoryId)');
+
+      final senderName = owner.displayName?.trim().isNotEmpty == true
+          ? owner.displayName!
+          : 'Bạn bè';
+      unawaited(
+        FcmPushService.sendPushNotification(
+          receiverUid: friendUid,
+          title: senderName,
+          body: 'Đã chia sẻ cho bạn một danh mục mới',
+          data: {
+            'type': 'share_category',
+            'friendUid': owner.uid,
+            'friendName': senderName,
+            'friendPhotoUrl': owner.photoURL ?? '',
+            'categoryId': categoryId,
+          },
+        ),
+      );
     } catch (e) {
       log('Share category error: $e');
       rethrow;
@@ -913,11 +1172,37 @@ class FirebaseService {
       );
     }
 
+    int? previousSharedAt;
+    var hasExistingEvent = true;
     try {
-      _sessionShareTimes['$friendUid/$linkId'] = DateTime.now().millisecondsSinceEpoch;
+      final previousTimeSnapshot = await _db
+          .ref('users/${owner.uid}/$_shareTimesKey/$friendUid/$linkId')
+          .get()
+          .timeout(_requestTimeout);
+      final rawPreviousTime = previousTimeSnapshot.value;
+      if (rawPreviousTime is num) {
+        previousSharedAt = rawPreviousTime.toInt();
+        final events = await getShareEventsWithFriend(friendUid);
+        hasExistingEvent = events.any(
+          (event) => event.senderUid == owner.uid && event.itemId == linkId,
+        );
+      }
+    } catch (_) {
+      // Sharing must still work if the optional legacy-history lookup fails.
+    }
+
+    try {
+      _sessionShareTimes['$friendUid/$linkId'] =
+          DateTime.now().millisecondsSinceEpoch;
+      final localLink = AppCache.links
+          .where((item) => item.id == linkId)
+          .firstOrNull;
       await _db
-          .ref('users/${owner.uid}/$_sharedLinksWithKey/$friendUid')
-          .update({linkId: true})
+          .ref('users/${owner.uid}')
+          .update({
+            if (localLink != null) 'links/$linkId': localLink.toJson(),
+            '$_sharedLinksWithKey/$friendUid/$linkId': true,
+          })
           .timeout(_requestTimeout);
       _db
           .ref('users/${owner.uid}/$_shareTimesKey/$friendUid')
@@ -925,12 +1210,12 @@ class FirebaseService {
           .catchError((_) {});
       try {
         final trimmedMessage = message?.trim() ?? '';
-        final accessValue = trimmedMessage.isEmpty
-            ? ServerValue.timestamp
-            : {'sharedAt': ServerValue.timestamp, 'message': trimmedMessage};
         await _db
-            .ref('users/$friendUid/$_sharedLinkAccessKey/${owner.uid}')
-            .update({linkId: accessValue})
+            .ref('users/$friendUid/$_sharedLinkAccessKey/${owner.uid}/$linkId')
+            .update({
+              'sharedAt': ServerValue.timestamp,
+              'message': trimmedMessage.isEmpty ? null : trimmedMessage,
+            })
             .timeout(_requestTimeout);
       } catch (e) {
         // Own-side write above already succeeded — without this rollback the
@@ -951,7 +1236,38 @@ class FirebaseService {
             .catchError((_) {});
         rethrow;
       }
+      if (previousSharedAt != null && !hasExistingEvent) {
+        await _recordShareEvent(
+          friendUid: friendUid,
+          itemId: linkId,
+          type: 'link',
+          sharedAt: previousSharedAt,
+        );
+      }
+      await _recordShareEvent(
+        friendUid: friendUid,
+        itemId: linkId,
+        type: 'link',
+      );
       log('Link shared: ${owner.uid} -> $friendUid (link: $linkId)');
+
+      final senderName = owner.displayName?.trim().isNotEmpty == true
+          ? owner.displayName!
+          : 'Bạn bè';
+      unawaited(
+        FcmPushService.sendPushNotification(
+          receiverUid: friendUid,
+          title: senderName,
+          body: 'Đã gửi cho bạn một link mới',
+          data: {
+            'type': 'share_link',
+            'friendUid': owner.uid,
+            'friendName': senderName,
+            'friendPhotoUrl': owner.photoURL ?? '',
+            'linkId': linkId,
+          },
+        ),
+      );
     } catch (e) {
       log('Share link error: $e');
       rethrow;
@@ -1046,7 +1362,9 @@ class FirebaseService {
   }
 
   /// Returns timestamps when items (links/categories) were shared with [friendUid].
-  static Future<Map<String, int>> getShareTimesWithFriend(String friendUid) async {
+  static Future<Map<String, int>> getShareTimesWithFriend(
+    String friendUid,
+  ) async {
     final owner = _auth.currentUser;
     if (owner == null || friendUid.isEmpty) return const {};
 
@@ -1069,6 +1387,253 @@ class FirebaseService {
       log('Get share times error: $e');
       return const {};
     }
+  }
+
+  /// Returns the immutable send history between the current user and a friend.
+  /// Unlike the access indexes, every send has its own event id, so the same
+  /// link can appear multiple times in a conversation.
+  static Future<List<ShareEventModel>> getShareEventsWithFriend(
+    String friendUid,
+  ) async {
+    final user = _auth.currentUser;
+    if (user == null || friendUid.isEmpty) return const [];
+
+    final snapshots = await Future.wait([
+      _db
+          .ref('users/${user.uid}/$_shareEventsKey/$friendUid')
+          .get()
+          .timeout(_requestTimeout),
+      _db
+          .ref('users/${user.uid}/$_sharedLinkAccessKey/$friendUid')
+          .get()
+          .timeout(_requestTimeout),
+      _db
+          .ref('users/${user.uid}/$_sharedCategoryAccessKey/$friendUid')
+          .get()
+          .timeout(_requestTimeout),
+    ]);
+    final result = <ShareEventModel>[];
+
+    final outgoingSnapshot = snapshots[0];
+    if (outgoingSnapshot.exists && outgoingSnapshot.value is Map) {
+      final raw = Map<String, dynamic>.from(outgoingSnapshot.value as Map);
+      result.addAll(
+        raw.entries
+            .where((entry) => entry.value is Map)
+            .map(
+              (entry) => ShareEventModel.fromJson(
+                id: 'out:${entry.key}',
+                json: Map<String, dynamic>.from(entry.value as Map),
+              ),
+            )
+            .whereType<ShareEventModel>(),
+      );
+    }
+
+    final incomingSnapshot = snapshots[1];
+    if (incomingSnapshot.exists && incomingSnapshot.value is Map) {
+      final links = Map<String, dynamic>.from(incomingSnapshot.value as Map);
+      for (final linkEntry in links.entries) {
+        if (linkEntry.value is! Map) continue;
+        final linkAccess = Map<String, dynamic>.from(linkEntry.value as Map);
+        final rawEvents = linkAccess['events'];
+        if (rawEvents is! Map) continue;
+        final events = Map<String, dynamic>.from(rawEvents);
+        for (final event in events.entries) {
+          if (event.value is! num) continue;
+          result.add(
+            ShareEventModel(
+              id: 'in:${event.key}',
+              senderUid: friendUid,
+              type: 'link',
+              itemId: linkEntry.key,
+              sharedAt: DateTime.fromMillisecondsSinceEpoch(
+                (event.value as num).toInt(),
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    final incomingCategorySnapshot = snapshots[2];
+    if (incomingCategorySnapshot.exists &&
+        incomingCategorySnapshot.value is Map) {
+      final categories = Map<String, dynamic>.from(
+        incomingCategorySnapshot.value as Map,
+      );
+      for (final categoryEntry in categories.entries) {
+        if (categoryEntry.value is! Map) continue;
+        final categoryAccess = Map<String, dynamic>.from(
+          categoryEntry.value as Map,
+        );
+        final rawEvents = categoryAccess['events'];
+        if (rawEvents is! Map) continue;
+        final events = Map<String, dynamic>.from(rawEvents);
+        for (final event in events.entries) {
+          if (event.value is! num) continue;
+          result.add(
+            ShareEventModel(
+              id: 'in:${event.key}',
+              senderUid: friendUid,
+              type: 'category',
+              itemId: categoryEntry.key,
+              sharedAt: DateTime.fromMillisecondsSinceEpoch(
+                (event.value as num).toInt(),
+              ),
+            ),
+          );
+        }
+      }
+    }
+    return result;
+  }
+
+  static Stream<DatabaseEvent> watchShareEventsWithFriend(String friendUid) {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || friendUid.isEmpty) return const Stream.empty();
+    return _db.ref('users/$uid/$_shareEventsKey/$friendUid').onValue;
+  }
+
+  static Future<void> _recordShareEvent({
+    required String friendUid,
+    required String itemId,
+    required String type,
+    int? sharedAt,
+  }) async {
+    final owner = _auth.currentUser;
+    if (owner == null) return;
+
+    final eventRef = _db
+        .ref('users/${owner.uid}/$_shareEventsKey/$friendUid')
+        .push();
+    final eventId = eventRef.key;
+    if (eventId == null) {
+      throw StateError('Could not create a share event id.');
+    }
+    final value = <String, dynamic>{
+      'senderUid': owner.uid,
+      'type': type,
+      'itemId': itemId,
+      'sharedAt': sharedAt ?? ServerValue.timestamp,
+    };
+    final accessKey = type == 'category'
+        ? _sharedCategoryAccessKey
+        : _sharedLinkAccessKey;
+    final recipientEventRef = _db.ref(
+      'users/$friendUid/$accessKey/${owner.uid}/$itemId/events/$eventId',
+    );
+
+    await eventRef.set(value).timeout(_requestTimeout);
+    try {
+      await recipientEventRef
+          .set(sharedAt ?? ServerValue.timestamp)
+          .timeout(_requestTimeout);
+    } catch (_) {
+      await eventRef.remove().timeout(_requestTimeout).catchError((_) {});
+      rethrow;
+    }
+  }
+
+  /// Deletes one immutable link-send event. Outgoing events are recalled from
+  /// both users; incoming events are removed only from the current user's
+  /// inbox. Removing the final event also removes the legacy access record so
+  /// the conversation item cannot reappear as a fallback entry after reload.
+  static Future<bool> deleteShareEvent({
+    required String friendUid,
+    required String itemId,
+    required String type,
+    required String eventId,
+    required bool isMine,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    final rawEventId = eventId.contains(':')
+        ? eventId.substring(eventId.indexOf(':') + 1)
+        : eventId;
+    if (rawEventId.isEmpty) return false;
+    final isCategory = type == 'category';
+    final accessKey = isCategory
+        ? _sharedCategoryAccessKey
+        : _sharedLinkAccessKey;
+    final outgoingKey = isCategory ? _sharedWithKey : _sharedLinksWithKey;
+
+    if (isMine) {
+      final ownEventsRef = _db.ref(
+        'users/${user.uid}/$_shareEventsKey/$friendUid',
+      );
+      final recipientAccessRef = _db.ref(
+        'users/$friendUid/$accessKey/${user.uid}/$itemId',
+      );
+      await Future.wait([
+        ownEventsRef.child(rawEventId).remove().timeout(_requestTimeout),
+        recipientAccessRef
+            .child('events/$rawEventId')
+            .remove()
+            .timeout(_requestTimeout),
+      ]);
+
+      final remaining = await ownEventsRef.get().timeout(_requestTimeout);
+      final hasRemainingForLink =
+          remaining.exists &&
+          remaining.value is Map &&
+          Map<String, dynamic>.from(remaining.value as Map).values.any(
+            (value) =>
+                value is Map &&
+                Map<String, dynamic>.from(value)['itemId'] == itemId &&
+                Map<String, dynamic>.from(value)['type'] == type,
+          );
+      if (!hasRemainingForLink) {
+        await Future.wait([
+          _db
+              .ref('users/${user.uid}/$outgoingKey/$friendUid/$itemId')
+              .remove()
+              .timeout(_requestTimeout),
+          _db
+              .ref('users/${user.uid}/$_shareTimesKey/$friendUid/$itemId')
+              .remove()
+              .timeout(_requestTimeout),
+          recipientAccessRef.remove().timeout(_requestTimeout),
+        ]);
+        _sessionShareTimes.remove('$friendUid/$itemId');
+        return true;
+      }
+      return false;
+    }
+
+    final accessRef = _db.ref(
+      'users/${user.uid}/$accessKey/$friendUid/$itemId',
+    );
+    await accessRef
+        .child('events/$rawEventId')
+        .remove()
+        .timeout(_requestTimeout);
+    final remaining = await accessRef
+        .child('events')
+        .limitToFirst(1)
+        .get()
+        .timeout(_requestTimeout);
+    if (!remaining.exists) {
+      await accessRef.remove().timeout(_requestTimeout);
+      return true;
+    }
+    return false;
+  }
+
+  static Future<void> deleteIncomingShareForMe({
+    required String friendUid,
+    required String itemId,
+    required bool isCategory,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    final accessKey = isCategory
+        ? _sharedCategoryAccessKey
+        : _sharedLinkAccessKey;
+    await _db
+        .ref('users/$uid/$accessKey/$friendUid/$itemId')
+        .remove()
+        .timeout(_requestTimeout);
   }
 
   /// Remove all sharing records for [linkId] when the link is deleted.
@@ -1509,6 +2074,48 @@ class FirebaseService {
     });
   }
 
+  /// Watches immutable incoming send events rather than only link access
+  /// keys. Re-sharing an existing link keeps the same link id but creates a
+  /// new event id, so consumers can still notify for every send.
+  static Stream<Set<String>> watchIncomingLinkShareEvents() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return const Stream.empty();
+    return _db
+        .ref('users/$uid/$_sharedLinkAccessKey')
+        .onValue
+        .map((event) => _extractIncomingShareEventKeys(event.snapshot.value));
+  }
+
+  /// Category equivalent of [watchIncomingLinkShareEvents].
+  static Stream<Set<String>> watchIncomingCategoryShareEvents() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return const Stream.empty();
+    return _db
+        .ref('users/$uid/$_sharedCategoryAccessKey')
+        .onValue
+        .map((event) => _extractIncomingShareEventKeys(event.snapshot.value));
+  }
+
+  static Set<String> _extractIncomingShareEventKeys(Object? rawValue) {
+    if (rawValue is! Map) return <String>{};
+    final result = <String>{};
+    final owners = Map<String, dynamic>.from(rawValue);
+    for (final ownerEntry in owners.entries) {
+      if (ownerEntry.value is! Map) continue;
+      final items = Map<String, dynamic>.from(ownerEntry.value as Map);
+      for (final itemEntry in items.entries) {
+        if (itemEntry.value is! Map) continue;
+        final access = Map<String, dynamic>.from(itemEntry.value as Map);
+        final rawEvents = access['events'];
+        if (rawEvents is! Map) continue;
+        for (final eventId in rawEvents.keys) {
+          result.add('${ownerEntry.key}/${itemEntry.key}/$eventId');
+        }
+      }
+    }
+    return result;
+  }
+
   /// Realtime stream watching incoming links shared by [friendUid] to current user.
   static Stream<DatabaseEvent> watchIncomingLinksFromFriend(String friendUid) {
     final uid = _auth.currentUser?.uid;
@@ -1517,7 +2124,9 @@ class FirebaseService {
   }
 
   /// Realtime stream watching incoming categories shared by [friendUid] to current user.
-  static Stream<DatabaseEvent> watchIncomingCategoriesFromFriend(String friendUid) {
+  static Stream<DatabaseEvent> watchIncomingCategoriesFromFriend(
+    String friendUid,
+  ) {
     final uid = _auth.currentUser?.uid;
     if (uid == null || friendUid.isEmpty) return const Stream.empty();
     return _db.ref('users/$uid/$_sharedCategoryAccessKey/$friendUid').onValue;
@@ -1531,7 +2140,9 @@ class FirebaseService {
   }
 
   /// Realtime stream watching outgoing categories shared with [friendUid].
-  static Stream<DatabaseEvent> watchOutgoingCategoriesToFriend(String friendUid) {
+  static Stream<DatabaseEvent> watchOutgoingCategoriesToFriend(
+    String friendUid,
+  ) {
     final uid = _auth.currentUser?.uid;
     if (uid == null || friendUid.isEmpty) return const Stream.empty();
     return _db.ref('users/$uid/$_sharedWithKey/$friendUid').onValue;
@@ -1651,6 +2262,45 @@ class FirebaseService {
       log('Get category first link image error: $e');
     }
     return null;
+  }
+}
+
+class ShareEventModel {
+  const ShareEventModel({
+    required this.id,
+    required this.senderUid,
+    required this.type,
+    required this.itemId,
+    required this.sharedAt,
+  });
+
+  final String id;
+  final String senderUid;
+  final String type;
+  final String itemId;
+  final DateTime sharedAt;
+
+  static ShareEventModel? fromJson({
+    required String id,
+    required Map<String, dynamic> json,
+  }) {
+    final senderUid = json['senderUid']?.toString() ?? '';
+    final type = json['type']?.toString() ?? '';
+    final itemId = json['itemId']?.toString() ?? '';
+    final rawSharedAt = json['sharedAt'];
+    if (senderUid.isEmpty ||
+        itemId.isEmpty ||
+        (type != 'link' && type != 'category') ||
+        rawSharedAt is! num) {
+      return null;
+    }
+    return ShareEventModel(
+      id: id,
+      senderUid: senderUid,
+      type: type,
+      itemId: itemId,
+      sharedAt: DateTime.fromMillisecondsSinceEpoch(rawSharedAt.toInt()),
+    );
   }
 }
 

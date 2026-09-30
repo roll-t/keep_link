@@ -2,8 +2,8 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/routes/not_found_page.dart';
 import 'package:keep_link/features/category/application/di/category_binding.dart';
 import 'package:keep_link/features/friend/application/di/friend_binding.dart';
-import 'package:keep_link/features/friend/application/di/shared_category_binding.dart';
 import 'package:keep_link/features/friend/application/di/share_conversation_binding.dart';
+import 'package:keep_link/features/friend/application/di/shared_category_binding.dart';
 import 'package:keep_link/features/friend/presentation/page/friend_page.dart';
 import 'package:keep_link/features/friend/presentation/page/my_qr_page.dart';
 import 'package:keep_link/features/friend/presentation/page/share_conversation_page.dart';
@@ -12,7 +12,9 @@ import 'package:keep_link/features/link/module/link_add/di/add_link_binding.dart
 import 'package:keep_link/features/link/module/link_add/presentation/page/add_link_page.dart';
 import 'package:keep_link/features/link/module/link_colections/di/link_collection_binding.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/page/link_collection_page.dart';
+import 'package:keep_link/features/link/module/link_detail/di/downloaded_video_binding.dart';
 import 'package:keep_link/features/link/module/link_detail/di/link_detail_binding.dart';
+import 'package:keep_link/features/link/module/link_detail/presentation/page/downloaded_video_page.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/page/link_detail.dart';
 import 'package:keep_link/features/link/module/link_search/di/search_link_binding.dart';
 import 'package:keep_link/features/link/module/link_search/presentation/page/search_link_page.dart';
@@ -28,10 +30,7 @@ import 'package:keep_link/features/security/presentation/page/security_method_pa
 import 'package:keep_link/features/splash/di/splash_binding.dart';
 import 'package:keep_link/features/splash/presentation/page/splash_page.dart';
 
-final notFoundPage = GetPage(
-  name: "/not_found",
-  page: () => const NotFoundPage(),
-);
+final notFoundPage = GetPage(name: "/not_found", page: () => const NotFoundPage());
 
 final appPage = [
   GetPage(
@@ -50,6 +49,11 @@ final appPage = [
     page: () => const LinkDetailPage(),
     transition: Transition.downToUp,
     binding: LinkDetailBinding(),
+  ),
+  GetPage(
+    name: DownloadedVideoPage.routeName,
+    page: () => const DownloadedVideoPage(),
+    binding: DownloadedVideoBinding(),
   ),
   GetPage(
     name: AddLinkPage.routeName,
@@ -101,7 +105,7 @@ final appPage = [
   ),
   GetPage(
     name: ShareConversationPage.routeName,
-    transition: Transition.rightToLeft,
+    transition: Transition.leftToRight,
     page: () => const ShareConversationPage(),
     binding: ShareConversationBinding(),
   ),

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:keep_link/core/config/assets/app_vectors.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
-import 'package:keep_link/core/presentation/extensions/colors.dart';
+import 'package:keep_link/core/config/theme/app_text_styles.dart';
+import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/widgets/share_link_sheet.dart';
 
@@ -20,13 +21,12 @@ class SelectionActionBar extends GetView<LinkCollectionController> {
       return Padding(
         padding: EdgeInsets.symmetric(horizontal: sidePadding),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(8),
           child: Container(
-            height: 64,
+            height: 56,
             decoration: BoxDecoration(
-              color: AppColors.d300.withOpacityCompat(0.92),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.white.withOpacityCompat(0.08)),
+              color: AppColors.navigationSurface,
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
@@ -37,29 +37,21 @@ class SelectionActionBar extends GetView<LinkCollectionController> {
                     foregroundColor: AppColors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
-                  child: Text(
-                    'Huỷ',
-                    style: const TextStyle(
-                      color: AppColors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: TextWidget(
+                    text: 'Huỷ',
+                    color: AppColors.white,
+                    textStyle: AppTextStyle.semiBold14,
                   ),
                 ),
 
                 // Selected count (center)
                 Expanded(
-                  child: Text(
-                    count == 0 ? 'Chưa chọn' : '$count đã chọn',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: AppColors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: TextWidget(
+                    text: count == 0 ? 'Chưa chọn' : '$count đã chọn',
+                    color: AppColors.white,
+                    textStyle: AppTextStyle.semiBold14,
                   ),
                 ),
-
                 // Select All / Deselect All
                 TextButton(
                   onPressed: controller.toggleSelectAll,
@@ -67,13 +59,10 @@ class SelectionActionBar extends GetView<LinkCollectionController> {
                     foregroundColor: AppColors.primaryDim,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                   ),
-                  child: Text(
-                    isAll ? 'Bỏ chọn' : 'Tất cả',
-                    style: const TextStyle(
-                      color: AppColors.primaryDim,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: TextWidget(
+                    text: isAll ? 'Bỏ chọn' : 'Tất cả',
+                    color: AppColors.primaryDim,
+                    textStyle: AppTextStyle.semiBold14,
                   ),
                 ),
 

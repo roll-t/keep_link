@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,9 @@ class LocalNotificationService {
   LocalNotificationService._();
 
   static final _plugin = FlutterLocalNotificationsPlugin();
+
+  /// Callback khi người dùng nhấn vào thông báo cục bộ
+  static void Function(Map<String, dynamic>)? onNotificationTap;
 
   // Android notification-channel sound is immutable after the channel is
   // created. Version the IDs so existing installs receive the custom sound
@@ -40,7 +44,18 @@ class LocalNotificationService {
       iOS: darwinSettings,
     );
 
-    await _plugin.initialize(settings);
+    await _plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+        if (payload != null && payload.isNotEmpty) {
+          try {
+            final data = jsonDecode(payload) as Map<String, dynamic>;
+            onNotificationTap?.call(data);
+          } catch (_) {}
+        }
+      },
+    );
 
     // Android 8+: tạo notification channels
     if (Platform.isAndroid) {
@@ -49,28 +64,62 @@ class LocalNotificationService {
             AndroidFlutterLocalNotificationsPlugin
           >();
 
-      await androidPlugin?.createNotificationChannel(
-        const AndroidNotificationChannel(
-          _friendChannelId,
-          _friendChannelName,
-          importance: Importance.high,
-          enableVibration: true,
-          sound: RawResourceAndroidNotificationSound(_androidSoundName),
-        ),
-      );
+      try {
+        await androidPlugin?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            _friendChannelId,
+            _friendChannelName,
+            importance: Importance.high,
+            enableVibration: true,
+            sound: RawResourceAndroidNotificationSound(_androidSoundName),
+          ),
+        );
+      } catch (e) {
+        debugPrint(
+          '[LocalNotif] Failed to create friend channel with custom sound, fallback: $e',
+        );
+        try {
+          await androidPlugin?.createNotificationChannel(
+            const AndroidNotificationChannel(
+              _friendChannelId,
+              _friendChannelName,
+              importance: Importance.high,
+              enableVibration: true,
+            ),
+          );
+        } catch (_) {}
+      }
 
-      await androidPlugin?.createNotificationChannel(
-        const AndroidNotificationChannel(
-          _sharedChannelId,
-          _sharedChannelName,
-          importance: Importance.high,
-          enableVibration: true,
-          sound: RawResourceAndroidNotificationSound(_androidSoundName),
-        ),
-      );
+      try {
+        await androidPlugin?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            _sharedChannelId,
+            _sharedChannelName,
+            importance: Importance.high,
+            enableVibration: true,
+            sound: RawResourceAndroidNotificationSound(_androidSoundName),
+          ),
+        );
+      } catch (e) {
+        debugPrint(
+          '[LocalNotif] Failed to create shared channel with custom sound, fallback: $e',
+        );
+        try {
+          await androidPlugin?.createNotificationChannel(
+            const AndroidNotificationChannel(
+              _sharedChannelId,
+              _sharedChannelName,
+              importance: Importance.high,
+              enableVibration: true,
+            ),
+          );
+        } catch (_) {}
+      }
 
       // Xin quyền POST_NOTIFICATIONS (Android 13+)
-      await androidPlugin?.requestNotificationsPermission();
+      try {
+        await androidPlugin?.requestNotificationsPermission();
+      } catch (_) {}
     }
 
     _initialized = true;
@@ -82,6 +131,7 @@ class LocalNotificationService {
   static Future<void> showFriendRequestNotification({
     required String title,
     required String body,
+    String? payload,
   }) async {
     if (kDebugMode) debugPrint('[LocalNotif] friend_request: $body');
     await _show(
@@ -90,6 +140,7 @@ class LocalNotificationService {
       body: body,
       channelId: _friendChannelId,
       channelName: _friendChannelName,
+      payload: payload,
     );
   }
 
@@ -97,6 +148,7 @@ class LocalNotificationService {
   static Future<void> showSharedCategoryNotification({
     required String title,
     required String body,
+    String? payload,
   }) async {
     if (kDebugMode) debugPrint('[LocalNotif] shared_category: $body');
     await _show(
@@ -105,6 +157,7 @@ class LocalNotificationService {
       body: body,
       channelId: _sharedChannelId,
       channelName: _sharedChannelName,
+      payload: payload,
     );
   }
 
@@ -116,6 +169,7 @@ class LocalNotificationService {
     required String body,
     required String channelId,
     required String channelName,
+    String? payload,
   }) async {
     if (!_initialized) await init();
 
@@ -140,6 +194,37 @@ class LocalNotificationService {
       iOS: darwinDetails,
     );
 
-    await _plugin.show(id, title, body, details);
+    try {
+      await _plugin.show(id, title, body, details, payload: payload);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          '[LocalNotif] Failed with custom sound ($e). Falling back to default sound.',
+        );
+      }
+      try {
+        final fallbackDetails = NotificationDetails(
+          android: AndroidNotificationDetails(
+            channelId,
+            channelName,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        );
+        await _plugin.show(id, title, body, fallbackDetails, payload: payload);
+      } catch (fallbackError) {
+        if (kDebugMode) {
+          debugPrint(
+            '[LocalNotif] Failed to show fallback notification: $fallbackError',
+          );
+        }
+      }
+    }
   }
 }

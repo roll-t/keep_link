@@ -57,6 +57,34 @@ class LinkModel implements DbModel {
     };
   }
 
+  LinkModel copyWith({
+    String? id,
+    String? name,
+    String? image,
+    MetaDataModel? metaDataModel,
+    String? categoryId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return LinkModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      image: image ?? this.image,
+      metaDataModel: metaDataModel ?? this.metaDataModel,
+      categoryId: categoryId ?? this.categoryId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  /// Ưu tiên đường dẫn thumbnail local bền vững nếu có, ngược lại dùng URL metadata
+  String get displayImage {
+    if (image != null && image!.trim().isNotEmpty) {
+      return image!.trim();
+    }
+    return metaDataModel?.imageUrl.trim() ?? '';
+  }
+
   @override
   String get tableName => "links";
 

@@ -8,6 +8,7 @@ import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/friend/application/model/shared_category_model.dart';
 import 'package:keep_link/features/friend/application/model/shared_individual_link_model.dart';
 import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
+import 'package:keep_link/features/link/application/model/link_model.dart';
 import 'package:keep_link/core/presentation/widgets/shimmer/app_shimmer.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/widgets/link_item.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/controller/link_detail_controller.dart';
@@ -261,7 +262,7 @@ class _SharedIndividualLinkCard extends StatelessWidget {
     final meta = item.link.metaDataModel;
     final title = item.link.name ?? meta?.title ?? 'Link';
     final description = meta?.description ?? '';
-    final imageUrl = meta?.imageUrl ?? '';
+    final imageUrl = item.link.displayImage;
     final url = meta?.url;
     final host = url != null
         ? Uri.tryParse(url)?.host.replaceFirst('www.', '') ?? ''
@@ -651,121 +652,107 @@ void openSharedCategoryLinksSheet(
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: AppColors.d500,
+    backgroundColor: AppColors.modalSurface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
     ),
-    builder: (ctx) {
-      return SafeArea(
-        top: false,
-        child: SizedBox(
-          height: MediaQuery.of(ctx).size.height * 0.9,
-          child: Column(
-            children: [
-              // Handle
-              Padding(
-                padding: const EdgeInsets.only(top: 12, bottom: 4),
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.n500.withOpacityCompat(0.4),
-                    borderRadius: BorderRadius.circular(2),
+    builder: (ctx) => Obx(
+      () => CategoryLinksBottomSheet(
+        title: category.categoryName,
+        links: controller.sharedLinks.toList(),
+        isLoading: controller.isLoadingLinks.value,
+        readOnly: true,
+      ),
+    ),
+  ).whenComplete(controller.closeSharedCategory);
+}
+
+/// Shared presentation for both incoming and outgoing category conversations.
+class CategoryLinksBottomSheet extends StatelessWidget {
+  const CategoryLinksBottomSheet({
+    super.key,
+    required this.title,
+    required this.links,
+    this.isLoading = false,
+    this.readOnly = false,
+  });
+
+  final String title;
+  final List<LinkModel> links;
+  final bool isLoading;
+  final bool readOnly;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * .72,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 10, 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.folder_rounded, color: AppColors.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextWidget(
+                      text: title,
+                      color: AppColors.white,
+                      size: 17,
+                      fontWeight: FontWeight.w700,
+                      maxLines: 1,
+                    ),
                   ),
-                ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded, color: AppColors.n70),
+                  ),
+                ],
               ),
-              // Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: Row(
-                  children: [
-                    SharedOwnerAvatar(
-                      displayName: category.ownerDisplayName,
-                      photoUrl: category.ownerPhotoUrl,
-                      size: 38,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          TextWidget(
-                            text: category.categoryName,
-                            color: AppColors.white,
-                            size: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          TextWidget(
-                            text:
-                                '${'shared_by'.tr} ${category.ownerDisplayName}',
-                            color: AppColors.n70,
-                            size: 12,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Divider(color: AppColors.n500.withOpacityCompat(0.2), height: 1),
-              // Links list
-              Expanded(
-                child: Obx(() {
-                  if (controller.isLoadingLinks.value) {
-                    return const LinkListShimmer(
-                      thumbnailWidth: 136,
-                      hasTrailingButton: false,
-                    );
-                  }
+            ),
+            Expanded(child: _buildBody()),
+          ],
+        ),
+      ),
+    );
+  }
 
-                  if (controller.sharedLinks.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: TextWidget(
-                          text: 'no_links_in_category'.tr,
-                          color: AppColors.n70,
-                          size: 14,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    );
-                  }
-
-                  return ListView.separated(
-                    padding: const EdgeInsets.only(top: 4, bottom: 24),
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: controller.sharedLinks.length,
-                    separatorBuilder: (_, __) => Divider(
-                      height: .5,
-                      thickness: 0.8,
-                      indent: 0,
-                      endIndent: 0,
-                      color: AppColors.white.withOpacityCompat(0.10),
-                    ),
-                    itemBuilder: (_, i) {
-                      final link = controller.sharedLinks[i];
-                      return LinkListItem(
-                        index: i,
-                        item: link,
-                        onTap: () {
-                          Get.toNamed(
-                            LinkDetailPage.routeName,
-                            arguments: LinkDetailArguments(
-                              link: link,
-                              readOnly: true,
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  );
-                }),
-              ),
-            ],
-          ),
+  Widget _buildBody() {
+    if (isLoading) {
+      return const LinkListShimmer(
+        thumbnailWidth: 136,
+        hasTrailingButton: false,
+      );
+    }
+    if (links.isEmpty) {
+      return Center(
+        child: TextWidget(
+          text: 'no_links_in_category'.tr,
+          color: AppColors.n70,
         ),
       );
-    },
-  ).whenComplete(controller.closeSharedCategory);
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.only(bottom: 24),
+      physics: const BouncingScrollPhysics(),
+      itemCount: links.length,
+      separatorBuilder: (_, __) =>
+          Divider(height: 1, color: AppColors.white.withOpacityCompat(.06)),
+      itemBuilder: (_, index) {
+        final link = links[index];
+        return LinkListItem(
+          index: index,
+          item: link,
+          onTap: () => Get.toNamed(
+            LinkDetailPage.routeName,
+            arguments: readOnly
+                ? LinkDetailArguments(link: link, readOnly: true)
+                : link,
+          ),
+        );
+      },
+    );
+  }
 }

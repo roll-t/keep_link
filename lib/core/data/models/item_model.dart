@@ -6,6 +6,8 @@ class ItemModel {
   VisibilityStatus visibility;
   int? chilrenCount;
   bool isPinned;
+  bool isSource;
+  String? sourceHost;
 
   ItemModel({
     this.id,
@@ -13,6 +15,8 @@ class ItemModel {
     this.visibility = VisibilityStatus.public,
     this.chilrenCount,
     this.isPinned = false,
+    this.isSource = false,
+    this.sourceHost,
   });
 
   // From JSON

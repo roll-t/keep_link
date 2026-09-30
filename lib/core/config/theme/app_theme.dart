@@ -74,8 +74,8 @@ class AppTheme {
     useMaterial3: true,
     colorScheme: darkColorScheme,
     scaffoldBackgroundColor: AppColors.background,
-    appBarTheme: AppBarTheme(
-      backgroundColor: AppColors.surface,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.d500,
       foregroundColor: AppColors.onSurface,
       elevation: 0,
       centerTitle: true,
@@ -93,15 +93,11 @@ class AppTheme {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: AppColors.outlineVariant.withValues(alpha: 0.15),
-        ),
+        borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.15)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: AppColors.outlineVariant.withValues(alpha: 0.15),
-        ),
+        borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.15)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

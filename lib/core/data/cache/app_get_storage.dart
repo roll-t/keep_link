@@ -57,8 +57,20 @@ class AppGetStorage {
   static void setIncognitoMode(bool value) =>
       _box.write(_incognitoModeKey, value);
 
-  static bool isIncognitoMode() =>
-      _box.read<bool>(_incognitoModeKey) ?? false;
+  static bool isIncognitoMode() => _box.read<bool>(_incognitoModeKey) ?? false;
+
+  // ========== Downloaded social videos ========== //
+  static String _downloadedVideoKey(String url) =>
+      'downloaded_video_${sha256.convert(utf8.encode(url.trim()))}';
+
+  static void setDownloadedVideoPath(String url, String path) =>
+      _box.write(_downloadedVideoKey(url), path);
+
+  static String? getDownloadedVideoPath(String url) =>
+      _box.read<String>(_downloadedVideoKey(url));
+
+  static void removeDownloadedVideoPath(String url) =>
+      _box.remove(_downloadedVideoKey(url));
 
   // ========== Token ========== //
   static void saveToken(String token) => _box.write(_tokenKey, token);
@@ -437,6 +449,9 @@ class AppGetStorage {
   // ========== Seen Shared Category Keys ========== //
   static const String _seenSharedKeysPrefix = 'seen_shared_keys_';
   static const String _notifiedSharedKeysPrefix = 'notified_shared_keys_';
+  static const String _notifiedShareEventsPrefix = 'notified_share_events_';
+
+  static const String _hasUnreadSharePrefix = 'has_unread_share_';
 
   /// Lấy danh sách key đã xem của user (dạng "ownerUid/catId")
   static Set<String> getSeenSharedKeys(String uid) {
@@ -454,6 +469,18 @@ class AppGetStorage {
   static void clearSeenSharedKeys(String uid) {
     _box.remove('$_seenSharedKeysPrefix$uid');
     _box.remove('$_notifiedSharedKeysPrefix$uid');
+    _box.remove('$_notifiedShareEventsPrefix$uid');
+    _box.remove('$_hasUnreadSharePrefix$uid');
+  }
+
+  /// Kiểm tra có thông báo/mục chia sẻ mới chưa xem hay không
+  static bool getHasUnreadShare(String uid) {
+    return _box.read<bool>('$_hasUnreadSharePrefix$uid') ?? false;
+  }
+
+  /// Cập nhật trạng thái có mục chia sẻ mới chưa xem
+  static void setHasUnreadShare(String uid, bool value) {
+    _box.write('$_hasUnreadSharePrefix$uid', value);
   }
 
   /// Các mục chia sẻ đã từng kích hoạt thông báo trên thiết bị này.
@@ -466,6 +493,20 @@ class AppGetStorage {
 
   static void setNotifiedSharedKeys(String uid, Set<String> keys) {
     _box.write('$_notifiedSharedKeysPrefix$uid', keys.toList());
+  }
+
+  /// Immutable share event ids that have already produced a local
+  /// notification. Keeping this separate from item/viewed keys means opening
+  /// the app can notify for events received while it was not running without
+  /// repeating the same notification on every later launch.
+  static Set<String> getNotifiedShareEventKeys(String uid) {
+    final raw = _box.read<List>('$_notifiedShareEventsPrefix$uid');
+    if (raw == null) return {};
+    return raw.cast<String>().toSet();
+  }
+
+  static void setNotifiedShareEventKeys(String uid, Set<String> keys) {
+    _box.write('$_notifiedShareEventsPrefix$uid', keys.toList());
   }
 
   // ========== Viewed Shared Category Items (per-item red dot) ========== //
@@ -506,6 +547,21 @@ class AppGetStorage {
 
   static void setPinnedCategoryIds(Set<String> ids) {
     _box.write(_pinnedCategoryIdsKey, ids.toList());
+  }
+
+  // ========== Message Reactions ========== //
+  static const String _messageReactionPrefix = 'msg_reaction_';
+
+  static String? getMessageReaction(String identityKey) {
+    return _box.read<String>('$_messageReactionPrefix$identityKey');
+  }
+
+  static void setMessageReaction(String identityKey, String? emoji) {
+    if (emoji == null || emoji.isEmpty) {
+      _box.remove('$_messageReactionPrefix$identityKey');
+    } else {
+      _box.write('$_messageReactionPrefix$identityKey', emoji);
+    }
   }
 
   // ========== Control size ========== //

@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:keep_link/core/di/dependency_utils.dart';
 import 'package:keep_link/features/friend/presentation/controller/friend_controller.dart';
+import 'package:keep_link/features/friend/presentation/controller/share_conversations_controller.dart';
 import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
 
 class FriendBinding extends Bindings {
@@ -12,5 +13,11 @@ class FriendBinding extends Bindings {
     // changes; DependencyUtils.put() is a no-op if already registered.
     DependencyUtils.put(() => FriendController(), permanent: true);
     DependencyUtils.put(() => SharedCategoryController(), permanent: true);
+    DependencyUtils.lazyPut(
+      () => ShareConversationsController(
+        friendController: Get.find<FriendController>(),
+        sharedController: Get.find<SharedCategoryController>(),
+      ),
+    );
   }
 }

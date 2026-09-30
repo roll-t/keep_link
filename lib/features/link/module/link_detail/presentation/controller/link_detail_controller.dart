@@ -1,11 +1,16 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
 import 'package:keep_link/core/data/repositories/link_repository.dart';
 import 'package:keep_link/core/services/backend/link_metadata_service.dart';
+import 'package:keep_link/core/services/backend/social_video_download_service.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
 import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/application/model/category_model.dart';
@@ -14,6 +19,11 @@ import 'package:keep_link/features/link/application/model/link_platform.dart';
 import 'package:keep_link/features/link/application/model/link_type.dart';
 import 'package:keep_link/features/link/module/link_add/presentation/page/add_link_page.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
+import 'package:keep_link/features/link/module/link_detail/di/downloaded_video_binding.dart';
+import 'package:keep_link/features/link/module/link_detail/presentation/controller/downloaded_video_controller.dart';
+import 'package:keep_link/features/link/module/link_detail/presentation/page/downloaded_video_page.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LinkDetailArguments {
@@ -38,12 +48,12 @@ class LinkDetailController extends GetxController {
   final webLoadProgress = 0.obs;
   final hasWebContent = false.obs;
   final webViewGeneration = 0.obs;
-  // Trang chính (không phải sub-resource) tải lỗi — vd. site chặn kết nối,
-  // SSL handshake fail... Không có cờ này thì người dùng chỉ thấy màn hình
-  // đen im lìm không rõ đang tải hay đã hỏng, không biết phải làm gì tiếp.
+  final isDownloadingVideo = false.obs;
+  final downloadProgress = 0.0.obs;
+  final downloadedVideoPath = ''.obs;
+  CancelToken? _videoDownloadCancelToken;
   final hasLoadError = false.obs;
-  late final RxString _resolvedAddress =
-      (link.metaDataModel?.address ?? '').obs;
+  late final RxString _resolvedAddress = (link.metaDataModel?.address ?? '').obs;
   InAppWebViewController? webViewController;
 
   late final String url = _normalizeWebUrl(link.metaDataModel?.url);
@@ -59,17 +69,60 @@ class LinkDetailController extends GetxController {
   }
 
   bool get isVideo => linkType == LinkType.video;
-  String get imageUrl => link.metaDataModel?.imageUrl ?? '';
+  String get imageUrl => link.displayImage;
   String get title => link.metaDataModel?.title ?? link.name ?? '';
   String get description => link.metaDataModel?.description ?? '';
   bool get isTikTok => url.contains("tiktok.com");
+  bool get canDownloadVideo => SocialVideoDownloadService.supports(url);
+  bool get hasDownloadedVideo => downloadedVideoPath.value.isNotEmpty;
   String get address => _resolvedAddress.value;
   bool get hasLocation => address.isNotEmpty;
+  bool get isMine => !readOnly;
+
+  // ── Pull-down to dismiss gesture ──────────────────────────────────────────
+  final dragOffsetY = 0.0.obs;
+  final isDragging = false.obs;
+  bool _isPopping = false;
+  static const double dismissThreshold = 80.0;
+
+  void onVerticalDragStart() {
+    isDragging.value = true;
+  }
+
+  void onVerticalDragUpdate(double deltaY) {
+    if (_isPopping) return;
+    isDragging.value = true;
+    if (deltaY > 0 || dragOffsetY.value > 0) {
+      dragOffsetY.value = (dragOffsetY.value + deltaY).clamp(0.0, 400.0);
+    }
+  }
+
+  void onVerticalDragEnd(double velocity) {
+    if (_isPopping) return;
+    if (dragOffsetY.value > dismissThreshold || velocity > 350.0) {
+      _isPopping = true;
+      Get.back();
+    } else {
+      isDragging.value = false;
+      dragOffsetY.value = 0.0;
+    }
+  }
 
   @override
   void onInit() {
     super.onInit();
     _backfillTikTokAddress();
+    _restoreDownloadedVideo();
+  }
+
+  Future<void> _restoreDownloadedVideo() async {
+    final savedPath = AppGetStorage.getDownloadedVideoPath(url);
+    if (savedPath == null || savedPath.isEmpty) return;
+    if (await File(savedPath).exists()) {
+      downloadedVideoPath.value = savedPath;
+    } else {
+      AppGetStorage.removeDownloadedVideoPath(url);
+    }
   }
 
   Future<void> _backfillTikTokAddress() async {
@@ -116,10 +169,7 @@ class LinkDetailController extends GetxController {
       _showReadOnlyMessage();
       return;
     }
-    final normalizedId =
-        (newCategoryId == null ||
-            newCategoryId.isEmpty ||
-            newCategoryId == 'all')
+    final normalizedId = (newCategoryId == null || newCategoryId.isEmpty || newCategoryId == 'all')
         ? null
         : newCategoryId;
 
@@ -143,9 +193,7 @@ class LinkDetailController extends GetxController {
     }
 
     if (normalizedId != null) {
-      final cat = AppCache.categories.firstWhereOrNull(
-        (c) => c.id == normalizedId,
-      );
+      final cat = AppCache.categories.firstWhereOrNull((c) => c.id == normalizedId);
       final catName = cat?.name ?? 'Category'.tr;
       AppToast.success('category_changed'.trParams({'name': catName}));
     } else {
@@ -184,11 +232,9 @@ class LinkDetailController extends GetxController {
     'admaven.com',
   ];
 
-  static bool _isAdHost(String host) =>
-      _adDomains.any((domain) => host.contains(domain));
+  static bool _isAdHost(String host) => _adDomains.any((domain) => host.contains(domain));
 
-  static String get _adDomainsJsArray =>
-      '[${_adDomains.map((d) => "'$d'").join(',')}]';
+  static String get _adDomainsJsArray => '[${_adDomains.map((d) => "'$d'").join(',')}]';
 
   bool _isLaunchingFallback = false;
 
@@ -208,9 +254,7 @@ class LinkDetailController extends GetxController {
     incognito: isIncognito.value,
     // LOAD_DEFAULT vẫn tận dụng HTTP cache nhưng revalidate khi cần. Chế độ
     // cache-first trước đây giữ lại redirect/trang lỗi cũ quá lâu.
-    cacheMode: isIncognito.value
-        ? CacheMode.LOAD_NO_CACHE
-        : CacheMode.LOAD_DEFAULT,
+    cacheMode: isIncognito.value ? CacheMode.LOAD_NO_CACHE : CacheMode.LOAD_DEFAULT,
 
     // ── Rendering (Android) ──────────────────────────────────────────────
     // Dùng HybridComposition để giảm lỗi/log BLASTBufferQueue trên một số máy.
@@ -317,10 +361,7 @@ class LinkDetailController extends GetxController {
     _updateNavState();
   }
 
-  void onReceivedHttpError(
-    WebResourceRequest request,
-    WebResourceResponse response,
-  ) {
+  void onReceivedHttpError(WebResourceRequest request, WebResourceResponse response) {
     if (request.isForMainFrame == true && (response.statusCode ?? 0) >= 400) {
       isWebLoading.value = false;
       webLoadProgress.value = 0;
@@ -337,9 +378,7 @@ class LinkDetailController extends GetxController {
     webViewGeneration.value++;
   }
 
-  Future<NavigationActionPolicy> shouldOverrideUrlLoading(
-    NavigationAction navigationAction,
-  ) async {
+  Future<NavigationActionPolicy> shouldOverrideUrlLoading(NavigationAction navigationAction) async {
     final uri = navigationAction.request.url;
     if (uri == null) return NavigationActionPolicy.ALLOW;
 
@@ -376,9 +415,7 @@ class LinkDetailController extends GetxController {
   /// thật; lỡ chặn nhầm 1 bước redirect ở đây thì cả trang không tải được
   /// gì, chỉ còn nền đen — trong khi mục tiêu ban đầu chỉ là chặn ads/tracker
   /// phụ, không phải nội dung chính.
-  Future<WebResourceResponse?> shouldInterceptRequest(
-    WebResourceRequest request,
-  ) async {
+  Future<WebResourceResponse?> shouldInterceptRequest(WebResourceRequest request) async {
     if (request.isForMainFrame ?? true) return null;
     final host = request.url.host;
     if (_isAdHost(host)) {
@@ -437,9 +474,7 @@ class LinkDetailController extends GetxController {
       hasLoadError.value = false;
       isWebLoading.value = true;
       webLoadProgress.value = 0;
-      await webViewController?.loadUrl(
-        urlRequest: URLRequest(url: WebUri(url)),
-      );
+      await webViewController?.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
     }
   }
 
@@ -464,6 +499,154 @@ class LinkDetailController extends GetxController {
     AppToast.success('link_copied'.tr);
   }
 
+  Future<void> downloadVideo() async {
+    if (!canDownloadVideo || isDownloadingVideo.value) return;
+
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        backgroundColor: const Color(0xFF1B1F27),
+        title: Text('download_video'.tr, style: const TextStyle(color: Colors.white)),
+        content: Text(
+          'download_rights_confirmation'.tr,
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: Text('cancel'.tr)),
+          FilledButton(onPressed: () => Get.back(result: true), child: Text('download'.tr)),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    isDownloadingVideo.value = true;
+    downloadProgress.value = 0;
+    final cancelToken = CancelToken();
+    _videoDownloadCancelToken = cancelToken;
+    File? downloadedFile;
+    var downloadCompleted = false;
+
+    try {
+      if (!await _ensureLegacyStoragePermission()) return;
+
+      final source = await SocialVideoDownloadService.resolve(url);
+      final documentsDirectory = await getApplicationDocumentsDirectory();
+      final videoDirectory = Directory(
+        '${documentsDirectory.path}${Platform.pathSeparator}downloaded_videos',
+      );
+      if (!await videoDirectory.exists()) {
+        await videoDirectory.create(recursive: true);
+      }
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'keeplink_${source.platform}_$timestamp.${source.extension}';
+      downloadedFile = File('${videoDirectory.path}${Platform.pathSeparator}$fileName');
+
+      await Dio().download(
+        source.url,
+        downloadedFile.path,
+        cancelToken: cancelToken,
+        deleteOnError: true,
+        options: Options(
+          followRedirects: true,
+          maxRedirects: 6,
+          receiveTimeout: const Duration(minutes: 5),
+          headers: {
+            ...source.requestHeaders,
+            if (!source.requestHeaders.containsKey('Referer')) 'Referer': url,
+          },
+        ),
+        onReceiveProgress: (received, total) {
+          if (total > 0) {
+            downloadProgress.value = (received / total).clamp(0.0, 1.0);
+          }
+        },
+      );
+
+      if (!await downloadedFile.exists() || await downloadedFile.length() == 0) {
+        throw const SocialVideoDownloadException('empty_file');
+      }
+
+      final result = await ImageGallerySaverPlus.saveFile(downloadedFile.path, name: fileName);
+      final saved = result is Map && (result['isSuccess'] == true || result['filePath'] != null);
+      if (!saved) {
+        throw const SocialVideoDownloadException('save_failed');
+      }
+
+      downloadCompleted = true;
+      downloadedVideoPath.value = downloadedFile.path;
+      AppGetStorage.setDownloadedVideoPath(url, downloadedFile.path);
+      downloadProgress.value = 1;
+      AppToast.success('video_saved'.tr);
+    } on SocialVideoDownloadException catch (error) {
+      AppToast.error(_downloadErrorMessage(error.code));
+    } on DioException catch (error) {
+      if (CancelToken.isCancel(error)) {
+        AppToast.info('download_cancelled'.tr);
+      } else {
+        AppToast.error('video_download_failed'.tr);
+      }
+    } catch (_) {
+      AppToast.error('video_download_failed'.tr);
+    } finally {
+      _videoDownloadCancelToken = null;
+      isDownloadingVideo.value = false;
+      if (!downloadCompleted && downloadedFile != null && await downloadedFile.exists()) {
+        try {
+          await downloadedFile.delete();
+        } catch (_) {
+          // A partial download can be cleaned up by the OS/app later.
+        }
+      }
+    }
+  }
+
+  void cancelVideoDownload() => _videoDownloadCancelToken?.cancel();
+
+  Future<void> openDownloadedVideo() async {
+    final path = downloadedVideoPath.value;
+    if (path.isEmpty || !await File(path).exists()) {
+      downloadedVideoPath.value = '';
+      AppGetStorage.removeDownloadedVideoPath(url);
+      AppToast.error('downloaded_video_missing'.tr);
+      return;
+    }
+
+    await Get.to<void>(
+      () => const DownloadedVideoPage(),
+      binding: DownloadedVideoBinding(),
+      arguments: DownloadedVideoArguments(filePath: path, title: title),
+    );
+  }
+
+  Future<bool> _ensureLegacyStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+    final sdkMatch = RegExp(
+      r'SDK\s+(\d+)',
+      caseSensitive: false,
+    ).firstMatch(Platform.operatingSystemVersion);
+    final sdk = int.tryParse(sdkMatch?.group(1) ?? '');
+    if (sdk == null || sdk >= 29) return true;
+
+    final status = await Permission.storage.request();
+    if (status.isGranted) return true;
+    AppToast.error('storage_permission_required'.tr);
+    return false;
+  }
+
+  String _downloadErrorMessage(String code) {
+    switch (code) {
+      case 'youtube_restricted':
+        return 'youtube_download_restricted'.tr;
+      case 'source_unavailable':
+        return 'video_source_unavailable'.tr;
+      case 'network':
+        return 'video_download_network_error'.tr;
+      case 'save_failed':
+        return 'video_save_failed'.tr;
+      default:
+        return 'video_download_failed'.tr;
+    }
+  }
+
   Future<void> openInApp() async => openDestination();
 
   Future<void> openDestination() async {
@@ -481,10 +664,7 @@ class LinkDetailController extends GetxController {
         // Đối với ứng dụng (YouTube, TikTok, Facebook, Instagram,...):
         // Thử mở bằng App ngoài native đã cài trên máy trước.
         try {
-          opened = await launchUrl(
-            uri,
-            mode: LaunchMode.externalNonBrowserApplication,
-          );
+          opened = await launchUrl(uri, mode: LaunchMode.externalNonBrowserApplication);
         } catch (error) {
           debugPrint('Open non-browser app error: $error');
         }
@@ -566,13 +746,10 @@ class LinkDetailController extends GetxController {
     final match = RegExp(r'S\.browser_fallback_url=([^;]+)').firstMatch(raw);
     if (match == null) return;
     final fallback = Uri.tryParse(Uri.decodeComponent(match.group(1)!));
-    if (fallback == null ||
-        (fallback.scheme != 'http' && fallback.scheme != 'https')) {
+    if (fallback == null || (fallback.scheme != 'http' && fallback.scheme != 'https')) {
       return;
     }
-    await webViewController?.loadUrl(
-      urlRequest: URLRequest(url: WebUri(fallback.toString())),
-    );
+    await webViewController?.loadUrl(urlRequest: URLRequest(url: WebUri(fallback.toString())));
   }
 
   static bool _isUnsafeExternalScheme(String scheme) {
@@ -703,6 +880,7 @@ class LinkDetailController extends GetxController {
 
   @override
   void onClose() {
+    _videoDownloadCancelToken?.cancel('Link detail closed');
     webViewController = null;
     super.onClose();
   }

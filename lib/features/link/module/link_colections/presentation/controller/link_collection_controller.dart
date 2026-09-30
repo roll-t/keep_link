@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:keep_link/core/config/constants/app_enum.dart';
 import 'package:keep_link/core/data/cache/app_cache.dart';
 import 'package:keep_link/core/data/cache/app_get_storage.dart';
+import 'package:keep_link/core/data/models/item_model.dart';
 import 'package:keep_link/core/data/repositories/category_repository.dart';
 import 'package:keep_link/core/data/repositories/link_repository.dart';
 import 'package:keep_link/core/di/dependency_utils.dart';
@@ -96,15 +97,18 @@ class LinkCollectionController extends GetxController {
   bool _refreshQueued = false;
   List<LinkModel>? _filteredLinks;
 
-  List<LinkModel> _getLinksForSelectedCategory(String? categoryId) {
-    final isAllCategory = categoryId == null || categoryId == 'all';
+  List<LinkModel> _getFilteredLinks(ItemModel? selectedItem) {
+    final isAll = selectedItem == null || selectedItem.id == 'all';
     final isCategorySecurityEnabled = AppGetStorage.isCategorySecurity();
+    final isSource = selectedItem?.isSource == true;
+
     return LinkRepository.getFiltered(
-      categoryId: categoryId,
+      categoryId: isSource ? null : selectedItem?.id,
+      source: isSource ? selectedItem?.sourceHost : null,
       privateCategoryIds: AppCache.privateCategoryIds,
       // The aggregate view must never leak links from locked categories.
       // A private category is only queried directly after its unlock flow.
-      excludePrivate: isCategorySecurityEnabled && isAllCategory,
+      excludePrivate: isCategorySecurityEnabled && (isAll || isSource),
     );
   }
 
@@ -166,8 +170,8 @@ class LinkCollectionController extends GetxController {
       await Future.wait([LinkRepository.ensureLoaded(), CategoryRepository.ensureLoaded()]);
 
       final categoryPopup = Get.find<CustomPopupController>();
-      final selectedCategoryId = categoryPopup.selectedItem.value?.id;
-      final filtered = _getLinksForSelectedCategory(selectedCategoryId);
+      final selectedItem = categoryPopup.selectedItem.value;
+      final filtered = _getFilteredLinks(selectedItem);
       _filteredLinks = filtered;
       _currentPage = filtered.isEmpty ? 0 : 1;
       _canLoadMore = filtered.length > _pageSize;
@@ -206,8 +210,8 @@ class LinkCollectionController extends GetxController {
       // per filter (reset in refreshData()); loadMore() just slices pages
       // out of it instead of re-scanning every link again each time.
       if (_filteredLinks == null) {
-        final selectedCategoryId = categoryPopup.selectedItem.value?.id;
-        _filteredLinks = _getLinksForSelectedCategory(selectedCategoryId);
+        final selectedItem = categoryPopup.selectedItem.value;
+        _filteredLinks = _getFilteredLinks(selectedItem);
       }
 
       final source = _filteredLinks!;

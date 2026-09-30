@@ -54,26 +54,40 @@ object ImageKitChannel {
             return result.error("FILE_NOT_FOUND", "File not found: $filePath", null)
         }
 
-        val token = generateJWT(fileName, folder)
-        val mainHandler = Handler(Looper.getMainLooper())
+        try {
+            val token = generateJWT(fileName, folder)
+            val mainHandler = Handler(Looper.getMainLooper())
 
-        ImageKit.getInstance().uploader().upload(
-            file = file,
-            token = token,
-            fileName = fileName,
-            useUniqueFileName = true,
-            folder = folder,
-            imageKitCallback = object : ImageKitCallback {
-                override fun onSuccess(uploadResponse: UploadResponse) {
-                    mainHandler.post { result.success(uploadResponse.url) }
-                }
-                override fun onError(uploadError: UploadError) {
-                    mainHandler.post {
-                        result.error("UPLOAD_ERROR", uploadError.message, null)
+            ImageKit.getInstance().uploader().upload(
+                file = file,
+                token = token,
+                fileName = fileName,
+                useUniqueFileName = true,
+                folder = folder,
+                imageKitCallback = object : ImageKitCallback {
+                    override fun onSuccess(uploadResponse: UploadResponse) {
+                        mainHandler.post {
+                            try {
+                                result.success(uploadResponse.url)
+                            } catch (e: Exception) {
+                                result.error("RESULT_ERROR", e.message, null)
+                            }
+                        }
+                    }
+                    override fun onError(uploadError: UploadError) {
+                        mainHandler.post {
+                            try {
+                                result.error("UPLOAD_ERROR", uploadError.message ?: "Upload failed", null)
+                            } catch (e: Exception) {
+                                result.error("UPLOAD_ERROR", "Upload failed", null)
+                            }
+                        }
                     }
                 }
-            }
-        )
+            )
+        } catch (t: Throwable) {
+            result.error("UPLOAD_INIT_ERROR", t.localizedMessage ?: "Failed to start upload", null)
+        }
     }
 
     private fun generateJWT(fileName: String, folder: String): String {

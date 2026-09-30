@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -81,10 +83,22 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                     backgroundDecoration: const BoxDecoration(
                       color: AppColors.transparent,
                     ),
-                    imageProvider: CachedNetworkImageProvider(
-                      widget.imageUrl.trim(),
-                      errorListener: (_) {},
-                    ),
+                    imageProvider: () {
+                      final trimmed = widget.imageUrl.trim();
+                      final isLocal = trimmed.startsWith('/') ||
+                          trimmed.startsWith('file://') ||
+                          RegExp(r'^[a-zA-Z]:[/\\]').hasMatch(trimmed);
+                      if (isLocal) {
+                        final path = trimmed.startsWith('file://')
+                            ? trimmed.replaceFirst('file://', '')
+                            : trimmed;
+                        return FileImage(File(path)) as ImageProvider;
+                      }
+                      return CachedNetworkImageProvider(
+                        trimmed,
+                        errorListener: (_) {},
+                      );
+                    }(),
                     minScale: PhotoViewComputedScale.contained * 1,
                     maxScale: PhotoViewComputedScale.covered * 4,
                   ),

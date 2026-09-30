@@ -28,7 +28,11 @@ class HeaderLinkCollection extends StatelessWidget {
         children: [
           Obx(() {
             final isLoggedIn = FriendController.currentUser.value != null;
-            final count = FriendController.pendingRequestCount.value;
+            final count =
+                FriendController.pendingRequestCount.value +
+                FriendController.pendingSharedCount.value;
+            final hasNotification =
+                FriendController.hasUnreadShare.value || count > 0;
             if (!isLoggedIn) return const SizedBox(width: 44, height: 44);
             return Stack(
               clipBehavior: Clip.none,
@@ -40,16 +44,20 @@ class HeaderLinkCollection extends StatelessWidget {
                   widthParent: 40,
                   onTap: headerController.openFriends,
                 ),
-                if (count > 0)
+                if (hasNotification)
                   Positioned(
-                    top: 2,
-                    right: 2,
+                    top: 1,
+                    right: 1,
                     child: Container(
                       width: 10,
                       height: 10,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppColors.dangerBright,
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.navigationSurface,
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
@@ -63,6 +71,7 @@ class HeaderLinkCollection extends StatelessWidget {
             child: CustomPopupWidget(
               controller: categoryController.popupController,
               onSelected: categoryController.onSelectedCategory,
+              hasSources: true,
             ),
           ),
           const SizedBox(width: 12),
@@ -70,9 +79,12 @@ class HeaderLinkCollection extends StatelessWidget {
           // ── Right: Action buttons ────────────────────────────────────
           Obx(() {
             final isLoggedIn = FriendController.currentUser.value != null;
-            final selected = categoryController.popupController.selectedItem.value;
+            final selected =
+                categoryController.popupController.selectedItem.value;
             final showCategoryActions =
-                selected?.id != 'all' && categoryController.popupController.items.length > 1;
+                selected?.id != 'all' &&
+                selected?.isSource != true &&
+                categoryController.popupController.items.length > 1;
 
             return Row(
               mainAxisSize: MainAxisSize.min,
@@ -89,7 +101,10 @@ class HeaderLinkCollection extends StatelessWidget {
                   backgroundColor: AppColors.navigationSurface,
                   padding: const EdgeInsets.all(8),
                   widthParent: 40,
-                  onTap: () => Get.dialog(const CategoryDialog(), barrierDismissible: false),
+                  onTap: () => Get.dialog(
+                    const CategoryDialog(),
+                    barrierDismissible: false,
+                  ),
                 ),
               ],
             );
@@ -102,7 +117,10 @@ class HeaderLinkCollection extends StatelessWidget {
 
 /// Nút ⋮ chứa Edit + Share (nếu đã đăng nhập) cho category đang chọn
 class _CategoryMoreButton extends StatelessWidget {
-  const _CategoryMoreButton({required this.isLoggedIn, required this.categoryController});
+  const _CategoryMoreButton({
+    required this.isLoggedIn,
+    required this.categoryController,
+  });
 
   final bool isLoggedIn;
   final CategoryController categoryController;
@@ -113,12 +131,19 @@ class _CategoryMoreButton extends StatelessWidget {
       onSelected: (value) {
         final selected = categoryController.popupController.selectedItem.value;
         if (value == 'edit') {
-          Get.dialog(const CategoryDialog(isEditMode: true), barrierDismissible: false);
+          Get.dialog(
+            const CategoryDialog(isEditMode: true),
+            barrierDismissible: false,
+          );
         } else if (value == 'pin' && selected != null && selected.id != 'all') {
           categoryController.togglePinCategory(selected.id!);
-        } else if (value == 'visibility' && selected != null && selected.id != 'all') {
+        } else if (value == 'visibility' &&
+            selected != null &&
+            selected.id != 'all') {
           categoryController.toggleCategoryVisibility(selected.id!);
-        } else if (value == 'share' && selected != null && selected.id != 'all') {
+        } else if (value == 'share' &&
+            selected != null &&
+            selected.id != 'all') {
           showModalBottomSheet<void>(
             context: context,
             isScrollControlled: true,
@@ -141,13 +166,19 @@ class _CategoryMoreButton extends StatelessWidget {
         final isPinned = categoryController.isCategoryPinned(selected?.id);
         final isPrivate = selected?.visibility == VisibilityStatus.private;
         final canToggleVisibility =
-            AppGetStorage.isCategorySecurity() && selected != null && selected.id != 'all';
+            AppGetStorage.isCategorySecurity() &&
+            selected != null &&
+            selected.id != 'all';
         return [
           PopupMenuItem(
             value: 'edit',
             child: Row(
               children: [
-                const Icon(Icons.edit_rounded, size: 18, color: AppColors.white),
+                const Icon(
+                  Icons.edit_rounded,
+                  size: 18,
+                  color: AppColors.white,
+                ),
                 const SizedBox(width: 10),
                 Text('Edit'.tr, style: const TextStyle(color: AppColors.white)),
               ],
@@ -166,7 +197,11 @@ class _CategoryMoreButton extends StatelessWidget {
                   const SizedBox(width: 10),
                   Text(
                     isPinned ? 'Bỏ ghim' : 'Ghim',
-                    style: TextStyle(color: isPinned ? AppColors.successBright : AppColors.white),
+                    style: TextStyle(
+                      color: isPinned
+                          ? AppColors.successBright
+                          : AppColors.white,
+                    ),
                   ),
                 ],
               ),
@@ -184,7 +219,9 @@ class _CategoryMoreButton extends StatelessWidget {
                   const SizedBox(width: 10),
                   Text(
                     isPrivate ? 'Đặt công khai' : 'Đặt riêng tư',
-                    style: TextStyle(color: isPrivate ? AppColors.white : AppColors.amber),
+                    style: TextStyle(
+                      color: isPrivate ? AppColors.white : AppColors.amber,
+                    ),
                   ),
                 ],
               ),
@@ -194,9 +231,15 @@ class _CategoryMoreButton extends StatelessWidget {
               value: 'share',
               child: Row(
                 children: [
-                  AppVectors.icSharedCategory.show(size: 18, color: AppColors.white),
+                  AppVectors.icSharedCategory.show(
+                    size: 18,
+                    color: AppColors.white,
+                  ),
                   const SizedBox(width: 10),
-                  Text('Share'.tr, style: const TextStyle(color: AppColors.white)),
+                  Text(
+                    'Share'.tr,
+                    style: const TextStyle(color: AppColors.white),
+                  ),
                 ],
               ),
             ),
@@ -205,9 +248,16 @@ class _CategoryMoreButton extends StatelessWidget {
             value: 'delete',
             child: Row(
               children: [
-                const Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
+                const Icon(
+                  Icons.delete_rounded,
+                  size: 18,
+                  color: AppColors.error,
+                ),
                 const SizedBox(width: 10),
-                Text('Delete'.tr, style: const TextStyle(color: AppColors.error)),
+                Text(
+                  'Delete'.tr,
+                  style: const TextStyle(color: AppColors.error),
+                ),
               ],
             ),
           ),
@@ -216,8 +266,15 @@ class _CategoryMoreButton extends StatelessWidget {
       child: Container(
         width: 40,
         height: 40,
-        decoration: const BoxDecoration(color: AppColors.navigationSurface, shape: BoxShape.circle),
-        child: const Icon(Icons.more_vert_rounded, size: 22, color: AppColors.white),
+        decoration: const BoxDecoration(
+          color: AppColors.navigationSurface,
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(
+          Icons.more_vert_rounded,
+          size: 22,
+          color: AppColors.white,
+        ),
       ),
     );
   }

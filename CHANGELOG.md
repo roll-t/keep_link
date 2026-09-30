@@ -2,6 +2,26 @@
 
 All notable changes to Linkeep will be documented in this file.
 
+## [1.0.9] - 2026-09-30
+
+### Improvements & Fixes
+- Ẩn thẻ danh mục trong trang chi tiết nếu liên kết không phải của người dùng.
+- Thêm hiệu ứng animation và cải thiện bộ lọc tìm kiếm tin nhắn / liên kết.
+- Tự động thu nhỏ thanh tìm kiếm khi bỏ chọn (unfocus).
+- Tinh chỉnh popup chọn danh mục và nguồn hiển thị co giãn kích thước động theo số lượng item.
+- Đồng bộ giao diện AppBar với tone màu AppColors.d500.
+
+---
+
+## [1.0.7] - 2026-09-28
+
+### Added & Improved
+- **Menu tin nhắn phong cách Messenger**: Menu ấn giữ tin nhắn kiểu Messenger với thanh cảm xúc nổi (Reactions: ❤️, 😆, 😮, 😢, 😡, 👍) và các thao tác: Sao chép link, Mở link trực tiếp qua app/trình duyệt ngoài, Thu hồi tin nhắn.
+- **Badge Reaction hình tròn chuẩn**: Tinh chỉnh badge reaction trên bong bóng tin nhắn tròn đều hoàn hảo.
+- **Tối ưu thông báo âm thanh**: Thêm file âm thanh `sfx_notification` và cơ chế fallback an toàn tránh lỗi thông báo.
+
+---
+
 ## [1.0.6] - 2026-09-26
 
 ### Added

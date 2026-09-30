@@ -8,6 +8,7 @@ import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/core/services/backend/friend_connection_service.dart';
 import 'package:keep_link/core/utils/app_toast.dart';
+import 'package:keep_link/features/friend/application/di/friend_profile_confirm_binding.dart';
 import 'package:keep_link/features/friend/presentation/controller/friend_controller.dart';
 import 'package:keep_link/features/friend/presentation/page/friend_profile_confirm_page.dart';
 import 'package:keep_link/features/friend/presentation/page/my_qr_page.dart';
@@ -79,9 +80,10 @@ class _QrScannerPageState extends State<QrScannerPage>
 
       // Điều hướng trực tiếp sang trang xác nhận toàn màn hình (thay thế Bottom Sheet)
       final result = await Get.to<bool>(
-        () => FriendProfileConfirmPage(
+        () => const FriendProfileConfirmPage(),
+        binding: FriendProfileConfirmBinding(
           payload: payload,
-          controller: widget.controller,
+          friendController: widget.controller,
         ),
       );
 

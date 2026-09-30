@@ -4,7 +4,6 @@ import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/friend/presentation/controller/friend_controller.dart';
-import 'package:keep_link/features/friend/presentation/controller/shared_category_controller.dart';
 import 'package:keep_link/features/friend/presentation/page/qr_scanner_page.dart';
 import 'package:keep_link/features/friend/presentation/widgets/add_friend_sheets.dart';
 import 'package:keep_link/features/friend/presentation/widgets/friend_requests_sheet.dart';
@@ -22,18 +21,15 @@ class FriendPage extends StatefulWidget {
 
 class _FriendPageState extends State<FriendPage> {
   late final FriendController controller;
-  late final SharedCategoryController sharedController;
 
   @override
   void initState() {
     super.initState();
     controller = Get.find<FriendController>();
-    sharedController = Get.find<SharedCategoryController>();
     controller.setFriendPageActive(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       FriendController.markSharedCategoriesAsSeen();
-      sharedController.loadAllSharedData();
     });
   }
 
@@ -57,12 +53,16 @@ class _FriendPageState extends State<FriendPage> {
           backgroundColor: AppColors.bg700,
           appBar: AppBar(
             elevation: 0,
-            backgroundColor: AppColors.bg700,
+            backgroundColor: AppColors.d500,
             automaticallyImplyLeading: false,
             titleSpacing: 0,
             centerTitle: false,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.t200, size: 20),
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: AppColors.t200,
+                size: 20,
+              ),
               onPressed: () {
                 controller.setFriendPageActive(false);
                 Get.back();
@@ -80,15 +80,24 @@ class _FriendPageState extends State<FriendPage> {
                 padding: const EdgeInsets.all(6),
                 constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 tooltip: 'Scan QR'.tr,
-                icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.n70, size: 22),
-                onPressed: () => Get.to(() => QrScannerPage(controller: controller)),
+                icon: const Icon(
+                  Icons.qr_code_scanner_rounded,
+                  color: AppColors.n70,
+                  size: 22,
+                ),
+                onPressed: () =>
+                    Get.to(() => QrScannerPage(controller: controller)),
               ),
               IconButton(
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.all(6),
                 constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 tooltip: 'Add Friend'.tr,
-                icon: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.n70, size: 22),
+                icon: const Icon(
+                  Icons.person_add_alt_1_rounded,
+                  color: AppColors.n70,
+                  size: 22,
+                ),
                 onPressed: () => openAddFriendMethodsSheet(context, controller),
               ),
               Obx(() {
@@ -96,13 +105,20 @@ class _FriendPageState extends State<FriendPage> {
                 return IconButton(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(6),
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
                   tooltip: 'Friends'.tr,
                   onPressed: () => _openFriendsManager(context),
                   icon: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      const Icon(Icons.people_alt_rounded, color: AppColors.n70, size: 23),
+                      const Icon(
+                        Icons.people_alt_rounded,
+                        color: AppColors.n70,
+                        size: 23,
+                      ),
                       if (requestCount > 0)
                         Positioned(
                           right: -5,
@@ -131,16 +147,16 @@ class _FriendPageState extends State<FriendPage> {
               const SizedBox(width: 8),
             ],
           ),
-          body: ShareConversationsView(
-            friendController: controller,
-            sharedController: sharedController,
-          ),
+          body: const ShareConversationsView(),
         ),
       ),
     );
   }
 
-  Future<void> _openFriendsManager(BuildContext context, {int initialIndex = 0}) {
+  Future<void> _openFriendsManager(
+    BuildContext context, {
+    int initialIndex = 0,
+  }) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -148,8 +164,10 @@ class _FriendPageState extends State<FriendPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
-      builder: (sheetContext) =>
-          _FriendsManagerSheet(controller: controller, initialIndex: initialIndex),
+      builder: (sheetContext) => _FriendsManagerSheet(
+        controller: controller,
+        initialIndex: initialIndex,
+      ),
     );
   }
 }
@@ -224,7 +242,10 @@ class _FriendsManagerSheetState extends State<_FriendsManagerSheet>
                       labelPadding: const EdgeInsets.symmetric(horizontal: 8),
                       splashFactory: NoSplash.splashFactory,
                       overlayColor: WidgetStateProperty.all(Colors.transparent),
-                      labelStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      labelStyle: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                       unselectedLabelStyle: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
@@ -252,7 +273,9 @@ class _FriendsManagerSheetState extends State<_FriendsManagerSheet>
                                       vertical: 1.5,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.white.withOpacityCompat(0.12),
+                                      color: AppColors.white.withOpacityCompat(
+                                        0.12,
+                                      ),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
@@ -271,7 +294,8 @@ class _FriendsManagerSheetState extends State<_FriendsManagerSheet>
                         ),
                         Tab(
                           child: Obx(() {
-                            final reqCount = widget.controller.incomingRequests.length;
+                            final reqCount =
+                                widget.controller.incomingRequests.length;
                             return Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               mainAxisSize: MainAxisSize.min,
@@ -313,7 +337,11 @@ class _FriendsManagerSheetState extends State<_FriendsManagerSheet>
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.n70, size: 22),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.n70,
+                      size: 22,
+                    ),
                   ),
                 ],
               ),

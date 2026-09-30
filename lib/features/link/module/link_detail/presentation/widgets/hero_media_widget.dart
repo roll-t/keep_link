@@ -40,8 +40,7 @@ class HeroMediaWidget extends GetView<LinkDetailController> {
 class _ThumbnailWithPlay extends GetView<LinkDetailController> {
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: () =>
-        Get.to(() => FullScreenImagePage(imageUrl: controller.imageUrl)),
+    onTap: () => Get.to(() => FullScreenImagePage(imageUrl: controller.imageUrl)),
     child: Hero(
       tag: controller.imageUrl,
       child: Stack(
@@ -91,11 +90,7 @@ class _ViewNowButton extends StatelessWidget {
       children: [
         const Icon(Icons.language_outlined, color: AppColors.white, size: 18),
         const SizedBox(width: 8),
-        TextWidget(
-          text: "View Now".tr,
-          textStyle: AppTextStyle.semiBold14,
-          color: AppColors.white,
-        ),
+        TextWidget(text: "View Now".tr, textStyle: AppTextStyle.semiBold14, color: AppColors.white),
       ],
     ),
   );
@@ -140,11 +135,7 @@ class _DocumentBadge extends StatelessWidget {
       shape: BoxShape.circle,
       border: Border.all(color: AppColors.white54, width: 1.5),
     ),
-    child: const Icon(
-      Icons.description_outlined,
-      color: AppColors.white,
-      size: 36,
-    ),
+    child: const Icon(Icons.description_outlined, color: AppColors.white, size: 36),
   );
 }
 
@@ -163,11 +154,7 @@ class _PlayButton extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: AppColors.white, width: 2),
       ),
-      child: const Icon(
-        Icons.play_arrow_rounded,
-        color: AppColors.white,
-        size: 40,
-      ),
+      child: const Icon(Icons.play_arrow_rounded, color: AppColors.white, size: 40),
     ),
   );
 }
@@ -212,9 +199,7 @@ class _WebViewPlayer extends GetView<LinkDetailController> {
     // Đọc generation để tái tạo platform view nếu Android WebView renderer
     // bị hệ điều hành kill; nếu không màn hình sẽ đen và Reload không tác dụng.
     controller.webViewGeneration.value;
-    return controller.isExpanded.value
-        ? const _ExpandedWebView()
-        : const _InlineWebView();
+    return controller.isExpanded.value ? const _ExpandedWebView() : const _InlineWebView();
   });
 }
 
@@ -240,12 +225,8 @@ class _InlineWebView extends GetView<LinkDetailController> {
                   initialSettings: controller.webViewSettings,
                   gestureRecognizers: const {
                     Factory<TapGestureRecognizer>(TapGestureRecognizer.new),
-                    Factory<VerticalDragGestureRecognizer>(
-                      VerticalDragGestureRecognizer.new,
-                    ),
-                    Factory<HorizontalDragGestureRecognizer>(
-                      HorizontalDragGestureRecognizer.new,
-                    ),
+                    Factory<VerticalDragGestureRecognizer>(VerticalDragGestureRecognizer.new),
+                    Factory<HorizontalDragGestureRecognizer>(HorizontalDragGestureRecognizer.new),
                   },
                   onWebViewCreated: (webCtrl) {
                     controller.webViewController = webCtrl;
@@ -267,18 +248,13 @@ class _InlineWebView extends GetView<LinkDetailController> {
                     return controller.onRenderProcessGone();
                   },
                   shouldOverrideUrlLoading: (webCtrl, navigationAction) async {
-                    return controller.shouldOverrideUrlLoading(
-                      navigationAction,
-                    );
+                    return controller.shouldOverrideUrlLoading(navigationAction);
                   },
                   shouldInterceptRequest: (webCtrl, request) {
                     return controller.shouldInterceptRequest(request);
                   },
                   onCreateWindow: (webCtrl, createWindowAction) {
-                    return controller.onCreateWindow(
-                      webCtrl,
-                      createWindowAction,
-                    );
+                    return controller.onCreateWindow(webCtrl, createWindowAction);
                   },
                   onReceivedError: (webCtrl, request, error) {
                     controller.onReceivedError(request);
@@ -322,12 +298,8 @@ class _ExpandedWebView extends GetView<LinkDetailController> {
                 initialSettings: controller.webViewSettings,
                 gestureRecognizers: const {
                   Factory<TapGestureRecognizer>(TapGestureRecognizer.new),
-                  Factory<VerticalDragGestureRecognizer>(
-                    VerticalDragGestureRecognizer.new,
-                  ),
-                  Factory<HorizontalDragGestureRecognizer>(
-                    HorizontalDragGestureRecognizer.new,
-                  ),
+                  Factory<VerticalDragGestureRecognizer>(VerticalDragGestureRecognizer.new),
+                  Factory<HorizontalDragGestureRecognizer>(HorizontalDragGestureRecognizer.new),
                 },
                 onWebViewCreated: (webCtrl) {
                   controller.webViewController = webCtrl;
@@ -379,8 +351,7 @@ class _ExpandedWebView extends GetView<LinkDetailController> {
 class _WebViewLoadingOverlay extends GetView<LinkDetailController> {
   const _WebViewLoadingOverlay();
 
-  String _host(String rawUrl) =>
-      Uri.tryParse(rawUrl)?.host.replaceFirst('www.', '') ?? rawUrl;
+  String _host(String rawUrl) => Uri.tryParse(rawUrl)?.host.replaceFirst('www.', '') ?? rawUrl;
 
   @override
   Widget build(BuildContext context) => Obx(() {
@@ -465,11 +436,7 @@ class _WebViewErrorOverlay extends GetView<LinkDetailController> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.cloud_off_rounded,
-            color: AppColors.white38,
-            size: 44,
-          ),
+          const Icon(Icons.cloud_off_rounded, color: AppColors.white38, size: 44),
           const SizedBox(height: 12),
           TextWidget(
             text: "webview_load_error".tr,
@@ -487,8 +454,9 @@ class _WebViewErrorOverlay extends GetView<LinkDetailController> {
               ),
               const SizedBox(width: 12),
               PrimaryButton(
-                text: controller.linkPlatform
-                    .getOpenLabel(isIncognito: controller.isIncognito.value),
+                text: controller.linkPlatform.getOpenLabel(
+                  isIncognito: controller.isIncognito.value,
+                ),
                 onPressed: controller.openDestination,
               ),
             ],
@@ -542,11 +510,7 @@ class _WebViewNavigationBar extends GetView<LinkDetailController> {
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.lock_outline_rounded,
-                      color: AppColors.success,
-                      size: 12,
-                    ),
+                    const Icon(Icons.lock_outline_rounded, color: AppColors.success, size: 12),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -581,12 +545,12 @@ class _WebViewNavigationBar extends GetView<LinkDetailController> {
           const SizedBox(width: 4),
 
           _NavButton(
-            icon: controller.linkPlatform
-                .getActionIcon(isIncognito: controller.isIncognito.value),
+            icon: controller.linkPlatform.getActionIcon(isIncognito: controller.isIncognito.value),
             enable: true,
             onTap: controller.openDestination,
-            tooltip: controller.linkPlatform
-                .getOpenLabel(isIncognito: controller.isIncognito.value),
+            tooltip: controller.linkPlatform.getOpenLabel(
+              isIncognito: controller.isIncognito.value,
+            ),
           ),
 
           // ── Nút Back ──
@@ -599,11 +563,7 @@ class _WebViewNavigationBar extends GetView<LinkDetailController> {
           ),
 
           // ── Nút Forward ──
-          _NavButton(
-            icon: Icons.close_rounded,
-            enable: true,
-            onTap: controller.closeWebView,
-          ),
+          _NavButton(icon: Icons.close_rounded, enable: true, onTap: controller.closeWebView),
         ],
       ),
     ),
@@ -615,12 +575,7 @@ class _NavButton extends StatelessWidget {
   final bool enable;
   final VoidCallback onTap;
   final String? tooltip;
-  const _NavButton({
-    required this.icon,
-    required this.enable,
-    required this.onTap,
-    this.tooltip,
-  });
+  const _NavButton({required this.icon, required this.enable, required this.onTap, this.tooltip});
 
   @override
   Widget build(BuildContext context) => Tooltip(
@@ -629,11 +584,7 @@ class _NavButton extends StatelessWidget {
       onTap: enable ? onTap : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        child: Icon(
-          icon,
-          size: 18,
-          color: enable ? AppColors.white : AppColors.white24,
-        ),
+        child: Icon(icon, size: 18, color: enable ? AppColors.white : AppColors.white24),
       ),
     ),
   );
@@ -641,8 +592,7 @@ class _NavButton extends StatelessWidget {
 
 class _VerticalDivider extends StatelessWidget {
   @override
-  Widget build(BuildContext context) =>
-      Container(width: 1, height: 20, color: AppColors.white12);
+  Widget build(BuildContext context) => Container(width: 1, height: 20, color: AppColors.white12);
 }
 
 // Fallback khi link không có thumbnail
@@ -651,9 +601,7 @@ class _FallbackThumbnail extends GetView<LinkDetailController> {
 
   @override
   Widget build(BuildContext context) {
-    final host =
-        Uri.tryParse(controller.url)?.host.replaceFirst('www.', '') ??
-        controller.url;
+    final host = Uri.tryParse(controller.url)?.host.replaceFirst('www.', '') ?? controller.url;
 
     return GestureDetector(
       onTap: controller.openWebView,
@@ -674,11 +622,8 @@ class _FallbackThumbnail extends GetView<LinkDetailController> {
                   childAspectRatio: 1,
                 ),
                 itemCount: 48,
-                itemBuilder: (_, __) => const Icon(
-                  Icons.link_rounded,
-                  color: AppColors.white,
-                  size: 20,
-                ),
+                itemBuilder: (_, __) =>
+                    const Icon(Icons.link_rounded, color: AppColors.white, size: 20),
               ),
             ),
             // Center content
@@ -692,11 +637,7 @@ class _FallbackThumbnail extends GetView<LinkDetailController> {
                     shape: BoxShape.circle,
                     border: Border.all(color: AppColors.white24, width: 1.5),
                   ),
-                  child: const Icon(
-                    Icons.language_rounded,
-                    color: AppColors.white70,
-                    size: 36,
-                  ),
+                  child: const Icon(Icons.language_rounded, color: AppColors.white70, size: 36),
                 ),
                 const SizedBox(height: 12),
                 Text(

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
@@ -39,12 +41,43 @@ class CacheImageWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final valid = _isValidUrl(imageUrl);
-
     Widget fallback =
         errorWidget ??
         _DefaultEmptyImage(width: width, height: height, icon: emptyIcon);
 
+    final raw = imageUrl?.trim() ?? '';
+    if (raw.isEmpty) {
+      if (borderRadius != null) {
+        return ClipRRect(borderRadius: borderRadius!, child: fallback);
+      }
+      return fallback;
+    }
+
+    // 1. Kiểm tra nếu là file ảnh local bền vững trên thiết bị
+    final isLocal = raw.startsWith('/') ||
+        raw.startsWith('file://') ||
+        RegExp(r'^[a-zA-Z]:[/\\]').hasMatch(raw);
+
+    if (isLocal) {
+      final cleanPath =
+          raw.startsWith('file://') ? raw.replaceFirst('file://', '') : raw;
+      final file = File(cleanPath);
+      if (file.existsSync()) {
+        Widget image = Image.file(
+          file,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => fallback,
+        );
+        if (borderRadius != null) {
+          image = ClipRRect(borderRadius: borderRadius!, child: image);
+        }
+        return image;
+      }
+    }
+
+    final valid = _isValidUrl(raw);
     if (!valid) {
       if (borderRadius != null) {
         return ClipRRect(borderRadius: borderRadius!, child: fallback);
@@ -53,7 +86,7 @@ class CacheImageWidget extends StatelessWidget {
     }
 
     Widget image = CachedNetworkImage(
-      imageUrl: imageUrl!.trim(),
+      imageUrl: raw,
       width: width,
       height: height,
       fit: fit,

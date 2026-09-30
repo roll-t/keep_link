@@ -21,6 +21,7 @@ class FriendController extends GetxController {
   static const int maxFriends = 10;
   static final RxInt pendingRequestCount = 0.obs;
   static final RxInt pendingSharedCount = 0.obs;
+  static final RxBool hasUnreadShare = false.obs;
   static final Rxn<User> currentUser = Rxn<User>();
 
   final searchController = TextEditingController();
@@ -38,8 +39,12 @@ class FriendController extends GetxController {
   StreamSubscription<List<FriendRequestModel>>? _requestWatcher;
   StreamSubscription<Set<String>>? _sharedCategoryWatcher;
   StreamSubscription<Set<String>>? _sharedLinkWatcher;
+  StreamSubscription<Set<String>>? _sharedCategoryEventWatcher;
+  StreamSubscription<Set<String>>? _sharedLinkEventWatcher;
   StreamSubscription<int>? _friendsWatcher;
   StreamSubscription<User?>? _authSub;
+  Timer? _sharedNotificationTimer;
+  int _queuedSharedNotificationCount = 0;
   final Map<String, StreamSubscription<Map<String, int>>> _linkCountWatchers =
       {};
   final Map<String, Set<String>> _watchedCategoryIds = {};
@@ -51,12 +56,13 @@ class FriendController extends GetxController {
   bool _forceRemoteOnNextFetch = false;
   String? _activeUserId;
   bool _isFriendPageActive = false;
-  bool _isInitialLoad = true;
   bool _isSharedInitialLoad = true;
   bool _isSharedLinkInitialLoad = true;
   bool _isFriendsInitialLoad = true;
   Set<String> _knownSharedKeys = {};
   Set<String> _knownSharedLinkKeys = {};
+  Set<String> _knownCategoryEventKeys = {};
+  Set<String> _knownLinkEventKeys = {};
   Set<String> _unseenCategoryKeys = {};
   Set<String> _unseenLinkKeys = {};
 
@@ -70,6 +76,9 @@ class FriendController extends GetxController {
     final initialUser = FirebaseService.currentUser;
     _activeUserId = initialUser?.uid;
     currentUser.value = initialUser;
+    if (_activeUserId != null) {
+      hasUnreadShare.value = AppGetStorage.getHasUnreadShare(_activeUserId!);
+    }
     searchController.addListener(() {
       searchQuery.value = searchController.text;
     });
@@ -83,6 +92,7 @@ class FriendController extends GetxController {
     _startRequestWatcher();
     _startSharedCategoryWatcher();
     _startSharedLinkWatcher();
+    _startSharedEventWatchers();
     _startFriendsWatcher();
     // `authStateChanges` always replays the current auth state as its first
     // event. Without this guard that first event repeats the exact fetch +
@@ -104,12 +114,15 @@ class FriendController extends GetxController {
         visibleFriends.clear();
         pendingRequestUserIds.clear();
         _forceRemoteOnNextFetch = user != null;
+        hasUnreadShare.value =
+            nextUserId != null ? AppGetStorage.getHasUnreadShare(nextUserId) : false;
       }
       if (user != null) {
         fetchFriends();
         _startRequestWatcher();
         _startSharedCategoryWatcher();
         _startSharedLinkWatcher();
+        _startSharedEventWatchers();
         _startFriendsWatcher();
       } else {
         _requestWatcher?.cancel();
@@ -120,11 +133,18 @@ class FriendController extends GetxController {
         _sharedCategoryWatcher = null;
         _sharedLinkWatcher?.cancel();
         _sharedLinkWatcher = null;
+        _sharedCategoryEventWatcher?.cancel();
+        _sharedCategoryEventWatcher = null;
+        _sharedLinkEventWatcher?.cancel();
+        _sharedLinkEventWatcher = null;
         _knownSharedKeys = {};
         _knownSharedLinkKeys = {};
+        _knownCategoryEventKeys = {};
+        _knownLinkEventKeys = {};
         _unseenCategoryKeys = {};
         _unseenLinkKeys = {};
         pendingSharedCount.value = 0;
+        hasUnreadShare.value = false;
         for (final sub in _linkCountWatchers.values) {
           sub.cancel();
         }
@@ -143,10 +163,13 @@ class FriendController extends GetxController {
     _requestWatcher?.cancel();
     _sharedCategoryWatcher?.cancel();
     _sharedLinkWatcher?.cancel();
+    _sharedCategoryEventWatcher?.cancel();
+    _sharedLinkEventWatcher?.cancel();
     _friendsWatcher?.cancel();
     for (final sub in _linkCountWatchers.values) {
       sub.cancel();
     }
+    _sharedNotificationTimer?.cancel();
     _linkCountWatchers.clear();
     _watchedCategoryIds.clear();
     searchController.dispose();
@@ -156,20 +179,11 @@ class FriendController extends GetxController {
   void _startRequestWatcher() {
     if (FirebaseService.currentUser == null) return;
     _requestWatcher?.cancel();
-    _isInitialLoad = true;
     _requestWatcher = FirebaseService.watchIncomingFriendRequests().listen(
       (requests) {
         final newCount = requests.length;
-        final oldCount = incomingRequests.length;
         incomingRequests.assignAll(requests);
         pendingRequestCount.value = newCount;
-        if (!_isInitialLoad && newCount > oldCount) {
-          LocalNotificationService.showFriendRequestNotification(
-            title: 'Linkeep',
-            body: 'friend_new_request_received'.tr,
-          );
-        }
-        _isInitialLoad = false;
       },
       onError: (Object error) {
         // permission-denied khi đăng xuất — huỷ listener, reset state
@@ -223,16 +237,9 @@ class FriendController extends GetxController {
           _unseenCategoryKeys = _isFriendPageActive
               ? <String>{}
               : keys.difference(seenKeys);
-          final missedKeys = keys.difference({...seenKeys, ...notifiedKeys});
-          if (!_isFriendPageActive && missedKeys.isNotEmpty) {
-            LocalNotificationService.showSharedCategoryNotification(
-              title: 'Linkeep',
-              body: missedKeys.length == 1
-                  ? 'shared_new_category_received'.tr
-                  : 'shared_new_items_received'.trParams({
-                      'count': '${missedKeys.length}',
-                    }),
-            );
+          if (_unseenCategoryKeys.isNotEmpty && !_isFriendPageActive) {
+            hasUnreadShare.value = true;
+            AppGetStorage.setHasUnreadShare(uid, true);
           }
           AppGetStorage.setNotifiedSharedKeys(uid, {
             ...notifiedKeys.where((key) => key.startsWith('link:')),
@@ -250,14 +257,15 @@ class FriendController extends GetxController {
           if (_isFriendPageActive) {
             _refreshSharedDataIfVisible();
           } else {
-            final fromActiveFriend = activeConversationFriendId != null &&
-                newKeys.every((k) => k.startsWith('$activeConversationFriendId/'));
+            final fromActiveFriend =
+                activeConversationFriendId != null &&
+                newKeys.every(
+                  (k) => k.startsWith('$activeConversationFriendId/'),
+                );
             if (!fromActiveFriend) {
               _unseenCategoryKeys.addAll(newKeys);
-              LocalNotificationService.showSharedCategoryNotification(
-                title: 'Linkeep',
-                body: 'shared_new_category_received'.tr,
-              );
+              hasUnreadShare.value = true;
+              AppGetStorage.setHasUnreadShare(uid, true);
             }
           }
         }
@@ -306,19 +314,9 @@ class FriendController extends GetxController {
           _unseenLinkKeys = _isFriendPageActive
               ? <String>{}
               : prefixedKeys.difference(seenKeys);
-          final missedKeys = prefixedKeys.difference({
-            ...seenKeys,
-            ...notifiedKeys,
-          });
-          if (!_isFriendPageActive && missedKeys.isNotEmpty) {
-            LocalNotificationService.showSharedCategoryNotification(
-              title: 'Linkeep',
-              body: missedKeys.length == 1
-                  ? 'shared_individual_link_received'.tr
-                  : 'shared_new_items_received'.trParams({
-                      'count': '${missedKeys.length}',
-                    }),
-            );
+          if (_unseenLinkKeys.isNotEmpty && !_isFriendPageActive) {
+            hasUnreadShare.value = true;
+            AppGetStorage.setHasUnreadShare(uid, true);
           }
           AppGetStorage.setNotifiedSharedKeys(uid, {
             ...notifiedKeys.where((key) => !key.startsWith('link:')),
@@ -336,14 +334,15 @@ class FriendController extends GetxController {
           if (_isFriendPageActive) {
             _refreshSharedDataIfVisible();
           } else {
-            final fromActiveFriend = activeConversationFriendId != null &&
-                newKeys.every((k) => k.startsWith('$activeConversationFriendId/'));
+            final fromActiveFriend =
+                activeConversationFriendId != null &&
+                newKeys.every(
+                  (k) => k.startsWith('$activeConversationFriendId/'),
+                );
             if (!fromActiveFriend) {
               _unseenLinkKeys.addAll(newKeys.map((key) => 'link:$key'));
-              LocalNotificationService.showSharedCategoryNotification(
-                title: 'Linkeep',
-                body: 'shared_individual_link_received'.tr,
-              );
+              hasUnreadShare.value = true;
+              AppGetStorage.setHasUnreadShare(uid, true);
             }
           }
         }
@@ -377,6 +376,136 @@ class FriendController extends GetxController {
         _unseenCategoryKeys.length + _unseenLinkKeys.length;
   }
 
+  void _startSharedEventWatchers() {
+    final uid = FirebaseService.currentUser?.uid;
+    if (uid == null) return;
+    _sharedCategoryEventWatcher?.cancel();
+    _sharedLinkEventWatcher?.cancel();
+    _knownCategoryEventKeys = {};
+    _knownLinkEventKeys = {};
+
+    var categoryInitial = true;
+    _sharedCategoryEventWatcher =
+        FirebaseService.watchIncomingCategoryShareEvents().listen(
+          (keys) {
+            if (categoryInitial) {
+              categoryInitial = false;
+              _notifyForUnreportedShareEvents(
+                uid: uid,
+                keys: keys,
+                type: 'category',
+                notifyWhileViewing: true,
+              );
+              _knownCategoryEventKeys = Set.from(keys);
+              return;
+            }
+            _notifyForNewShareEvents(
+              uid: uid,
+              keys: keys,
+              previousKeys: _knownCategoryEventKeys,
+              type: 'category',
+            );
+            _knownCategoryEventKeys = Set.from(keys);
+          },
+          onError: (Object _) {
+            _sharedCategoryEventWatcher?.cancel();
+            _sharedCategoryEventWatcher = null;
+          },
+          cancelOnError: true,
+        );
+
+    var linkInitial = true;
+    _sharedLinkEventWatcher = FirebaseService.watchIncomingLinkShareEvents()
+        .listen(
+          (keys) {
+            if (linkInitial) {
+              linkInitial = false;
+              _notifyForUnreportedShareEvents(
+                uid: uid,
+                keys: keys,
+                type: 'link',
+                notifyWhileViewing: true,
+              );
+              _knownLinkEventKeys = Set.from(keys);
+              return;
+            }
+            _notifyForNewShareEvents(
+              uid: uid,
+              keys: keys,
+              previousKeys: _knownLinkEventKeys,
+              type: 'link',
+            );
+            _knownLinkEventKeys = Set.from(keys);
+          },
+          onError: (Object _) {
+            _sharedLinkEventWatcher?.cancel();
+            _sharedLinkEventWatcher = null;
+          },
+          cancelOnError: true,
+        );
+  }
+
+  void _notifyForNewShareEvents({
+    required String uid,
+    required Set<String> keys,
+    required Set<String> previousKeys,
+    required String type,
+  }) {
+    final newKeys = keys.difference(previousKeys);
+    if (newKeys.isEmpty) return;
+    final activeFriend = activeConversationFriendId;
+    final visibleConversationEvents = activeFriend == null
+        ? const <String>{}
+        : newKeys.where((key) => key.startsWith('$activeFriend/')).toSet();
+    _notifyForUnreportedShareEvents(
+      uid: uid,
+      keys: newKeys.difference(visibleConversationEvents),
+      type: type,
+      notifyWhileViewing: false,
+    );
+  }
+
+  void _notifyForUnreportedShareEvents({
+    required String uid,
+    required Set<String> keys,
+    required String type,
+    required bool notifyWhileViewing,
+  }) {
+    if (keys.isEmpty) return;
+    final notified = AppGetStorage.getNotifiedShareEventKeys(uid);
+    final identities = keys.map((key) => '$type:$key').toSet();
+    final unreported = identities.difference(notified);
+    if (unreported.isEmpty) return;
+
+    AppGetStorage.setNotifiedShareEventKeys(uid, {...notified, ...unreported});
+    if (!_isFriendPageActive || notifyWhileViewing) {
+      _queueSharedItemsNotification(unreported.length);
+    }
+    if (!_isFriendPageActive) {
+      hasUnreadShare.value = true;
+      AppGetStorage.setHasUnreadShare(uid, true);
+    }
+  }
+
+  /// Category and link access live in two RTDB streams. A single share batch
+  /// may update both at nearly the same time, so debounce briefly and present
+  /// one notification with the combined item count instead of one popup per
+  /// link/category.
+  void _queueSharedItemsNotification(int count) {
+    if (count <= 0) return;
+    _queuedSharedNotificationCount += count;
+    _sharedNotificationTimer?.cancel();
+    _sharedNotificationTimer = Timer(const Duration(milliseconds: 250), () {
+      final total = _queuedSharedNotificationCount;
+      _queuedSharedNotificationCount = 0;
+      if (total <= 0) return;
+      LocalNotificationService.showSharedCategoryNotification(
+        title: 'Linkeep',
+        body: 'shared_new_items_received'.trParams({'count': '$total'}),
+      );
+    });
+  }
+
   void _refreshSharedDataIfVisible() {
     if (!Get.isRegistered<SharedCategoryController>()) return;
     Get.find<SharedCategoryController>().loadAllSharedData(force: true);
@@ -387,6 +516,8 @@ class FriendController extends GetxController {
     final uid = FirebaseService.currentUser?.uid;
     if (uid == null) return;
     pendingSharedCount.value = 0;
+    hasUnreadShare.value = false;
+    AppGetStorage.setHasUnreadShare(uid, false);
     if (Get.isRegistered<FriendController>()) {
       final ctrl = Get.find<FriendController>();
       ctrl._unseenCategoryKeys.clear();
@@ -476,10 +607,6 @@ class FriendController extends GetxController {
             });
             if (newLinkCatIds.isNotEmpty) {
               SharedCategoryController.invalidateCache();
-              LocalNotificationService.showSharedCategoryNotification(
-                title: 'Linkeep',
-                body: 'shared_new_link_received'.tr,
-              );
               // Nếu user đang xem danh sách link của category đó thì không tăng badge
               // (stream trong SharedCategoryController đã tự update)
               String? viewingCatId;

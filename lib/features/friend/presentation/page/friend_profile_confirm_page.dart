@@ -4,55 +4,18 @@ import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
 import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
-import 'package:keep_link/core/services/backend/friend_connection_service.dart';
-import 'package:keep_link/features/friend/presentation/controller/friend_controller.dart';
+import 'package:keep_link/features/friend/presentation/controller/friend_profile_confirm_controller.dart';
 
-class FriendProfileConfirmPage extends StatefulWidget {
+class FriendProfileConfirmPage extends GetView<FriendProfileConfirmController> {
   static const routeName = '/FriendProfileConfirmPage';
 
-  final FriendConnectionPayload payload;
-  final FriendController controller;
-
-  const FriendProfileConfirmPage({
-    super.key,
-    required this.payload,
-    required this.controller,
-  });
-
-  @override
-  State<FriendProfileConfirmPage> createState() =>
-      _FriendProfileConfirmPageState();
-}
-
-class _FriendProfileConfirmPageState extends State<FriendProfileConfirmPage> {
-  bool _isSubmitting = false;
-
-  Future<void> _sendFriendRequest() async {
-    if (_isSubmitting) return;
-    setState(() => _isSubmitting = true);
-
-    try {
-      final success = await widget.controller.addFriendFromLink(
-        widget.payload.rawLink,
-      );
-      if (!mounted) return;
-      if (success) {
-        Get.back(result: true);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
-    }
-  }
+  const FriendProfileConfirmPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final payload = widget.payload;
+    final payload = controller.payload;
     final hasPhoto = payload.photoUrl != null && payload.photoUrl!.isNotEmpty;
-    final initial = payload.displayName.isNotEmpty
-        ? payload.displayName[0].toUpperCase()
-        : '?';
+    final initial = payload.displayName.isNotEmpty ? payload.displayName[0].toUpperCase() : '?';
 
     return Scaffold(
       backgroundColor: AppColors.d500,
@@ -61,12 +24,8 @@ class _FriendProfileConfirmPageState extends State<FriendProfileConfirmPage> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: AppColors.white,
-            size: 20,
-          ),
-          onPressed: () => Get.back(result: false),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.white, size: 20),
+          onPressed: controller.cancel,
         ),
         title: TextWidget(
           text: 'Add Friend'.tr,
@@ -81,10 +40,7 @@ class _FriendProfileConfirmPageState extends State<FriendProfileConfirmPage> {
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 20,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   children: [
                     const SizedBox(height: 12),
@@ -92,10 +48,7 @@ class _FriendProfileConfirmPageState extends State<FriendProfileConfirmPage> {
                     // Avatar & Info Card
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 28,
-                        horizontal: 20,
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
                       decoration: BoxDecoration(
                         color: AppColors.d300,
                         borderRadius: BorderRadius.circular(24),
@@ -165,8 +118,7 @@ class _FriendProfileConfirmPageState extends State<FriendProfileConfirmPage> {
                           ),
 
                           // Email
-                          if (payload.email != null &&
-                              payload.email!.isNotEmpty) ...[
+                          if (payload.email != null && payload.email!.isNotEmpty) ...[
                             const SizedBox(height: 6),
                             Row(
                               mainAxisSize: MainAxisSize.min,
@@ -193,17 +145,12 @@ class _FriendProfileConfirmPageState extends State<FriendProfileConfirmPage> {
 
                           // Tag "Scanned via QR Code"
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withOpacityCompat(0.12),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: AppColors.primary.withOpacityCompat(
-                                  0.24,
-                                ),
+                                color: AppColors.primary.withOpacityCompat(0.24),
                                 width: 0.8,
                               ),
                             ),
@@ -273,97 +220,87 @@ class _FriendProfileConfirmPageState extends State<FriendProfileConfirmPage> {
             ),
 
             // Bottom Buttons
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-              decoration: BoxDecoration(
-                color: AppColors.d500,
-                border: Border(
-                  top: BorderSide(
-                    color: AppColors.white.withOpacityCompat(0.06),
-                    width: 1,
+            Obx(() {
+              final isSubmitting = controller.isSubmitting.value;
+              return Container(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                decoration: BoxDecoration(
+                  color: AppColors.d500,
+                  border: Border(
+                    top: BorderSide(color: AppColors.white.withOpacityCompat(0.06), width: 1),
                   ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  // Cancel button
-                  Expanded(
-                    flex: 2,
-                    child: SizedBox(
-                      height: 50,
-                      child: OutlinedButton(
-                        onPressed: _isSubmitting
-                            ? null
-                            : () => Get.back(result: false),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: AppColors.white.withOpacityCompat(0.2),
-                            width: 1,
+                child: Row(
+                  children: [
+                    // Cancel button
+                    Expanded(
+                      flex: 2,
+                      child: SizedBox(
+                        height: 50,
+                        child: OutlinedButton(
+                          onPressed: isSubmitting ? null : controller.cancel,
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: AppColors.white.withOpacityCompat(0.2), width: 1),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                          child: TextWidget(
+                            text: 'cancel'.tr,
+                            color: AppColors.white,
+                            size: 15,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ),
-                        child: TextWidget(
-                          text: 'cancel'.tr,
-                          color: AppColors.white,
-                          size: 15,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                  ),
 
-                  const SizedBox(width: 12),
+                    const SizedBox(width: 12),
 
-                  // Send Request button
-                  Expanded(
-                    flex: 3,
-                    child: SizedBox(
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _sendFriendRequest,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          elevation: 0,
-                          disabledBackgroundColor: AppColors.primary
-                              .withOpacityCompat(0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                    // Send Request button
+                    Expanded(
+                      flex: 3,
+                      child: SizedBox(
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: isSubmitting ? null : controller.sendFriendRequest,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            elevation: 0,
+                            disabledBackgroundColor: AppColors.primary.withOpacityCompat(0.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
-                        ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.2,
-                                  color: AppColors.white,
+                          child: isSubmitting
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: AppColors.white,
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.person_add_rounded,
+                                      color: AppColors.white,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    TextWidget(
+                                      text: 'Send Request'.tr,
+                                      color: AppColors.white,
+                                      size: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ],
                                 ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.person_add_rounded,
-                                    color: AppColors.white,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  TextWidget(
-                                    text: 'Send Request'.tr,
-                                    color: AppColors.white,
-                                    size: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ],
-                              ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
+                  ],
+                ),
+              );
+            }),
           ],
         ),
       ),
@@ -398,12 +335,7 @@ class _FriendProfileConfirmPageState extends State<FriendProfileConfirmPage> {
                 fontWeight: FontWeight.w600,
               ),
               const SizedBox(height: 3),
-              TextWidget(
-                text: subtitle,
-                color: AppColors.n70,
-                size: 12.5,
-                height: 1.3,
-              ),
+              TextWidget(text: subtitle, color: AppColors.n70, size: 12.5, height: 1.3),
             ],
           ),
         ),

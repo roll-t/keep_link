@@ -8,7 +8,6 @@ void main() async {
   runApp(const App());
 }
 
-/// Separate Dart entrypoint for Android's dialog-like share activity.
 @pragma('vm:entry-point')
 Future<void> quickShareMain() async {
   await quickShareConfig();

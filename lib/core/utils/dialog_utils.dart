@@ -55,12 +55,7 @@ class DialogUtils {
 
   static void showProgressDialog() {
     Get.dialog(
-      Center(
-        child: LoadingAnimationWidget.threeRotatingDots(
-          color: AppColors.primary,
-          size: 40,
-        ),
-      ),
+      Center(child: LoadingAnimationWidget.threeRotatingDots(color: AppColors.primary, size: 40)),
       barrierDismissible: false,
     );
   }
@@ -79,9 +74,7 @@ class DialogUtils {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radius!),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius!)),
           contentPadding: EdgeInsets.zero,
           titlePadding: EdgeInsets.zero,
           title: InkWell(
@@ -106,10 +99,7 @@ class DialogUtils {
   }
 
   /// Hàm hiển thị Dialog nhập PIN chuẩn hóa
-  static Future<bool> showPinDialog({
-    VoidCallback? onCompleted,
-    VoidCallback? onDismiss,
-  }) async {
+  static Future<bool> showPinDialog({VoidCallback? onCompleted, VoidCallback? onDismiss}) async {
     final controllerTag = 'pin_dialog_${DateTime.now().microsecondsSinceEpoch}';
     final pinController = Get.put(
       PinVerifyController(initialMode: FromType.confirm),
@@ -124,10 +114,7 @@ class DialogUtils {
         transitionCurve: Curves.easeOutCubic,
         Dialog(
           elevation: 0,
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 24,
-          ),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           backgroundColor: AppColors.transparent,
           child: AppEntranceAnimation(
             delay: const Duration(milliseconds: 35),
@@ -215,18 +202,12 @@ class DialogUtils {
                 ],
               ),
             ),
-            Divider(
-              height: 1,
-              thickness: 0.8,
-              color: AppColors.white.withOpacityCompat(0.08),
-            ),
+            Divider(height: 1, thickness: 0.8, color: AppColors.white.withOpacityCompat(0.08)),
             SizedBox(
               height: 48,
               child: InkWell(
                 onTap: onConfirm ?? () => Get.back(),
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(16),
-                ),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
                 child: Center(
                   child: TextWidget(
                     text: confirmText,
@@ -258,7 +239,7 @@ class DialogUtils {
     Get.dialog(
       barrierDismissible: barrierDismissible,
       Dialog(
-        backgroundColor: AppColors.d300,
+        backgroundColor: AppColors.inputSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         insetPadding: const EdgeInsets.symmetric(horizontal: 44, vertical: 24),
         child: Column(
@@ -289,11 +270,7 @@ class DialogUtils {
                 ],
               ),
             ),
-            Divider(
-              height: 1,
-              thickness: 0.8,
-              color: AppColors.white.withOpacityCompat(0.08),
-            ),
+            Divider(height: 1, thickness: 0.8, color: AppColors.white.withOpacityCompat(0.08)),
             SizedBox(
               height: 48,
               child: Row(
@@ -302,17 +279,13 @@ class DialogUtils {
                     Expanded(
                       child: InkWell(
                         onTap: onCancel,
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(16),
-                        ),
+                        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(16)),
                         child: Center(
                           child: TextWidget(
                             text: cancelText,
                             size: 15,
                             fontWeight: FontWeight.w500,
-                            color:
-                                cancelTextColor ??
-                                AppColors.white.withOpacityCompat(0.75),
+                            color: cancelTextColor ?? AppColors.white.withOpacityCompat(0.75),
                           ),
                         ),
                       ),
@@ -328,9 +301,7 @@ class DialogUtils {
                       onTap: onConfirm ?? () => Get.back(),
                       borderRadius: BorderRadius.only(
                         bottomRight: const Radius.circular(16),
-                        bottomLeft: onCancel == null
-                            ? const Radius.circular(16)
-                            : Radius.zero,
+                        bottomLeft: onCancel == null ? const Radius.circular(16) : Radius.zero,
                       ),
                       child: Center(
                         child: TextWidget(
@@ -339,8 +310,7 @@ class DialogUtils {
                           fontWeight: FontWeight.w700,
                           color:
                               confirmTextColor ??
-                              (alertType == AlertType.error ||
-                                      alertType == AlertType.warning
+                              (alertType == AlertType.error || alertType == AlertType.warning
                                   ? AppColors.danger
                                   : AppColors.primary),
                         ),
@@ -365,20 +335,12 @@ class DialogUtils {
             CircleAvatar(
               backgroundColor: AppColors.transparent,
               radius: 30,
-              child: Image.asset(
-                AppIcons.icLogoLinkeep.path,
-                height: 40,
-                width: 40,
-              ),
+              child: Image.asset(AppIcons.icLogoLinkeep.path, height: 40, width: 40),
             ),
             const SizedBox(height: 12),
             const Text(
               "AutoFin",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: AppColors.black,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.black),
             ),
           ],
         ),
@@ -393,28 +355,18 @@ class DialogUtils {
             onPressed: () => Get.back(result: false),
             child: const Text(
               "Ở lại",
-              style: TextStyle(
-                color: AppColors.grey,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: AppColors.grey, fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.secondary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () => Get.back(result: true), // thoát app
             child: const Text(
               "Thoát",
-              style: TextStyle(
-                fontSize: 16,
-                color: AppColors.white,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, color: AppColors.white, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -454,9 +406,5 @@ class _AlertConfig {
   final Color bgColor;
   final IconData icon;
 
-  _AlertConfig({
-    required this.color,
-    required this.bgColor,
-    required this.icon,
-  });
+  _AlertConfig({required this.color, required this.bgColor, required this.icon});
 }

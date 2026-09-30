@@ -36,10 +36,7 @@ class TikTokMetadataService {
 
     final results = await Future.wait<Object?>([
       _fetchOEmbed(metadataUrl, client),
-      _fetchAddress(
-        metadataUrl,
-        client,
-      ).timeout(const Duration(seconds: 4), onTimeout: () => ''),
+      _fetchAddress(metadataUrl, client).timeout(const Duration(seconds: 4), onTimeout: () => ''),
     ]);
     final result = results[0] as MetaDataModel?;
     final address = results[1] as String? ?? '';
@@ -55,11 +52,7 @@ class TikTokMetadataService {
     return _followRedirects(url, client, useHead: false);
   }
 
-  static Future<String?> _followRedirects(
-    String url,
-    Dio client, {
-    required bool useHead,
-  }) async {
+  static Future<String?> _followRedirects(String url, Dio client, {required bool useHead}) async {
     try {
       final options = Options(
         method: useHead ? 'HEAD' : 'GET',
@@ -83,21 +76,14 @@ class TikTokMetadataService {
 
   static String _withoutTrackingParameters(String url) {
     final fragmentIndex = url.indexOf('#');
-    final withoutFragment = fragmentIndex == -1
-        ? url
-        : url.substring(0, fragmentIndex);
+    final withoutFragment = fragmentIndex == -1 ? url : url.substring(0, fragmentIndex);
     final queryIndex = withoutFragment.indexOf('?');
-    return queryIndex == -1
-        ? withoutFragment
-        : withoutFragment.substring(0, queryIndex);
+    return queryIndex == -1 ? withoutFragment : withoutFragment.substring(0, queryIndex);
   }
 
   static Future<MetaDataModel?> _fetchOEmbed(String url, Dio client) async {
     try {
-      final response = await client.get<dynamic>(
-        _oEmbedUrl,
-        queryParameters: {'url': url},
-      );
+      final response = await client.get<dynamic>(_oEmbedUrl, queryParameters: {'url': url});
       if (response.statusCode != 200 || response.data is! Map) return null;
 
       final data = Map<String, dynamic>.from(response.data as Map);
@@ -137,11 +123,8 @@ class TikTokMetadataService {
       final document = html_parser.parse(html);
       Map<String, dynamic>? item;
 
-      final rehydrationScript = document.getElementById(
-        '__UNIVERSAL_DATA_FOR_REHYDRATION__',
-      );
-      if (rehydrationScript != null &&
-          rehydrationScript.text.trim().isNotEmpty) {
+      final rehydrationScript = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
+      if (rehydrationScript != null && rehydrationScript.text.trim().isNotEmpty) {
         final root = jsonDecode(rehydrationScript.text);
         final scope = _mapAt(root, '__DEFAULT_SCOPE__');
         final detail = _mapAt(scope, 'webapp.video-detail');
@@ -163,9 +146,7 @@ class TikTokMetadataService {
       if (item == null) return '';
 
       final contentLocation = _mapAt(item, 'contentLocation');
-      final contentAddress = contentLocation == null
-          ? null
-          : _mapAt(contentLocation, 'address');
+      final contentAddress = contentLocation == null ? null : _mapAt(contentLocation, 'address');
       final streetAddress = _stringAt(contentAddress, 'streetAddress');
       if (streetAddress.isNotEmpty) return streetAddress;
 
@@ -180,8 +161,7 @@ class TikTokMetadataService {
       final poiName = _stringAt(poi, 'name');
       final poiAddress = _stringAt(poi, 'address');
       if (poiAddress.isEmpty) return poiName;
-      if (poiName.isEmpty ||
-          poiAddress.toLowerCase().contains(poiName.toLowerCase())) {
+      if (poiName.isEmpty || poiAddress.toLowerCase().contains(poiName.toLowerCase())) {
         return poiAddress;
       }
       return '$poiName, $poiAddress';

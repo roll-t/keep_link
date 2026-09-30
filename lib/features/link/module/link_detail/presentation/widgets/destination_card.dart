@@ -3,12 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:keep_link/core/config/assets/app_vectors.dart';
 import 'package:keep_link/core/config/theme/app_colors.dart';
 import 'package:keep_link/core/config/theme/app_text_styles.dart';
 import 'package:keep_link/core/presentation/extensions/colors.dart';
 import 'package:keep_link/core/presentation/widgets/image/cache_image.dart';
-import 'package:keep_link/core/presentation/widgets/tab/app_segmented_tab.dart';
 import 'package:keep_link/core/presentation/widgets/text/text_widget.dart';
 import 'package:keep_link/features/link/module/link_detail/presentation/controller/link_detail_controller.dart';
 
@@ -18,25 +16,15 @@ class DestinationCard extends GetView<LinkDetailController> {
   Widget _buildLeadingIcon(BuildContext context) {
     final platform = controller.linkPlatform;
     final favicon =
-        controller.link.metaDataModel?.favicon ??
-        controller.link.metaDataModel?.appleIcon ??
-        '';
+        controller.link.metaDataModel?.favicon ?? controller.link.metaDataModel?.appleIcon ?? '';
 
-    // 1. Nếu là app có logo asset (YouTube, TikTok, Facebook, Instagram, X, Google...)
     if (platform.iconBuilder != null) {
       return Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: (platform.brandColor ?? AppColors.accentViolet)
-              .withOpacityCompat(0.18),
+          color: AppColors.white.withOpacityCompat(0.06),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: (platform.brandColor ?? AppColors.white).withOpacityCompat(
-              0.12,
-            ),
-            width: 1,
-          ),
         ),
         alignment: Alignment.center,
         child: platform.iconBuilder!(size: 22),
@@ -51,10 +39,6 @@ class DestinationCard extends GetView<LinkDetailController> {
         decoration: BoxDecoration(
           color: AppColors.white.withOpacityCompat(0.06),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: AppColors.white.withOpacityCompat(0.08),
-            width: 1,
-          ),
         ),
         alignment: Alignment.center,
         child: ClipRRect(
@@ -79,15 +63,8 @@ class DestinationCard extends GetView<LinkDetailController> {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: platform.isApp
-            ? AppColors.accentViolet.withOpacityCompat(0.2)
-            : AppColors.primary.withOpacityCompat(0.15),
+        color: AppColors.white.withOpacityCompat(0.06),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: (platform.isApp ? AppColors.accentViolet : AppColors.primary)
-              .withOpacityCompat(0.2),
-          width: 1,
-        ),
       ),
       alignment: Alignment.center,
       child: Icon(
@@ -100,16 +77,12 @@ class DestinationCard extends GetView<LinkDetailController> {
 
   @override
   Widget build(BuildContext context) {
-    // Không có URL lẫn địa chỉ để hiển thị (vd: metaData bị null) — tránh vẽ
-    // một khung rỗng chỉ có padding, tốn diện tích màn hình vô ích.
     if (controller.url.isEmpty && !controller.hasLocation) {
       return const SizedBox.shrink();
     }
 
-    final platform = controller.linkPlatform;
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.surfaceElevated,
         borderRadius: BorderRadius.circular(8),
@@ -118,83 +91,7 @@ class DestinationCard extends GetView<LinkDetailController> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (controller.url.isNotEmpty) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextWidget(
-                  text: "Original Destination".tr,
-                  textStyle: AppTextStyle.semiBold14,
-                ),
-
-                // Link website: chỉ chừa lại switch ẩn danh và public
-                if (!platform.isApp)
-                  Obx(() {
-                    final isIncognito = controller.isIncognito.value;
-                    return SizedBox(
-                      width: 68,
-                      height: 24,
-                      child: AppSegmentedTab(
-                        selectedIndex: isIncognito ? 1 : 0,
-                        height: 24,
-                        padding: 2,
-                        borderRadius: 20,
-                        backgroundColor: AppColors.background.withValues(
-                          alpha: .52,
-                        ),
-                        borderColor: AppColors.white.withValues(alpha: .07),
-                        selectedColor: AppColors.primary,
-                        selectedGradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [AppColors.primaryBright, AppColors.primary],
-                        ),
-                        onChanged: (index) {
-                          HapticFeedback.selectionClick();
-                          controller.toggleIncognito(index == 1);
-                        },
-                        tabs: [
-                          AppSegmentTabItem(
-                            label: '',
-                            semanticLabel: 'Public'.tr,
-                            icon: SizedBox.square(
-                              dimension: 16,
-                              child: Center(
-                                child: Icon(
-                                  Icons.public_rounded,
-                                  size: 13,
-                                  color: !isIncognito
-                                      ? AppColors.white
-                                      : AppColors.n70,
-                                ),
-                              ),
-                            ),
-                          ),
-                          AppSegmentTabItem(
-                            label: '',
-                            semanticLabel: 'Incognito'.tr,
-                            icon: SizedBox.square(
-                              dimension: 16,
-                              child: Center(
-                                child: AppVectors.icAnonymous.show(
-                                  size: 13,
-                                  color: isIncognito
-                                      ? AppColors.white
-                                      : AppColors.n70,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _LinkDestinationRow(
-              controller: controller,
-              leadingIcon: _buildLeadingIcon(context),
-            ),
+            _LinkDestinationRow(controller: controller, leadingIcon: _buildLeadingIcon(context)),
           ],
           Obx(() {
             if (!controller.hasLocation) return const SizedBox.shrink();
@@ -212,13 +109,10 @@ class DestinationCard extends GetView<LinkDetailController> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: AppColors.successDark,
+                          color: AppColors.white.withOpacityCompat(0.06),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(
-                          Icons.map_rounded,
-                          color: AppColors.white,
-                        ),
+                        child: const Icon(Icons.map_rounded, color: AppColors.successBright),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -230,11 +124,7 @@ class DestinationCard extends GetView<LinkDetailController> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(
-                        Icons.open_in_new,
-                        color: AppColors.successBright,
-                        size: 18,
-                      ),
+                      const Icon(Icons.open_in_new, color: AppColors.successBright, size: 18),
                     ],
                   ),
                 ),
@@ -251,10 +141,7 @@ class _LinkDestinationRow extends StatefulWidget {
   final LinkDetailController controller;
   final Widget leadingIcon;
 
-  const _LinkDestinationRow({
-    required this.controller,
-    required this.leadingIcon,
-  });
+  const _LinkDestinationRow({required this.controller, required this.leadingIcon});
 
   @override
   State<_LinkDestinationRow> createState() => _LinkDestinationRowState();
@@ -406,11 +293,7 @@ class _LinkDestinationRowState extends State<_LinkDestinationRow> {
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(
-            Icons.open_in_new_rounded,
-            color: AppColors.white70,
-            size: 18,
-          ),
+          const Icon(Icons.open_in_new_rounded, color: AppColors.white70, size: 18),
         ],
       ),
     );

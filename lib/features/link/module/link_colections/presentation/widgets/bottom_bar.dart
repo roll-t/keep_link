@@ -84,7 +84,7 @@ class _NavigationDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const radius = BorderRadius.all(Radius.circular(20));
+    const radius = BorderRadius.all(Radius.circular(12));
 
     return Container(
       height: 54,
@@ -132,11 +132,7 @@ class _NavigationDock extends StatelessWidget {
 }
 
 class _DockAction extends StatelessWidget {
-  const _DockAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _DockAction({required this.icon, required this.label, required this.onTap});
 
   final IconData icon;
   final String label;
@@ -212,10 +208,7 @@ class _AddButton extends StatelessWidget {
                     end: Alignment.bottomRight,
                     colors: [AppColors.primaryBright, AppColors.primary],
                   ),
-                  border: Border.all(
-                    color: AppColors.navigationSurface,
-                    width: 4,
-                  ),
+                  border: Border.all(color: AppColors.navigationSurface, width: 4),
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.primary.withOpacityCompat(.32),
@@ -224,11 +217,7 @@ class _AddButton extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.add_rounded,
-                  color: AppColors.white,
-                  size: 26,
-                ),
+                child: const Icon(Icons.add_rounded, color: AppColors.white, size: 26),
               ),
             );
           }),

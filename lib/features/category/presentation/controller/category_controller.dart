@@ -12,14 +12,18 @@ import 'package:keep_link/core/services/platform/deep_link_service.dart';
 import 'package:keep_link/core/services/backend/firebase_service.dart';
 import 'package:keep_link/core/di/dependency_utils.dart';
 import 'package:keep_link/core/utils/dialog_utils.dart';
+import 'package:keep_link/core/utils/link_source_util.dart';
+import 'package:keep_link/core/utils/utils.dart';
 import 'package:keep_link/features/category/application/category_name_rules.dart';
 import 'package:keep_link/features/category/application/model/category_model.dart';
 import 'package:keep_link/features/category/presentation/controller/custom_popup_controller.dart';
+import 'package:keep_link/features/category/presentation/widget/category_dialog.dart';
 import 'package:keep_link/features/friend/application/model/friend_model.dart';
 import 'package:keep_link/features/link/module/link_colections/presentation/controller/link_collection_controller.dart';
 
 class CategoryController extends GetxController {
   final categoryNameController = TextEditingController();
+  final FocusNode nameFocusNode = FocusNode();
   final CustomPopupController popupController = DependencyUtils.put(
     () => CustomPopupController(),
   );
@@ -30,6 +34,7 @@ class CategoryController extends GetxController {
   final Rx<VisibilityStatus> visibility = VisibilityStatus.public.obs;
   final RxSet<String> pinnedCategoryIds = <String>{}.obs;
   final RxBool isCategorySaving = false.obs;
+  bool _isFormPrepared = false;
 
   // Constants
   static const int _maxCategories = 30;
@@ -46,6 +51,7 @@ class CategoryController extends GetxController {
   @override
   void onClose() {
     categoryNameController.dispose();
+    nameFocusNode.dispose();
     super.onClose();
   }
 
@@ -63,6 +69,7 @@ class CategoryController extends GetxController {
     final currentSelectedId = keepSelection
         ? popupController.selectedItem.value?.id
         : null;
+    _recomputeSources();
     _updatePopupItems(selectId: currentSelectedId);
 
     // Tải danh sách share 1 lần (nếu đăng nhập & cache chưa có)
@@ -99,6 +106,7 @@ class CategoryController extends GetxController {
       if (!DeepLinkService.isOpenedFromShare) {
         await _reloadLinks();
       }
+      isCategorySaving.value = false;
       _closeCategoryDialog();
     } catch (e, s) {
       _handleError('Add category error', e, s);
@@ -155,6 +163,7 @@ class CategoryController extends GetxController {
 
       _updatePopupItems(selectId: categoryUpdate.id);
       await _reloadLinks();
+      isCategorySaving.value = false;
       _closeCategoryDialog();
     } catch (e, s) {
       _handleError('Update category error', e, s);
@@ -207,9 +216,10 @@ class CategoryController extends GetxController {
 
           // Confirm dialog is on top of the category editor. Close both in a
           // deterministic order so an async completion never pops a page.
+          isCategorySaving.value = false;
           if (Get.isDialogOpen == true) Get.back();
-          await Future<void>.delayed(Duration.zero);
-          _closeCategoryDialog();
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          closeCategoryDialog(force: true);
         } catch (e, s) {
           _handleError('Delete category error', e, s);
         } finally {
@@ -247,7 +257,28 @@ class CategoryController extends GetxController {
     for (final cat in categories) {
       cat.chilrenCount = counts[cat.id] ?? 0;
     }
+    _recomputeSources();
     _updatePopupItems(selectId: popupController.selectedItem.value?.id);
+  }
+
+  void _recomputeSources() {
+    final sources = LinkSourceUtil.computeSources(
+      AppCache.links,
+      privateCategoryIds: AppCache.privateCategoryIds,
+    );
+    final sourceItemList = [
+      ItemModel(id: "all", name: "All".tr),
+      ...sources.map(
+        (s) => ItemModel(
+          id: "source:${s.host}",
+          name: s.label,
+          chilrenCount: s.count,
+          isSource: true,
+          sourceHost: s.host,
+        ),
+      ),
+    ];
+    popupController.sourceItems.assignAll(sourceItemList);
   }
 
   void _updatePopupItems({String? selectId}) {
@@ -265,6 +296,17 @@ class CategoryController extends GetxController {
     ];
 
     popupController.items.assignAll(newItems);
+
+    final currentSelected = popupController.selectedItem.value;
+    if (currentSelected?.isSource == true) {
+      final matchedSource = popupController.sourceItems.firstWhereOrNull(
+        (e) => e.id == currentSelected!.id,
+      );
+      if (matchedSource != null) {
+        popupController.selectedItem.value = matchedSource;
+        return;
+      }
+    }
 
     if (selectId != null) {
       final matched = newItems.firstWhere(
@@ -330,27 +372,54 @@ class CategoryController extends GetxController {
     }
   }
 
-  void _closeCategoryDialog() {
+  void closeCategoryDialog({bool force = false}) {
+    if (!force && isCategorySaving.value) return;
+    _isFormPrepared = false;
+    Utils.dimissKeyboard();
     categoryNameController.clear();
     if (Get.isDialogOpen == true) Get.back();
   }
 
-  /// Resets form state exactly once when a category dialog opens.
+  void _closeCategoryDialog() => closeCategoryDialog(force: true);
+
+  /// Ensures form state is reset exactly once when a category dialog opens.
+  void ensureFormPrepared({required bool isEditMode}) {
+    if (!_isFormPrepared) {
+      _isFormPrepared = true;
+      prepareCategoryForm(isEditMode: isEditMode);
+    }
+  }
+
+  /// Resets form state and requests focus for category dialog.
   void prepareCategoryForm({required bool isEditMode}) {
     errorMess.value = "";
 
     if (!isEditMode) {
       categoryNameController.clear();
       visibility.value = VisibilityStatus.public;
-      return;
+    } else {
+      final selectedId = popupController.selectedItem.value?.id;
+      final selected = categories.firstWhereOrNull(
+        (item) => item.id == selectedId,
+      );
+      categoryNameController.text = selected?.name ?? "";
+      visibility.value = selected?.visibility ?? VisibilityStatus.public;
     }
 
-    final selectedId = popupController.selectedItem.value?.id;
-    final selected = categories.firstWhereOrNull(
-      (item) => item.id == selectedId,
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (nameFocusNode.canRequestFocus) {
+        nameFocusNode.requestFocus();
+      }
+    });
+  }
+
+  void openCategoryDialog({bool isEditMode = false}) {
+    _isFormPrepared = true;
+    prepareCategoryForm(isEditMode: isEditMode);
+    Get.dialog(
+      CategoryDialog(isEditMode: isEditMode),
+      barrierDismissible: false,
     );
-    categoryNameController.text = selected?.name ?? "";
-    visibility.value = selected?.visibility ?? VisibilityStatus.public;
   }
 
   // Public methods gọi từ View
